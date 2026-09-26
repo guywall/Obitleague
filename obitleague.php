@@ -77,6 +77,8 @@ add_action(
 	'plugins_loaded',
 	static function (): void {
 		Obitleague\Modules\Catalogue::boot();
+		Obitleague\Modules\Admin_Review::boot();
+		Obitleague\Modules\Front_Templates::boot();
 		Obitleague\Modules\Jobs::boot();
 		Obitleague\Modules\Rest::boot();
 	},
