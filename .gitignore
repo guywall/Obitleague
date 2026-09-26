@@ -1,0 +1,14 @@
+# Local dev
+/vendor/
+/node_modules/
+/.phpunit.result.cache
+/phpcs.xml
+/phpstan.neon
+
+# Working data (seed manifests, registers, checklists live in work/ and stay local)
+work/*
+!work/README.md
+
+# OS noise
+.DS_Store
+Thumbs.db

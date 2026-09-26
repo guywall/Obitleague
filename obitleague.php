@@ -1,0 +1,88 @@
+<?php
+/**
+ * Plugin Name:       Obitleague
+ * Plugin URI:        https://example.com/obitleague
+ * Description:       Fantasy dead pool league platform: people catalogue, feed discovery, editorial review, leagues, teams and reversible scoring.
+ * Version:           0.1.0
+ * Requires at least: 6.4
+ * Requires PHP:      8.2
+ * Author:            Obitleague
+ * License:           GPL-2.0-or-later
+ * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
+ * Text Domain:       obitleague
+ *
+ * One plugin owns catalogue, feeds, imports, editorial review, seasons,
+ * leagues, teams, scoring, notifications and administration. The presentation
+ * layer (Elementor + PRO Elements) binds to it through typed dynamic tags and
+ * guarded widgets; it never re-implements eligibility or scoring.
+ *
+ * Domain rules that must never drift live in src/Domain and are covered by
+ * tests/run-tests.php.
+ *
+ * @package Obitleague
+ */
+
+declare( strict_types = 1 );
+
+defined( 'ABSPATH' ) || exit;
+
+/* Constants. */
+if ( ! defined( 'OBITLEAGUE_VERSION' ) ) {
+	define( 'OBITLEAGUE_VERSION', '0.1.0' );
+}
+if ( ! defined( 'OBITLEAGUE_DB_VERSION' ) ) {
+	define( 'OBITLEAGUE_DB_VERSION', '0.1.0' );
+}
+if ( ! defined( 'OBITLEAGUE_FILE' ) ) {
+	define( 'OBITLEAGUE_FILE', __FILE__ );
+}
+if ( ! defined( 'OBITLEAGUE_DIR' ) ) {
+	define( 'OBITLEAGUE_DIR', __DIR__ . '/' );
+}
+if ( ! defined( 'OBITLEAGUE_REST_NAMESPACE' ) ) {
+	define( 'OBITLEAGUE_REST_NAMESPACE', 'obitleague/v1' );
+}
+
+/* Autoloader: PSR-4-ish, Obitleague\ → src/. */
+spl_autoload_register(
+	static function ( string $class ): void {
+		if ( ! str_starts_with( $class, 'Obitleague\\' ) ) {
+			return;
+		}
+		$relative = str_replace( '\\', '/', substr( $class, strlen( 'Obitleague\\' ) ) );
+		$file     = OBITLEAGUE_DIR . 'src/' . $relative . '.php';
+		if ( is_file( $file ) ) {
+			require_once $file;
+		}
+	}
+);
+
+register_activation_hook(
+	__FILE__,
+	static function (): void {
+		if ( version_compare( PHP_VERSION, '8.2.0', '<' ) ) {
+			deactivate_plugins( plugin_basename( __FILE__ ) );
+			wp_die( 'Obitleague requires PHP 8.2 or newer.' );
+		}
+		Obitleague\Modules\Setup::activate();
+	}
+);
+
+register_deactivation_hook(
+	__FILE__,
+	static fn () => Obitleague\Modules\Setup::deactivate()
+);
+
+add_action(
+	'plugins_loaded',
+	static function (): void {
+		Obitleague\Modules\Catalogue::boot();
+		Obitleague\Modules\Jobs::boot();
+		Obitleague\Modules\Rest::boot();
+	},
+	5
+);
+
+// Elementor registers itself on plugins_loaded (default priority), so the
+// bridge must check for it after that point.
+add_action( 'plugins_loaded', array( Obitleague\Modules\Elementor_Bridge::class, 'boot' ), 20 );
