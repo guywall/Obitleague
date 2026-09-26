@@ -39,6 +39,9 @@ if ( ! defined( 'OBITLEAGUE_FILE' ) ) {
 if ( ! defined( 'OBITLEAGUE_DIR' ) ) {
 	define( 'OBITLEAGUE_DIR', __DIR__ . '/' );
 }
+if ( ! defined( 'OBITLEAGUE_DIR_URL' ) ) {
+	define( 'OBITLEAGUE_DIR_URL', plugin_dir_url( __FILE__ ) );
+}
 if ( ! defined( 'OBITLEAGUE_REST_NAMESPACE' ) ) {
 	define( 'OBITLEAGUE_REST_NAMESPACE', 'obitleague/v1' );
 }
@@ -79,6 +82,7 @@ add_action(
 		Obitleague\Modules\Catalogue::boot();
 		Obitleague\Modules\Admin_Review::boot();
 		Obitleague\Modules\Front_Templates::boot();
+		Obitleague\Modules\Shortcodes::boot();
 		Obitleague\Modules\Jobs::boot();
 		Obitleague\Modules\Rest::boot();
 	},

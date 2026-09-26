@@ -1,0 +1,99 @@
+/**
+ * Obitleague front-end design system.
+ * Mobile-first; scales at 720px and 1024px. Statistics-driven, WCAG-friendly.
+ */
+
+:root {
+	--ob-ink: #14202b;
+	--ob-muted: #5a6b7b;
+	--ob-paper: #f4f7f9;
+	--ob-card: #ffffff;
+	--ob-line: #dde5ec;
+	--ob-accent: #0a7d5a;
+	--ob-accent-soft: #e3f3ec;
+	--ob-warn: #b3541e;
+	--ob-radius: 12px;
+	--ob-shadow: 0 1px 2px rgba(20, 32, 43, 0.06), 0 4px 14px rgba(20, 32, 43, 0.05);
+}
+
+.ob-page { max-width: 1120px; margin: 0 auto; padding: 16px; color: var(--ob-ink); }
+
+.ob-heading { font-size: 1.45rem; line-height: 1.2; margin: 0 0 6px; font-weight: 700; }
+.ob-sub { color: var(--ob-muted); margin: 0 0 18px; font-size: 0.95rem; }
+
+/* Stat tiles */
+.ob-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 18px 0; }
+.ob-stat { background: var(--ob-card); border: 1px solid var(--ob-line); border-radius: var(--ob-radius); box-shadow: var(--ob-shadow); padding: 14px 12px; text-align: center; }
+.ob-stat__num { display: block; font-size: 1.9rem; font-weight: 800; color: var(--ob-accent); line-height: 1.1; font-variant-numeric: tabular-nums; }
+.ob-stat__label { display: block; margin-top: 4px; font-size: 0.78rem; color: var(--ob-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* Cards and grids */
+.ob-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin: 14px 0; }
+.ob-card { background: var(--ob-card); border: 1px solid var(--ob-line); border-radius: var(--ob-radius); box-shadow: var(--ob-shadow); padding: 14px; }
+.ob-card__title { font-weight: 700; margin: 0 0 8px; font-size: 1.02rem; }
+
+/* Tables */
+.ob-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.ob-table th { text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ob-muted); padding: 6px 8px; border-bottom: 2px solid var(--ob-line); }
+.ob-table td { padding: 8px; border-bottom: 1px solid var(--ob-line); font-variant-numeric: tabular-nums; }
+.ob-table tr:last-child td { border-bottom: 0; }
+.ob-rank { font-weight: 800; color: var(--ob-accent); }
+.ob-pts { font-weight: 800; }
+
+/* Death rows */
+.ob-death { display: flex; gap: 10px; align-items: baseline; padding: 10px 2px; border-bottom: 1px solid var(--ob-line); }
+.ob-death:last-child { border-bottom: 0; }
+.ob-death__date { flex: 0 0 auto; font-size: 0.78rem; color: var(--ob-muted); font-variant-numeric: tabular-nums; min-width: 74px; }
+.ob-death__name { font-weight: 700; }
+.ob-death__meta { color: var(--ob-muted); font-size: 0.82rem; }
+.ob-badge { display: inline-block; background: var(--ob-accent-soft); color: var(--ob-accent); border-radius: 999px; padding: 2px 9px; font-size: 0.72rem; font-weight: 700; margin-left: 6px; white-space: nowrap; }
+.ob-badge--warn { background: #f7e9de; color: var(--ob-warn); }
+
+/* People grid */
+.ob-people { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.ob-person { background: var(--ob-card); border: 1px solid var(--ob-line); border-radius: var(--ob-radius); padding: 12px; }
+.ob-person__name { font-weight: 700; font-size: 0.95rem; margin: 0 0 2px; }
+.ob-person__name a { color: var(--ob-ink); text-decoration: none; }
+.ob-person__role { color: var(--ob-muted); font-size: 0.8rem; margin: 0 0 6px; }
+.ob-person__dates { font-size: 0.78rem; color: var(--ob-muted); font-variant-numeric: tabular-nums; }
+
+/* Filters */
+.ob-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+.ob-filters input[type="text"], .ob-filters select {
+	padding: 9px 10px; border: 1px solid var(--ob-line); border-radius: 9px; background: var(--ob-card); font-size: 0.9rem; min-height: 44px;
+}
+.ob-filters button { padding: 9px 16px; min-height: 44px; border: 0; border-radius: 9px; background: var(--ob-accent); color: #fff; font-weight: 700; }
+
+/* Hero */
+.ob-hero { background: linear-gradient(135deg, #0d3b2e, #0a7d5a); color: #fff; border-radius: 16px; padding: 26px 18px; margin: 0 0 8px; }
+.ob-hero h1 { margin: 0 0 6px; font-size: 1.7rem; line-height: 1.15; }
+.ob-hero p { margin: 0 0 14px; opacity: 0.92; font-size: 0.98rem; }
+.ob-hero__cta { display: flex; flex-wrap: wrap; gap: 10px; }
+.ob-hero__cta a { background: #fff; color: #0d3b2e; font-weight: 700; text-decoration: none; padding: 11px 18px; border-radius: 10px; min-height: 44px; display: inline-flex; align-items: center; }
+.ob-hero__cta a--ghost, .ob-hero__cta a.ghost { background: rgba(255,255,255,0.14); color: #fff; }
+
+/* Person template bits */
+.obitleague-person, .obitleague-archive { max-width: 900px; margin: 0 auto; padding: 16px; }
+.obitleague-person__facts { display: grid; grid-template-columns: 1fr; gap: 4px 12px; background: var(--ob-card); border: 1px solid var(--ob-line); border-radius: var(--ob-radius); padding: 14px; }
+.obitleague-person__facts dt { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ob-muted); margin-top: 8px; }
+.obitleague-person__facts dd { margin: 0; font-weight: 600; }
+.obitleague-archive__list { list-style: none; margin: 0; padding: 0; }
+.obitleague-archive__list li { padding: 10px 2px; border-bottom: 1px solid var(--ob-line); }
+
+/* Responsive */
+@media (min-width: 720px) {
+	.ob-page { padding: 28px 20px; }
+	.ob-grid { grid-template-columns: repeat(2, 1fr); }
+	.ob-stats { grid-template-columns: repeat(4, 1fr); }
+	.ob-people { grid-template-columns: repeat(3, 1fr); }
+	.obitleague-person__facts { grid-template-columns: 130px 1fr; }
+	.obitleague-person__facts dt { margin-top: 0; }
+	.ob-heading { font-size: 1.8rem; }
+	.ob-hero { padding: 40px 32px; }
+	.ob-hero h1 { font-size: 2.2rem; }
+}
+@media (min-width: 1024px) {
+	.ob-people { grid-template-columns: repeat(4, 1fr); }
+	.ob-grid--3 { grid-template-columns: repeat(3, 1fr); }
+	.ob-page { padding: 36px 24px; }
+}
