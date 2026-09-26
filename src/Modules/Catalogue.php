@@ -126,6 +126,11 @@ final class Catalogue {
 		if ( '' !== (string) get_post_meta( $post_id, 'obit_death_date', true ) ) {
 			return false;
 		}
+		// An open review case also blocks selection until an editor decides.
+		$uuid = (string) get_post_meta( $post_id, 'obit_uuid', true );
+		if ( '' !== $uuid && \Obitleague\Modules\Review_Service::has_open_case( $uuid ) ) {
+			return false;
+		}
 		$birth_raw = (string) get_post_meta( $post_id, 'obit_birth_date', true );
 		if ( '' === $birth_raw ) {
 			return false;

@@ -5,9 +5,12 @@
 /phpcs.xml
 /phpstan.neon
 
-# Working data (seed manifests, registers, checklists live in work/ and stay local)
+# Working data: raw seed JSON stays local; the builder and manifest are tracked
 work/*
 !work/README.md
+!work/source-register-template.md
+!work/seed-manifest.md
+!work/build-seed.cjs
 
 # OS noise
 .DS_Store

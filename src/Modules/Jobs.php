@@ -227,8 +227,9 @@ final class Jobs {
 		do_action( 'obitleague_profile_refresh_tick' );
 	}
 
-	/** Placeholder until the notifications module lands. */
+	/** Drain the scoring/notification outbox every minute. */
 	public static function outbox_tick(): void {
-		do_action( 'obitleague_outbox_process' );
+		Outbox_Service::process_outbox();
+		do_action( 'obitleague_outbox_processed' );
 	}
 }

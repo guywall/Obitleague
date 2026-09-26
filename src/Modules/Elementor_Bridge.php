@@ -28,6 +28,17 @@ final class Elementor_Bridge {
 		add_filter( 'elementor/dynamic_tags/base_groups', array( self::class, 'tag_groups' ) );
 		add_action( 'elementor/dynamic_tags/register_tags', array( self::class, 'register_tags' ) );
 		add_action( 'elementor/widgets/register', array( self::class, 'register_widgets' ) );
+
+		// The standings widget's membership guard resolves through the real
+		// league service — checked on every render.
+		\add_filter(
+			'obitleague_user_is_league_member',
+			static function ( bool $is_member, int $league_id, int $user_id ): bool {
+				return League_Service::is_member( $league_id, $user_id );
+			},
+			10,
+			3
+		);
 	}
 
 	/** Dependency notice when Elementor is missing; data layer stays operable. */

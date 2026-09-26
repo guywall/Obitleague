@@ -23,7 +23,7 @@ src/Support/Time.php            Deadline checks, London-time helpers
 tests/run-tests.php             Standalone test runner (no WordPress)
 ```
 
-Planned modules for the next milestone: Feed_Polling, Review (editorial queue), Leagues, Entries, Scoring, Notifications, Import.
+Modules: Catalogue, Jobs (feed polling + outbox tick), Rest, Elementor_Bridge, League_Service (create/join/invites), Entry_Service (drafts, submission receipts, lock races), Review_Service (editorial state machine, stale-protected decisions, event publication), Outbox_Service (award fan-out, retraction reversals), Standings_Service (published generations with competition ranking), Scoring_Service (idempotent award ledger), Setup (migrations). Planned next: Notifications (in-app/email), Import (Wikidata seeding).
 
 ## Data model (target)
 
