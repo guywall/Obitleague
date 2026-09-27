@@ -236,10 +236,29 @@
 }
 
 /* ---------- standings tables ---------- */
+.ob-table-scroll,
+.ob-admin-table-scroll {
+	max-width: 100%;
+	overflow-x: auto;
+	overscroll-behavior-inline: contain;
+	-webkit-overflow-scrolling: touch;
+}
+.ob-admin-table-scroll {
+	margin: 12px 0 20px;
+}
+.ob-admin-table-scroll > table {
+	min-width: 620px;
+}
 .ob-table {
 	width: 100%;
 	border-collapse: collapse;
 	font-size: 0.92rem;
+}
+.ob-table--overall {
+	min-width: 640px;
+}
+.ob-table--compact {
+	min-width: 360px;
 }
 .ob-table th {
 	text-align: left;
@@ -505,7 +524,10 @@
 		padding: 30px 22px 10px;
 	}
 	.ob-grid {
-		grid-template-columns: repeat(2, 1fr);
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+	.ob-card {
+		min-width: 0;
 	}
 	.ob-stats {
 		grid-template-columns: repeat(3, 1fr);
@@ -589,4 +611,26 @@
 	.obitleague-person__facts dt {
 		margin-top: 0;
 	}
+}
+
+/* ---------- occupations ---------- */
+.ob-person__occ {
+	margin: 0 0 2px;
+	font-size: 12.5px;
+	line-height: 1.45;
+	color: var(--ob-muted);
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+.ob-person__role + .ob-person__occ {
+	margin-top: -2px;
+}
+.ob-profile__occ {
+	margin: 6px 0 0;
+	font-size: 15px;
+	line-height: 1.5;
+	color: var(--ob-muted);
+	max-width: 60ch;
 }

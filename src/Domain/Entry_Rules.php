@@ -60,9 +60,9 @@ final class Entry_Rules {
 		return $unique;
 	}
 
-	/** True when the current revision can be edited (before lock only). */
+	/** True when either a draft or competing team can be changed before lock. */
 	public static function can_edit( string $state, bool $deadline_open ): bool {
-		return $deadline_open && self::DRAFT === $state;
+		return $deadline_open && in_array( $state, array( self::DRAFT, self::SUBMITTED ), true );
 	}
 
 	/** True when the entry can be submitted: draft state, open, valid picks. */
@@ -71,13 +71,16 @@ final class Entry_Rules {
 	}
 
 	/**
-	 * Effect of a save attempt. Late or locked saves never mutate a submitted
-	 * revision; they are refused.
+	 * Effect of a save attempt. A submitted team can be amended until lock;
+	 * each amendment creates a new immutable competing revision.
 	 *
-	 * @return string 'create_draft' | 'refuse'
+	 * @return string 'create_draft' | 'create_amendment' | 'refuse'
 	 */
 	public static function save_effect( string $state, bool $deadline_open ): string {
-		return self::can_edit( $state, $deadline_open ) ? 'create_draft' : 'refuse';
+		if ( ! self::can_edit( $state, $deadline_open ) ) {
+			return 'refuse';
+		}
+		return self::SUBMITTED === $state ? 'create_amendment' : 'create_draft';
 	}
 
 	/**

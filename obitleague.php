@@ -3,7 +3,7 @@
  * Plugin Name:       Obitleague
  * Plugin URI:        https://example.com/obitleague
  * Description:       Fantasy dead pool league platform: people catalogue, feed discovery, editorial review, leagues, teams and reversible scoring.
- * Version:           0.6.1
+ * Version:           0.8.0
  * Requires at least: 6.4
  * Requires PHP:      8.2
  * Author:            Obitleague
@@ -28,10 +28,10 @@ defined( 'ABSPATH' ) || exit;
 
 /* Constants. */
 if ( ! defined( 'OBITLEAGUE_VERSION' ) ) {
-	define( 'OBITLEAGUE_VERSION', '0.6.1' );
+	define( 'OBITLEAGUE_VERSION', '0.8.0' );
 }
 if ( ! defined( 'OBITLEAGUE_DB_VERSION' ) ) {
-	define( 'OBITLEAGUE_DB_VERSION', '0.1.0' );
+	define( 'OBITLEAGUE_DB_VERSION', '0.5.0' );
 }
 if ( ! defined( 'OBITLEAGUE_FILE' ) ) {
 	define( 'OBITLEAGUE_FILE', __FILE__ );
@@ -76,12 +76,24 @@ register_deactivation_hook(
 	static fn () => Obitleague\Modules\Setup::deactivate()
 );
 
+// Every new account receives its main-season entry automatically.
+add_action( 'user_register', array( Obitleague\Modules\Main_League_Service::class, 'on_user_register' ), 20 );
+
 add_action(
 	'plugins_loaded',
-	static function (): void {		Obitleague\Modules\Catalogue::boot();
+	static function (): void {
+		if ( is_admin() ) {
+			Obitleague\Modules\Setup::maybe_upgrade();
+			Obitleague\Modules\Admin_Theme::boot();
+		}
+		Obitleague\Modules\Catalogue::boot();
 		Obitleague\Modules\Admin_Review::boot();
+		Obitleague\Modules\Admin_Game::boot();
+		Obitleague\Modules\Admin_Stats::boot();
+		Obitleague\Modules\Demo_Accounts_Admin::boot();
 		Obitleague\Modules\Front_Templates::boot();
 		Obitleague\Modules\Site_Chrome::boot();
+		Obitleague\Modules\Forum::boot();
 		Obitleague\Modules\Shortcodes::boot();
 		Obitleague\Modules\Game_Pages::boot();
 		Obitleague\Modules\Jobs::boot();

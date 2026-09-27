@@ -22,7 +22,7 @@ final class Import_Service {
 	/**
 	 * Import or refresh one person, idempotent by Wikidata QID.
 	 *
-	 * @param array{qid:string, name:string, birth_date:string, death_date?:string, occupation?:string} $data
+	 * @param array{qid:string, name:string, birth_date:string, death_date?:string, occupation?:string, role?:string, enwiki?:string} $data
 	 * @return int Post id of the person record.
 	 */
 	public static function import_person( array $data ): int {
@@ -39,8 +39,10 @@ final class Import_Service {
 			throw new \InvalidArgumentException( "A usable name is required for {$qid}." );
 		}
 
-		$birth = (string) ( $data['birth_date'] ?? '' );
-		$death = (string) ( $data['death_date'] ?? '' );
+		$birth  = (string) ( $data['birth_date'] ?? '' );
+		$death  = (string) ( $data['death_date'] ?? '' );
+		$role   = trim( (string) ( $data['role'] ?? '' ) );
+		$enwiki = trim( (string) ( $data['enwiki'] ?? '' ) );
 		try {
 			$birth_parsed = self::parse_partial( $birth );
 			$death_parsed = '' !== $death ? self::parse_partial( $death ) : null;
@@ -51,6 +53,12 @@ final class Import_Service {
 		$existing = self::post_id_by_qid( $qid );
 		if ( $existing ) {
 			update_post_meta( $existing, 'obit_birth_date', $birth );
+			if ( '' !== $role && '' === (string) get_post_meta( $existing, 'obit_role', true ) ) {
+				update_post_meta( $existing, 'obit_role', $role );
+			}
+			if ( '' !== $enwiki && '' === (string) get_post_meta( $existing, 'obit_enwiki', true ) ) {
+				update_post_meta( $existing, 'obit_enwiki', $enwiki );
+			}
 			if ( $death_parsed ) {
 				update_post_meta( $existing, 'obit_death_date', $death );
 				update_post_meta( $existing, 'obit_death_precision', $death_parsed->precision() );
@@ -78,6 +86,12 @@ final class Import_Service {
 		update_post_meta( $post_id, 'obit_uuid', wp_generate_uuid4() );
 		update_post_meta( $post_id, 'obit_qid', $qid );
 		update_post_meta( $post_id, 'obit_birth_date', $birth );
+		if ( '' !== $role ) {
+			update_post_meta( $post_id, 'obit_role', $role );
+		}
+		if ( '' !== $enwiki ) {
+			update_post_meta( $post_id, 'obit_enwiki', $enwiki );
+		}
 		update_post_meta( $post_id, 'obit_eligibility', 'candidate' );
 		update_post_meta( $post_id, 'obit_eligibility_note', 'Seed import — awaiting editorial eligibility review.' );
 

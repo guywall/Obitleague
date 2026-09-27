@@ -2,6 +2,8 @@
 
 Fantasy dead pool league website for WordPress. Players pick ten public figures before the season starts; verified deaths of their picks score points according to a versioned, reversible ruleset.
 
+> **AI coding task handoff:** Start with [AI_PLUGIN_GUIDE.md](AI_PLUGIN_GUIDE.md) for the current plugin scope, versions, shortcodes, REST routes, frontend markers, and safe-change workflow. Verify details against source before editing.
+
 ## Design principles
 
 1. **No LLM in the pipeline.** Death detection uses publisher RSS/Atom feeds; a human editor confirms every death. News wording is ambiguous and the pipeline never publishes unreviewed claims.

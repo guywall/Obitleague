@@ -5,6 +5,94 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-09-27
+
+### Added
+- Community forum at `/forum/`: verified players start threads and reply,
+  everyone can read; moderators (admins/editors) can pin, lock or delete
+  threads. Forum pages carry the full site chrome and navigation.
+- Statistics page: "The shape of the archive" — a dozen analysis boards
+  computed from confirmed deceased records (occupations via the taxonomy,
+  birth decades, birth months, weekday born, star signs, first initials,
+  name letter counts, ages at death) with linked occupation groups and a
+  headline fact; cached and refreshed when records change.
+- Occupations are now a first-class taxonomy: Wikidata occupation postmeta
+  is mirrored into `obit_occupation` terms on every import/sync, an
+  additive migration backfills existing people, and catalogue/profile
+  cards show linked occupation tags. Occupation archives are browsable
+  pages, so players can source groups of picks without extra Wikidata
+  searches; the team picker already searched the on-site catalogue first
+  and falls back to Wikidata with occupation labels for disambiguation.
+- Branded admin design system: Obitleague screens (review queue and case
+  screens, leagues & teams admin, statistics, demo accounts, people and
+  nominations lists, person edit screen) pick up the editorial palette,
+  typography, buttons, tables and metabox styling via a scoped
+  `assets/admin.css` loaded by the new Admin_Theme module. Core admin
+  screens outside the plugin are untouched.
+- Administrator league management gains deletion: a side league can be
+  deleted (members, teams, revisions, picks and awards; typed-name
+  confirmation; audited; standings generations cleaned up) and any team
+  entry can be deleted with reason, award removal and immediate standings
+  rebuild. The main league cannot be deleted.
+
+### Changed
+- Rules page rewritten in plain language — five walkthrough sections,
+  human examples of the scoring formula, tie-breaks, month-precision and
+  settlement notes, and an expanded respect section covering the forum.
+  All governing values still render from the `Ruleset` domain constants.
+- Living person profiles read "age: 74" instead of "74 today" on the life
+  timeline, so a birthday never seems to be implied.
+
+### Fixed
+- Light mint/white links on gold hero CTA buttons (the `ob-hero a`
+  override painted button text nearly invisible); CTA buttons keep their
+  dark ink, other hero links stay light.
+
+### Added
+- Per-entry team names with an additive schema migration, team-profile and
+  standings display, and administrator editing/audit support.
+- Expanded the local demo to eight themed leagues, forty clearly fictional
+  demo accounts and up to 64 named teams with sourced, themed pick mixes.
+- WordPress administrator screens for league creation and management,
+  member status/removal, team entry creation, audited pick revisions,
+  submission/withdrawal, revision history and standings rebuilds. Added a
+  database-backed administrator audit log and additive schema migration.
+
+### Added
+- Join and team-management front end with debounced catalogue search,
+  age/occupation disambiguation and explicit human-only Wikidata add flow.
+- Players can amend submitted teams until their season begins; prior submitted
+  revisions remain preserved and new approved-event awards are applied.
+
+### Fixed
+- Wrapped public standings and plugin-admin data tables in local horizontal
+  scroll containers, and tightened narrow-screen league roster rows so tables
+  and metadata no longer widen the page.
+- Person-page potential now reflects points at the person's current completed
+  age; scoring details live in an accessible tooltip instead of a paragraph.
+- Demo imports retain Wikipedia article titles so profiles can link directly
+  to the article (or follow the QID sitelink when a title is unavailable).
+
+## [0.7.1] — 2026-09-27
+
+### Fixed
+- Reveal-on-scroll animation now has a 1.2-second failsafe so content can
+  never stay invisible when IntersectionObserver callbacks never fire
+  (non-composited webviews, some embedded browsers, printing).
+
+## [0.7.0] — 2026-09-27
+
+### Added
+- Occupations for every catalogue profile, pulled from Wikidata P106 and
+  stored comma-separated, with a primary designator taken from the
+  preferred-rank claim (falling back to the first listed occupation).
+  Shown on catalogue and archive cards and on profile pages (primary
+  first); the QID map is kept in postmeta for future filtering.
+
+### Fixed
+- Nav highlight over-matched: every menu item lit up on catalogue-family
+  routes. Exactly one item highlights per route now.
+
 ## [0.6.1] — 2026-09-27
 
 ### Fixed

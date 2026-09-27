@@ -16,9 +16,12 @@ if ( ! $league ) {
 	exit;
 }
 
-$season   = (int) $league['season'];
-$score    = League_View_Service::scoreboard( $league_id, $season );
-$viewer   = League_View_Service::viewer_is_member( $league_id );
+$season = (int) $league['season'];
+$page = max( 1, absint( $_GET['page'] ?? 1 ) );
+$per_page = 50;
+$total = Standings_Service::count_current( $league_id, $season );
+$score = League_View_Service::scoreboard( $league_id, $season, $page, $per_page );
+$viewer = League_View_Service::viewer_is_member( $league_id );
 $my_entry = get_current_user_id() ? League_View_Service::submitted_entry_id( get_current_user_id(), $league_id, $season ) : 0;
 
 get_header();
@@ -46,7 +49,7 @@ get_header();
 			<section class="ob-league-row ob-card<?php echo $row['points'] > 0 ? '' : ''; ?>">
 				<div class="ob-league-row__head" data-toggle>
 					<span class="ob-rank"><span class="ob-medal ob-medal--<?php echo (int) $row['rank']; ?>"><?php echo esc_html( (string) $row['rank'] ); ?></span></span>
-					<span class="ob-league-row__player"><?php echo esc_html( (string) $row['player'] ); ?></span>
+					<span class="ob-league-row__player"><?php echo esc_html( (string) $row['player'] ); ?><?php if ( ! empty( $row['team_name'] ) && ! empty( $row['owner'] ) ) : ?><small class="ob-league-row__owner">managed by <?php echo esc_html( (string) $row['owner'] ); ?></small><?php endif; ?></span>
 					<span class="ob-league-row__meta"><?php echo esc_html( (string) $row['scoring_picks'] ); ?> scoring pick<?php echo 1 === (int) $row['scoring_picks'] ? '' : 's'; ?></span>
 					<span class="ob-pts"><?php echo esc_html( (string) $row['points'] ); ?> <small>pts</small></span>
 					<span class="ob-league-row__chev" aria-hidden="true">▾</span>
@@ -89,6 +92,13 @@ get_header();
 				<?php endif; ?>
 			</section>
 		<?php endforeach; ?>
+		<?php if ( $total > $per_page ) : ?>
+			<nav class="ob-pagination" aria-label="League standings pages">
+				<?php if ( $page > 1 ) : ?><a href="<?php echo esc_url( add_query_arg( 'page', $page - 1 ) ); ?>">&larr; Previous</a><?php endif; ?>
+				<span>Page <?php echo esc_html( (string) $page ); ?> of <?php echo esc_html( (string) (int) ceil( $total / $per_page ) ); ?></span>
+				<?php if ( $page * $per_page < $total ) : ?><a href="<?php echo esc_url( add_query_arg( 'page', $page + 1 ) ); ?>">Next &rarr;</a><?php endif; ?>
+			</nav>
+		<?php endif; ?>
 	<?php endif; ?>
 </main>
 <script>

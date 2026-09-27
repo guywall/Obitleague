@@ -45,6 +45,7 @@ get_header();
 					// Leave dates off the listing if malformed.
 				}
 				$is_dead = null !== $death;
+				$occs = People_Sync::occupation_labels( $post_id );
 				?>					<?php $portrait = (string) get_post_meta( $post_id, People_Sync::META_IMAGE_URL, true ); ?>
 					<article class="ob-person<?php echo $is_dead ? ' ob-person--dead' : ''; ?> ob-anim">
 						<?php if ( '' !== $portrait ) : ?>
@@ -56,6 +57,13 @@ get_header();
 					<p class="ob-person__name"><a href="<?php the_permalink(); ?>"><?php echo esc_html( $name ); ?></a></p>
 					<?php if ( '' !== $role ) : ?>
 						<p class="ob-person__role"><?php echo esc_html( $role ); ?></p>
+					<?php endif; ?>
+					<?php $occs = People_Sync::occupation_term_links( $post_id ); ?>
+					<?php if ( array() !== $occs ) : ?>
+						<p class="ob-person__occ"><?php echo implode( '', $occs ); // pre-escaped links. ?></p>
+					<?php endif; ?>
+					<?php if ( array() !== $occs ) : ?>
+						<p class="ob-person__occ" title="<?php echo esc_attr( implode( ', ', $occs ) ); ?>"><?php echo esc_html( implode( ', ', $occs ) ); ?></p>
 					<?php endif; ?>
 					<p class="ob-person__dates">
 						<?php

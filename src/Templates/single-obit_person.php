@@ -3,7 +3,7 @@
  * Person single template (plugin fallback).
  *
  * Editorial profile: hero with monogram and status, life timeline,
- * approved-facts panel, scoring note and sourced attribution.
+ * approved-facts panel, scoring potential and sourced attribution.
  *
  * @package Obitleague
  */
@@ -29,6 +29,8 @@ $enwiki     = (string) get_post_meta( $post_id, 'obit_enwiki', true );
 $content    = get_the_content( null, false, $post_id );
 $portrait   = (string) get_post_meta( $post_id, People_Sync::META_IMAGE_URL, true );
 $credit     = (string) get_post_meta( $post_id, People_Sync::META_IMAGE_CREDIT, true );
+$occs       = People_Sync::occupation_labels( $post_id );
+$occ_primary = People_Sync::primary_occupation( $post_id );
 
 $birth = '' !== $birth_raw ? Import_Service::parse_partial( $birth_raw ) : null;
 $death = '' !== $death_raw ? Import_Service::parse_partial( $death_raw ) : null;
@@ -47,8 +49,14 @@ try {
 	// Malformed dates: omit age figures rather than guess.
 }
 
-$points = null !== $age_at_death ? Ruleset::points_for_age( (int) $age_at_death ) : null;
-$season = (int) date_i18n( 'Y' );
+$points           = null !== $age_at_death ? Ruleset::points_for_age( (int) $age_at_death ) : null;
+$potential_points = null !== $age_now ? Ruleset::points_for_age( (int) $age_now ) : null;
+$season           = (int) date_i18n( 'Y' );
+$wikipedia_url = '' !== $enwiki
+	? 'https://en.wikipedia.org/wiki/' . rawurlencode( $enwiki )
+	: ( '' !== $qid ? 'https://www.wikidata.org/wiki/Special:GoToLinkedPage/enwiki/' . rawurlencode( $qid ) : '' );
+$points_tooltip   = null !== $age_at_death ? sprintf( 'Points = max(1, 100 − age at death); age at death: %d.', (int) $age_at_death ) : '';
+$potential_tip    = null !== $age_now ? sprintf( 'If they died today: points = max(1, 100 − completed age); current age: %d.', (int) $age_now ) : 'Potential unavailable because an exact birth date is not recorded.';
 
 get_header();
 ?>
@@ -66,7 +74,18 @@ get_header();
 				<h1 class="ob-profile__name"><?php echo esc_html( $name ); ?></h1>
 				<?php if ( '' !== $role ) : ?>
 					<p class="ob-profile__role"><?php echo esc_html( $role ); ?></p>
-				<?php endif; ?>
+				<?php endif; ?>					<?php if ( array() !== $occs ) : ?>
+						<?php
+						$occ_display = ( '' !== $occ_primary && in_array( $occ_primary, $occs, true ) )
+							? $occ_primary . ( count( $occs ) > 1 ? ' · ' . implode( ', ', array_diff( $occs, array( $occ_primary ) ) ) : '' )
+							: implode( ', ', $occs );
+						?>
+						<p class="ob-profile__occ" title="<?php echo esc_attr( implode( ', ', $occs ) ); ?>"><?php echo esc_html( $occ_display ); ?></p>
+					<?php endif; ?>
+					<?php $occ_tags = People_Sync::occupation_term_links( $post_id ); ?>
+					<?php if ( array() !== $occ_tags ) : ?>
+						<p class="ob-profile__occ-tags"><?php echo implode( '', $occ_tags ); // pre-escaped links. ?></p>
+					<?php endif; ?>
 			</div>
 			<span class="ob-profile__status"><?php echo $is_dead ? esc_html( 'Confirmed' ) : esc_html( 'Living' ); ?></span>
 		</div>
@@ -81,7 +100,7 @@ get_header();
 				<?php if ( null !== $age_at_death ) : ?>
 					<span class="ob-profile__span-age"><?php echo esc_html( (string) $age_at_death ); ?> years</span>
 				<?php elseif ( null !== $age_now ) : ?>
-					<span class="ob-profile__span-age"><?php echo esc_html( (string) $age_now ); ?> today</span>
+					<span class="ob-profile__span-age"><?php echo esc_html( 'age: ' . (string) $age_now ); ?></span>
 				<?php endif; ?>
 			</div>
 			<div class="ob-profile__moment ob-profile__moment--end">
@@ -104,6 +123,8 @@ get_header();
 			<section class="ob-card ob-anim">
 				<h2 class="ob-card__title">Approved facts</h2>
 				<dl class="obitleague-person__facts obitleague-person__facts--panel">
+					<dt><?php esc_html_e( 'Occupations', 'obitleague' ); ?></dt>
+					<dd><?php echo esc_html( implode( ', ', $occs ) ); ?></dd>
 					<dt><?php esc_html_e( 'Born', 'obitleague' ); ?></dt>
 					<dd><?php echo $birth ? esc_html( $birth->label() ) : esc_html__( 'Unknown', 'obitleague' ); ?></dd>
 					<?php if ( $is_dead && $death ) : ?>
@@ -129,20 +150,18 @@ get_header();
 			<?php if ( $is_dead && null !== $points ) : ?>
 				<section class="ob-card ob-scorecard ob-scorecard--setted">
 					<span class="ob-scorecard__kicker">Season <?php echo esc_html( (string) $season ); ?> scoring</span>
-					<span class="ob-scorecard__points"><?php echo esc_html( (string) $points ); ?></span>
+					<span class="ob-scorecard__points" role="img" tabindex="0" title="<?php echo esc_attr( $points_tooltip ); ?>" aria-label="<?php echo esc_attr( $points . ' points; ' . $points_tooltip ); ?>"><?php echo esc_html( (string) $points ); ?></span>
 					<span class="ob-scorecard__unit">points</span>
-					<p>Scored as max(1, 100 − age at death), confirmed by the editors.</p>
 				</section>
 			<?php elseif ( ! $is_dead ) : ?>
 				<section class="ob-card ob-scorecard">
 					<span class="ob-scorecard__kicker">Season <?php echo esc_html( (string) $season ); ?> pick</span>
-					<span class="ob-scorecard__points ob-scorecard__points--living">100</span>
+					<span class="ob-scorecard__points ob-scorecard__points--living" role="img" tabindex="0" title="<?php echo esc_attr( $potential_tip ); ?>" aria-label="<?php echo esc_attr( null !== $potential_points ? $potential_points . ' potential points. ' . $potential_tip : $potential_tip ); ?>"><?php echo null !== $potential_points ? esc_html( (string) $potential_points ) : esc_html( '—' ); ?></span>
 					<span class="ob-scorecard__unit">potential</span>
-					<p>A confirmed death in season <?php echo esc_html( (string) $season ); ?> scores max(1, 100 − age at death) — younger lives score more.</p>
 				</section>
 			<?php endif; ?>
 
-			<?php if ( '' !== $qid || '' !== $enwiki || '' !== $portrait ) : ?>
+			<?php if ( '' !== $qid || '' !== $wikipedia_url || '' !== $portrait ) : ?>
 				<section class="ob-card ob-sources">
 					<h2 class="ob-card__title">Sources</h2>
 					<ul>
@@ -152,8 +171,8 @@ get_header();
 						<?php if ( '' !== $qid ) : ?>
 							<li><a href="<?php echo esc_url( 'https://www.wikidata.org/wiki/' . rawurlencode( $qid ) ); ?>">Wikidata <span><?php echo esc_html( $qid ); ?></span></a></li>
 						<?php endif; ?>
-						<?php if ( '' !== $enwiki ) : ?>
-							<li><a href="<?php echo esc_url( 'https://en.wikipedia.org/wiki/' . rawurlencode( $enwiki ) ); ?>">Wikipedia biography</a></li>
+						<?php if ( '' !== $wikipedia_url ) : ?>
+							<li><a href="<?php echo esc_url( $wikipedia_url ); ?>">Wikipedia biography</a></li>
 						<?php endif; ?>
 					</ul>
 					<p class="ob-sources__note">Facts sourced from Wikipedia (CC BY-SA) and Wikidata (CC0). This page reports approved facts only.</p>

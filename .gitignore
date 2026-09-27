@@ -12,6 +12,7 @@ work/*
 !work/seed-manifest.md
 !work/build-seed.cjs
 !work/lan-proxy.cjs
+!work/deploy-obitleague.co.uk.md
 
 # OS noise
 .DS_Store

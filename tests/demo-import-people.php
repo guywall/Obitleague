@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 use Obitleague\Modules\Import_Service;
 
-$work = 'C:/Users/guy/Documents/Obitz/Obitleague/work';
+$work = dirname( __DIR__ ) . '/work';
 $season = 2026;
 
 $imported = 0;
@@ -32,6 +32,8 @@ $import_row = static function ( array $row ) use ( $season, &$imported, &$approv
 				'birth_date' => $row['birth'],
 				'death_date' => $row['death'],
 				'occupation' => $row['role'] ?? '',
+				'role'       => $row['role'] ?? '',
+				'enwiki'     => $row['enwiki'] ?? '',
 			)
 		);
 		++$imported;
@@ -63,6 +65,7 @@ foreach ( json_decode( file_get_contents( $work . '/seed-living-pool.json' ), tr
 				'name'       => $row['name'],
 				'birth_date' => $row['birth'],
 				'occupation' => 'Public figure',
+				'enwiki'     => $row['enwiki'] ?? '',
 			)
 		);
 		++$imported;

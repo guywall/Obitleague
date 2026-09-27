@@ -26,6 +26,7 @@ final class Admin_Review {
 		add_action( 'add_meta_boxes', array( self::class, 'meta_box' ) );
 		add_action( 'save_post_' . Catalogue::POST_TYPE, array( self::class, 'save_person_fields' ), 10, 2 );
 		add_action( 'admin_post_obitleague_decide', array( self::class, 'handle_decision' ) );
+		add_action( 'admin_enqueue_scripts', array( self::class, 'admin_assets' ) );
 		add_action( 'init', array( self::class, 'grant_capability' ) );
 	}
 
@@ -37,6 +38,19 @@ final class Admin_Review {
 				$role->add_cap( self::CAP );
 			}
 		}
+	}
+
+	/** Add local horizontal scrolling to wide plugin-admin tables only. */
+	public static function admin_assets( string $hook_suffix ): void {
+		if ( ! in_array( $hook_suffix, array( 'toplevel_page_obitleague-review', 'obitleague_page_obitleague-game-admin' ), true ) ) {
+			return;
+		}
+		wp_register_style( 'obitleague-admin-tables', false, array(), OBITLEAGUE_VERSION );
+		wp_enqueue_style( 'obitleague-admin-tables' );
+		wp_add_inline_style(
+			'obitleague-admin-tables',
+			'.ob-admin-table-scroll{max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch;margin:12px 0 20px}.ob-admin-table-scroll>table{min-width:620px}'
+		);
 	}
 
 	public static function menu(): void {
@@ -120,6 +134,13 @@ final class Admin_Review {
 				update_post_meta( $post_id, $key, sanitize_text_field( wp_unslash( (string) $_POST[ $key ] ) ) );
 			}
 		}
+
+		// Occupation tags follow the stored Wikidata occupation labels.
+		$occupations = People_Sync::occupation_labels( $post_id );
+		People_Sync::sync_occupation_terms( $post_id, $occupations );
+
+		// The stats boards cache person shapes; refresh when identity changes.
+		Stats_Service::flush_deceased_cache();
 	}
 
 	/* ================= Review queue ================= */
@@ -142,7 +163,7 @@ final class Admin_Review {
 		echo '<p>' . esc_html( sprintf( '%d pending, %d approved all-time.', count( $pending ), $approved ) ) . '</p>';
 
 		if ( $pending ) {
-			echo '<table class="widefat striped"><thead><tr><th>Person</th><th>Opened</th><th>Note</th><th></th></tr></thead><tbody>';
+			echo '<div class="ob-admin-table-scroll"><table class="widefat striped"><thead><tr><th>Person</th><th>Opened</th><th>Note</th><th></th></tr></thead><tbody>';
 			foreach ( $pending as $case ) {
 				echo '<tr>';
 				echo '<td><strong>' . esc_html( $case->person_name ) . '</strong></td>';
@@ -151,14 +172,14 @@ final class Admin_Review {
 				echo '<td><a class="button button-primary" href="' . esc_url( admin_url( 'admin.php?page=obitleague-review&case=' . (int) $case->id ) ) . '">Review</a></td>';
 				echo '</tr>';
 			}
-			echo '</tbody></table>';
+			echo '</tbody></table></div>';
 		} else {
 			echo '<p><em>' . esc_html__( 'No pending cases. The queue is clear.', 'obitleague' ) . '</em></p>';
 		}
 
 		echo '<h2>Recent decisions (audit)</h2>';
 		if ( $decided ) {
-			echo '<table class="widefat striped"><thead><tr><th>Person</th><th>State</th><th>Decided by</th><th>At</th><th>Reason</th></tr></thead><tbody>';
+			echo '<div class="ob-admin-table-scroll"><table class="widefat striped"><thead><tr><th>Person</th><th>State</th><th>Decided by</th><th>At</th><th>Reason</th></tr></thead><tbody>';
 			foreach ( $decided as $row ) {
 				echo '<tr>';
 				echo '<td>' . esc_html( Review_Service::person_name( (string) $row->person_uuid ) ) . '</td>';
@@ -168,7 +189,7 @@ final class Admin_Review {
 				echo '<td>' . esc_html( mb_substr( (string) $row->decision_reason, 0, 110 ) ) . '</td>';
 				echo '</tr>';
 			}
-			echo '</tbody></table>';
+			echo '</tbody></table></div>';
 		} else {
 			echo '<p><em>No decisions recorded yet.</em></p>';
 		}
@@ -245,7 +266,7 @@ final class Admin_Review {
 			echo '<div class="notice notice-error"><p>' . esc_html( (string) $_GET['error'] ) . '</p></div>';
 		}
 
-		echo '<h2>Evidence</h2><table class="widefat striped"><tbody>';
+		echo '<h2>Evidence</h2><div class="ob-admin-table-scroll"><table class="widefat striped"><tbody>';
 		echo '<tr><th>Person record</th><td>' . ( $person_post_id ? '<a href="' . esc_url( (string) get_edit_post_link( $person_post_id ) ) . '">' . esc_html( $name ) . ' (#' . $person_post_id . ')</a>' : esc_html( $name ) ) . '</td></tr>';
 		echo '<tr><th>Public role</th><td>' . esc_html( $role ?: '—' ) . '</td></tr>';
 		echo '<tr><th>Birth date</th><td>' . esc_html( $birth ?: 'unknown' ) . '</td></tr>';
@@ -256,7 +277,7 @@ final class Admin_Review {
 			echo '<tr><th>Wikipedia</th><td><a target="_blank" href="https://en.wikipedia.org/wiki/' . esc_attr( $enwiki ) . '">' . esc_html( str_replace( '_', ' ', $enwiki ) ) . '</a></td></tr>';
 		}
 		echo '<tr><th>Case note</th><td>' . esc_html( (string) $case->decision_reason ?: '—' ) . '</td></tr>';
-		echo '</tbody></table>';
+		echo '</tbody></table></div>';
 
 		echo '<h2>Impact preview</h2>';
 		if ( $impact ) {
@@ -276,11 +297,11 @@ final class Admin_Review {
 				(string) $case->person_uuid
 			)
 		);
-		echo '<table class="widefat striped"><thead><tr><th>Case</th><th>State</th><th>Revision</th><th>Decided by</th><th>At</th><th>Reason</th></tr></thead><tbody>';
+		echo '<div class="ob-admin-table-scroll"><table class="widefat striped"><thead><tr><th>Case</th><th>State</th><th>Revision</th><th>Decided by</th><th>At</th><th>Reason</th></tr></thead><tbody>';
 		foreach ( $history as $h ) {
 			echo '<tr><td>#' . (int) $h->id . '</td><td>' . esc_html( (string) $h->state ) . '</td><td>' . (int) $h->revision . '</td><td>' . esc_html( get_the_author_meta( 'display_name', (int) $h->decided_by ) ?: (string) $h->decided_by ) . '</td><td>' . esc_html( (string) $h->decided_at ) . '</td><td>' . esc_html( mb_substr( (string) $h->decision_reason, 0, 120 ) ) . '</td></tr>';
 		}
-		echo '</tbody></table>';
+		echo '</tbody></table></div>';
 
 		// Decision form.
 		$open_states = array( 'pending', 'approved', 'rejected', 'retracted' );

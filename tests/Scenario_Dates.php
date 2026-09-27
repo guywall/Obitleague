@@ -11,6 +11,7 @@ namespace Obitleague\Tests;
 
 use Obitleague\Domain\Age;
 use Obitleague\Domain\Value\Partial_Date;
+use Obitleague\Domain\Value\Ruleset;
 use Obitleague\Support\Time;
 
 require_once __DIR__ . '/../src/Support/Time.php';
@@ -48,6 +49,15 @@ final class Scenario_Dates {
 		$death = new \DateTimeImmutable( '2027-06-14T12:00:00Z' );
 		$t->check( 81 === Age::completed_at( $birth, $death ), __METHOD__, 'day before 82nd birthday: 81' );
 		$t->check( 82 === Age::completed_at( $birth, $death->modify( '+1 day' ) ), __METHOD__, 'on the birthday: 82' );
+	}
+
+	public function test_potential_points_use_completed_age_if_death_were_today( Runner $t ): void {
+		$birth = new Partial_Date( 1945, 6, 15 );
+		$today = new \DateTimeImmutable( '2027-06-14T12:00:00Z' );
+		$age   = Age::completed_at( $birth, $today );
+		$t->check( 19 === Ruleset::points_for_age( (int) $age ), __METHOD__, 'potential uses 81 completed years: 19 points' );
+		$t->check( 18 === Ruleset::points_for_age( (int) Age::completed_at( $birth, $today->modify( '+1 day' ) ) ), __METHOD__, 'potential falls on the birthday' );
+		$t->check( null === Age::completed_at( new Partial_Date( 1945, 6 ), $today ), __METHOD__, 'partial birth date has no guessed potential age' );
 	}
 
 	public function test_entry_deadline_is_gmt_midnight_london( Runner $t ): void {

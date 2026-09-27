@@ -19,7 +19,7 @@ global $wpdb;
 
 $entry = $wpdb->get_row(
 	$wpdb->prepare(
-		'SELECT e.*, l.name AS league_name, l.season AS league_season, u.display_name
+		'SELECT e.*, l.name AS league_name, l.season AS league_season, l.is_main, u.display_name
 		 FROM ' . $wpdb->prefix . 'obitleague_entries e
 		 JOIN ' . $wpdb->prefix . 'obitleague_leagues l ON l.id = e.league_id
 		 JOIN ' . $wpdb->users . " u ON u.ID = e.user_id
@@ -32,19 +32,28 @@ if ( ! $entry ) {
 	exit;
 }
 
-$season    = (int) $entry->league_season;
+$season = (int) $entry->league_season;
 $league_id = (int) $entry->league_id;
-$picks     = League_View_Service::pick_cards( $entry_id, $season );
-$rows      = Standings_Service::current( $league_id, $season );
-$rank      = null;
-$points    = 0;
-$total     = count( (array) $rows );
-foreach ( (array) $rows as $row ) {
-	if ( (int) $row['user_id'] === (int) $entry->user_id ) {
-		$rank   = (int) $row['rank'];
-		$points = (int) $row['points'];
-		break;
-	}
+$is_main = 1 === (int) $entry->is_main;
+$picks = League_View_Service::pick_cards( $entry_id, $season );	$rank = null;
+	$points = 0;
+	$total = 0;
+if ( $is_main ) {
+	$page = max( 1, (int) ceil( (int) $wpdb->get_var( $wpdb->prepare( 'SELECT rank_pos FROM ' . $wpdb->prefix . 'obitleague_standings_rows r JOIN ' . $wpdb->prefix . 'obitleague_standings_generations g ON g.id = r.generation_id WHERE g.league_id = %d AND g.season = %d AND g.is_current = 1 AND r.user_id = %d', $league_id, $season, (int) $entry->user_id ) ) / 50 ) );
+	$standing = Standings_Service::row_for_user( $league_id, $season, (int) $entry->user_id );
+	$rank = $standing ? (int) $standing['rank'] : null;
+	$points = $standing ? (int) $standing['points'] : 0;
+	$total = Standings_Service::count_current( $league_id, $season );
+} else {
+	$standing = Standings_Service::row_for_user( $league_id, $season, (int) $entry->user_id );
+	$rank = $standing ? (int) $standing['rank'] : null;
+	$points = $standing ? (int) $standing['points'] : 0;
+	$total = Standings_Service::count_current( $league_id, $season );
+}
+if ( $rank > 0 ) {
+	$rank = (int) $rank;
+} else {
+	$rank = null;
 }
 $scoring = 0;
 foreach ( $picks as $p ) {
@@ -57,8 +66,9 @@ get_header();
 ?>
 <main class="ob-page">
 	<section class="ob-hero ob-hero--league ob-anim">
-		<span class="ob-hero__kicker">Team &middot; <?php echo esc_html( (string) $entry->league_name ); ?> &middot; Season <?php echo esc_html( (string) $season ); ?></span>
-		<h1><?php echo esc_html( (string) ( $entry->display_name ?: 'Player ' . $entry->user_id ) ); ?></h1>
+		<span class="ob-hero__kicker">Team &middot; <?php echo $is_main ? 'Main season' : esc_html( (string) $entry->league_name ); ?> &middot; Season <?php echo esc_html( (string) $season ); ?></span>
+		<h1><?php echo esc_html( (string) ( $entry->team_name ?: ( $entry->display_name ?: 'Player ' . $entry->user_id ) ) ); ?></h1>
+		<?php if ( '' !== (string) $entry->team_name ) : ?><p class="ob-team-owner">Managed by <?php echo esc_html( (string) ( $entry->display_name ?: 'Player ' . $entry->user_id ) ); ?></p><?php endif; ?>
 		<p>
 			<?php if ( null !== $rank ) : ?>
 				Rank <?php echo esc_html( (string) $rank ); ?> of <?php echo esc_html( (string) $total ); ?>
@@ -67,7 +77,7 @@ get_header();
 			<?php else : ?>
 				No published standings yet for this league.
 			<?php endif; ?>
-			&middot; <a href="<?php echo esc_url( home_url( '/league/' . $league_id . '/' ) ); ?>">Back to the league</a>
+			&middot; <a href="<?php echo esc_url( $is_main ? home_url( '/standings/' ) : home_url( '/league/' . $league_id . '/' ) ); ?>">Back to <?php echo $is_main ? 'overall standings' : 'the league'; ?></a>
 		</p>
 	</section>
 

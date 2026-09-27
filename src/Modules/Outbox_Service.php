@@ -70,7 +70,7 @@ final class Outbox_Service {
 	 *
 	 * @return array<int, array{0:int,1:int}> Affected (league_id, season) pairs.
 	 */
-	public static function award_event( string $event_uuid ): array {
+	public static function award_event( string $event_uuid, int $only_entry_id = 0 ): array {
 		global $wpdb;
 
 		$event = $wpdb->get_row(
@@ -96,16 +96,17 @@ final class Outbox_Service {
 			$approved_at
 		);
 
-		$picks = $wpdb->get_results(
-			$wpdb->prepare(
-				'SELECT e.id AS entry_id, e.league_id, e.season, p.person_uuid
-				 FROM ' . $wpdb->prefix . 'obitleague_entry_picks p
-				 JOIN ' . $wpdb->prefix . "obitleague_entry_revisions r ON r.id = p.revision_id AND r.kind = 'submitted'
-				 JOIN " . $wpdb->prefix . 'obitleague_entries e ON e.id = r.entry_id
-				 WHERE p.person_uuid = %s',
-				(string) $event->person_uuid
-			)
-		);
+		$sql = 'SELECT e.id AS entry_id, e.league_id, e.season, p.person_uuid
+			FROM ' . $wpdb->prefix . 'obitleague_entry_picks p
+			JOIN ' . $wpdb->prefix . "obitleague_entry_revisions r ON r.id = p.revision_id AND r.kind = 'submitted'
+			JOIN " . $wpdb->prefix . 'obitleague_entries e ON e.id = r.entry_id
+			WHERE p.person_uuid = %s';
+		$args = array( (string) $event->person_uuid );
+		if ( $only_entry_id > 0 ) {
+			$sql .= ' AND e.id = %d';
+			$args[] = $only_entry_id;
+		}
+		$picks = $wpdb->get_results( $wpdb->prepare( $sql, ...$args ) );
 
 		$affected = array();
 		foreach ( (array) $picks as $pick ) {

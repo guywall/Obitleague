@@ -25,6 +25,7 @@ final class Setup {
 		Jobs::boot();
 		self::create_or_update_tables();
 		Options::set( 'db_version', OBITLEAGUE_DB_VERSION );
+		Main_League_Service::schedule_existing_users( League_Service::current_season() );
 
 		if ( ! \wp_next_scheduled( 'obitleague_feed_poll' ) ) {
 			\wp_schedule_event( time() + 60, 'obitleague_5min', 'obitleague_feed_poll' );
@@ -35,10 +36,25 @@ final class Setup {
 		if ( ! \wp_next_scheduled( 'obitleague_outbox_tick' ) ) {
 			\wp_schedule_event( time() + 90, 'obitleague_1min', 'obitleague_outbox_tick' );
 		}
+
+		flush_rewrite_rules();
+	}
+
+	/** Apply additive schema upgrades on existing installations. */
+	public static function maybe_upgrade(): void {
+		$installed = (string) Options::get( 'db_version', '0.0.0' );
+		if ( version_compare( $installed, OBITLEAGUE_DB_VERSION, '>=' ) ) {
+			return;
+		}
+		self::create_or_update_tables();
+		Options::set( 'db_version', OBITLEAGUE_DB_VERSION );
+		Main_League_Service::schedule_existing_users( League_Service::current_season() );
+		// New plugin routes (e.g. /forum/) need a rewrite flush to resolve.
+		flush_rewrite_rules();
 	}
 
 	public static function deactivate(): void {
-		foreach ( array( 'obitleague_feed_poll', 'obitleague_profile_refresh', 'obitleague_outbox_tick' ) as $hook ) {
+		foreach ( array( 'obitleague_feed_poll', 'obitleague_profile_refresh', 'obitleague_outbox_tick', 'obitleague_standings_rebuild', 'obitleague_main_user_backfill' ) as $hook ) {
 			$timestamp = \wp_next_scheduled( $hook );
 			while ( false !== $timestamp ) {
 				\wp_unschedule_event( $timestamp, $hook );
@@ -75,6 +91,11 @@ final class Setup {
 		// Published standings generations (rebuild-and-swap).
 		$generations = "{$wpdb->prefix}obitleague_standings_generations";
 		$srows = "{$wpdb->prefix}obitleague_standings_rows";
+		// Administrator actions are immutable, searchable audit records.
+		$admin_audit = "{$wpdb->prefix}obitleague_admin_audit";
+		// Community forum threads and replies.
+		$forum_topics = "{$wpdb->prefix}obitleague_forum_topics";
+		$forum_posts = "{$wpdb->prefix}obitleague_forum_posts";
 
 		$sql = array();
 
@@ -108,7 +129,8 @@ final class Setup {
 			created_at DATETIME NOT NULL,
 			PRIMARY KEY  (id),
 			UNIQUE KEY operation_key (operation_key),
-			KEY entry_season (entry_id, season)
+			KEY entry_season (entry_id, season),
+			KEY entry_pick_season (entry_id, pick_slug, season)
 		) {$charset};";
 
 		$sql[] = "CREATE TABLE {$sources} (
@@ -147,13 +169,16 @@ final class Setup {
 			season SMALLINT UNSIGNED NOT NULL,
 			owner_user_id BIGINT UNSIGNED NOT NULL,
 			state VARCHAR(12) NOT NULL DEFAULT 'open',
+			is_main TINYINT(1) NOT NULL DEFAULT 0,
+			main_season_key SMALLINT UNSIGNED NULL,
 			invite_hash CHAR(64) NULL,
 			invite_expires_at DATETIME NULL,
 			invite_revoked TINYINT(1) NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL,
 			PRIMARY KEY  (id),
 			KEY owner_user (owner_user_id),
-			KEY season (season)
+			KEY season (season),
+			UNIQUE KEY main_season (main_season_key)
 		) {$charset};";
 
 		$sql[] = "CREATE TABLE {$members} (
@@ -163,7 +188,8 @@ final class Setup {
 			status VARCHAR(12) NOT NULL DEFAULT 'member',
 			joined_at DATETIME NOT NULL,
 			PRIMARY KEY  (id),
-			UNIQUE KEY league_user (league_id, user_id)
+			UNIQUE KEY league_user (league_id, user_id),
+			KEY user_league (user_id, league_id)
 		) {$charset};";
 
 		$sql[] = "CREATE TABLE {$entries} (
@@ -171,13 +197,17 @@ final class Setup {
 			league_id BIGINT UNSIGNED NOT NULL,
 			season SMALLINT UNSIGNED NOT NULL,
 			user_id BIGINT UNSIGNED NOT NULL,
+			main_season_key SMALLINT UNSIGNED NULL,
+			team_name VARCHAR(120) NOT NULL DEFAULT '',
 			state VARCHAR(12) NOT NULL DEFAULT 'draft',
 			expected_version INT UNSIGNED NOT NULL DEFAULT 1,
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NULL,
 			PRIMARY KEY  (id),
 			UNIQUE KEY league_season_user (league_id, season, user_id),
-			KEY user_season (user_id, season)
+			UNIQUE KEY main_season_user (main_season_key, user_id),
+			KEY user_season (user_id, season),
+			KEY standings_scan (league_id, season, state, id)
 		) {$charset};";
 
 		$sql[] = "CREATE TABLE {$revisions} (
@@ -187,8 +217,11 @@ final class Setup {
 			receipt_id CHAR(36) NULL,
 			submitted_at DATETIME NULL,
 			created_at DATETIME NOT NULL,
+			admin_user_id BIGINT UNSIGNED NULL,
+			admin_reason TEXT NULL,
 			PRIMARY KEY  (id),
-			KEY entry_kind (entry_id, kind)
+			KEY entry_kind (entry_id, kind),
+			KEY kind_entry_id (kind, entry_id, id)
 		) {$charset};";
 
 		$sql[] = "CREATE TABLE {$picks} (
@@ -251,11 +284,73 @@ final class Setup {
 			scoring_picks INT NOT NULL DEFAULT 0,
 			rank_pos INT NOT NULL DEFAULT 0,
 			PRIMARY KEY  (id),
-			KEY generation (generation_id)
+			UNIQUE KEY generation_user (generation_id, user_id),
+			KEY generation_rank (generation_id, rank_pos, user_id)
+		) {$charset};";
+
+		$sql[] = "CREATE TABLE {$admin_audit} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			actor_user_id BIGINT UNSIGNED NOT NULL,
+			object_type VARCHAR(20) NOT NULL,
+			object_id BIGINT UNSIGNED NOT NULL,
+			action VARCHAR(40) NOT NULL,
+			details LONGTEXT NULL,
+			created_at DATETIME NOT NULL,
+			PRIMARY KEY  (id),
+			KEY object (object_type, object_id),
+			KEY actor_user (actor_user_id),
+			KEY created_at (created_at)
+		) {$charset};";
+
+		$sql[] = "CREATE TABLE {$forum_topics} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			title VARCHAR(190) NOT NULL,
+			slug VARCHAR(190) NOT NULL,
+			author_id BIGINT UNSIGNED NOT NULL,
+			body TEXT NULL,
+			status VARCHAR(12) NOT NULL DEFAULT 'open',
+			pinned TINYINT(1) NOT NULL DEFAULT 0,
+			created_at DATETIME NOT NULL,
+			last_activity_at DATETIME NOT NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY slug (slug),
+			KEY last_activity (last_activity_at),
+			KEY status (status)
+		) {$charset};";
+
+		$sql[] = "CREATE TABLE {$forum_posts} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			topic_id BIGINT UNSIGNED NOT NULL,
+			author_id BIGINT UNSIGNED NOT NULL,
+			body TEXT NOT NULL,
+			status VARCHAR(12) NOT NULL DEFAULT 'visible',
+			created_at DATETIME NOT NULL,
+			PRIMARY KEY  (id),
+			KEY topic_status (topic_id, status, id)
 		) {$charset};";
 
 		foreach ( $sql as $statement ) {
 			\dbDelta( $statement );
+		}
+
+		// Entries created by earlier versions receive a safe empty name;
+		// public projections fall back to the owner's display name.
+		$wpdb->query( "UPDATE {$entries} SET team_name = '' WHERE team_name IS NULL" );
+
+		self::run_data_migrations();
+	}
+
+	/**
+	 * One-off additive data migrations keyed by the installed DB version.
+	 * Each step runs only when the recorded version predates it.
+	 */
+	private static function run_data_migrations(): void {
+		$installed = (string) Options::get( 'db_version', '0.0.0' );
+
+		// 0.5.0: mirror stored occupation postmeta into the obit_occupation
+		// taxonomy so occupation pages and grouped queries work.
+		if ( version_compare( $installed, '0.5.0', '<' ) ) {
+			People_Sync::backfill_occupation_terms();
 		}
 	}
 }

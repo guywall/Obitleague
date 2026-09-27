@@ -1,16 +1,7 @@
 <?php
 /**
- * Overall (cross-league) standings.
- *
- * Aggregates every published league generation for a season into one global
- * ranking. Ruleset v1 has no cross-league tie-breaking beyond the league
- * rules, so overall rank uses the same competition-rank rule applied to
- * a player's best league score: points, then scoring picks, then shared
- * positions (1, 2, 2, 4). A player's best league counts once — this keeps
- * the overall table a "champions' table" across leagues rather than a
- * sum that rewards joining many leagues.
- *
- * @package Obitleague
+ * All-player standings for the canonical main league. Optional side leagues
+ * are independent competitions and never contribute to global rank.
  */
 
 declare( strict_types = 1 );
@@ -21,136 +12,80 @@ final class Overall_Standings {
 
 	private function __construct() {}
 
-	/**
-	 * Overall rows for a season: rank, player, best score, scoring picks,
-	 * leagues played and leading leagues. Empty array when nothing published.
-	 *
-	 * @return array[]|null
-	 */
-	public static function for_season( int $season, int $limit = 0 ): ?array {
+	public static function main_league_id( int $season ): int {
 		global $wpdb;
-
-		$rows = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT sr.user_id, sr.points, sr.scoring_picks, sr.rank_pos, lg.id AS league_id, lg.name AS league_name
-				 FROM {$wpdb->prefix}obitleague_standings_generations sg
-				 JOIN {$wpdb->prefix}obitleague_standings_rows sr ON sr.generation_id = sg.id
-				 JOIN {$wpdb->prefix}obitleague_leagues lg ON lg.id = sg.league_id
-				 WHERE sg.season = %d AND sg.is_current = 1
-				 ORDER BY sr.points DESC, sr.scoring_picks DESC",
-				$season
-			)
+		return (int) $wpdb->get_var(
+			$wpdb->prepare( 'SELECT id FROM ' . $wpdb->prefix . 'obitleague_leagues WHERE is_main = 1 AND main_season_key = %d LIMIT 1', $season )
 		);
-		if ( ! $rows ) {
+	}
+
+	/** One bounded page from the canonical main-season standings. */
+	public static function for_season( int $season, int $limit = 50, int $offset = 0 ): ?array {
+		global $wpdb;
+		$league_id = self::main_league_id( $season );
+		if ( ! $league_id ) {
 			return null;
 		}
-
-		// Best score per player across leagues; carry league context.
-		$best = array();
-		$played = array();
-		$leads  = array();
-		foreach ( (array) $rows as $row ) {
-			$uid = (int) $row->user_id;
-			$played[ $uid ][] = (string) $row->league_name;
-			if ( ! isset( $best[ $uid ] ) || (int) $row->points > $best[ $uid ]['points'] ) {
-				$best[ $uid ] = array(
-					'points'        => (int) $row->points,
-					'scoring_picks' => (int) $row->scoring_picks,
-					'league_id'     => (int) $row->league_id,
-					'league_name'   => (string) $row->league_name,
-				);
-			}
+		$generation_id = (int) $wpdb->get_var(
+			$wpdb->prepare( 'SELECT id FROM ' . $wpdb->prefix . 'obitleague_standings_generations WHERE league_id = %d AND season = %d AND is_current = 1 ORDER BY id DESC LIMIT 1', $league_id, $season )
+		);
+		if ( ! $generation_id ) {
+			return null;
 		}
-
-		// League leaders (rank 1 holders) for the "leading" column.
-		foreach ( (array) $rows as $row ) {
-			if ( 1 === (int) ( $row->rank_pos ?? 0 ) ) {
-				$leads[ (int) $row->user_id ][] = (string) $row->league_name;
-			}
-		}
-
-		// Competition ranking over the best scores.
-		$players = array();
-		foreach ( $best as $uid => $data ) {
-			$players[ $uid ] = $data['points'] . ':' . $data['scoring_picks'];
-		}
-		$scores = array_values( array_unique( array_values( $players ) ) );
-		rsort( $scores, SORT_NUMERIC );
-		// Sort strings "points:scoring" descending numerically by points then scoring.
-		usort( $scores, static function ( $a, $b ) {
-			[ $ap, $as ] = explode( ':', (string) $a );
-			[ $bp, $bs ] = explode( ':', (string) $b );
-			return ( (int) $bp === (int) $ap ) ? ( (int) $bs - (int) $as ) : ( (int) $bp - (int) $ap );
-		} );
-		$rank_of = array();
-		$pos     = 0;
-		foreach ( $scores as $i => $key ) {
-			[ $p, $s ] = explode( ':', (string) $key );
-			$p         = (int) $p;
-			$s         = (int) $s;
-			if ( 0 === $i || $p !== $prev_p || $s !== $prev_s ) {
-				$pos = $i + 1;
-			}
-			$rank_of[ $key ] = $pos;
-			$prev_p          = $p;
-			$prev_s          = $s;
-		}
-
-		$names = self::display_names( array_keys( $best ) );
-
-		$out = array();
-		foreach ( $best as $uid => $data ) {
-			$key = $data['points'] . ':' . $data['scoring_picks'];
-			$out[] = array(
-				'user_id'       => $uid,
-				'player'        => $names[ $uid ] ?? ( 'Player ' . $uid ),
-				'points'        => $data['points'],
-				'scoring_picks' => $data['scoring_picks'],
-				'rank'          => $rank_of[ $key ] ?? 0,
-				'leagues'       => count( $played[ $uid ] ?? [] ),
-				'league_names'  => array_slice( array_unique( $played[ $uid ] ?? [] ), 0, 3 ),
-				'best_league'   => $data['league_name'],
-				'leading'       => array_slice( array_unique( $leads[ $uid ] ?? [] ), 0, 2 ),
-			);
-		}
-
-		usort( $out, static function ( $a, $b ) {
-			return ( $a['points'] === $b['points'] )
-				? ( $b['scoring_picks'] <=> $a['scoring_picks'] )
-				: ( $b['points'] <=> $a['points'] );
-		} );
-
-		return $limit > 0 ? array_slice( $out, 0, $limit ) : $out;
-	}
-
-	/** Published leagues with current generations for a season. */
-	public static function leagues_with_standings( int $season ): array {
-		global $wpdb;
-		return (array) $wpdb->get_results(
+		$limit = min( 100, max( 1, $limit ) );
+		$offset = max( 0, $offset );
+		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT DISTINCT lg.id, lg.name
-				 FROM {$wpdb->prefix}obitleague_leagues lg
-				 JOIN {$wpdb->prefix}obitleague_standings_generations sg ON sg.league_id = lg.id
-				 WHERE sg.season = %d AND sg.is_current = 1
-				 ORDER BY lg.name ASC",
-				$season
+				'SELECT r.user_id, r.points, r.scoring_picks, r.rank_pos, e.id AS entry_id, e.team_name, u.display_name
+				 FROM ' . $wpdb->prefix . 'obitleague_standings_rows r
+				 JOIN ' . $wpdb->prefix . 'obitleague_entries e ON e.main_season_key = %d AND e.user_id = r.user_id AND e.state = %s
+				 LEFT JOIN ' . $wpdb->users . ' u ON u.ID = r.user_id
+				 WHERE r.generation_id = %d
+				 ORDER BY r.rank_pos ASC, r.user_id ASC LIMIT %d OFFSET %d',
+				$season,
+				'submitted',
+				$generation_id,
+				$limit,
+				$offset
 			)
 		);
-	}
-
-	/** Display names for user ids. */
-	private static function display_names( array $uids ): array {
-		if ( ! $uids ) {
-			return array();
-		}
-		global $wpdb;
-		$in  = implode( ',', array_fill( 0, count( $uids ), '%d' ) );
-		$sql = "SELECT ID, display_name FROM {$wpdb->users} WHERE ID IN ($in)";
-		$rows = $wpdb->get_results( $wpdb->prepare( $sql, ...array_map( 'intval', $uids ) ) );
 		$out = array();
 		foreach ( (array) $rows as $row ) {
-			$out[ (int) $row->ID ] = (string) $row->display_name ?: ( 'Player ' . (int) $row->ID );
+			$owner = (string) ( $row->display_name ?: 'Player ' . (int) $row->user_id );
+			$team = (string) $row->team_name;
+			$league_name = 'Overall League ' . $season;
+			$out[] = array(
+				'user_id' => (int) $row->user_id,
+				'entry_id' => (int) $row->entry_id,
+				'player' => $team ?: $owner,
+				'team_name' => $team,
+				'owner' => $owner,
+				'points' => (int) $row->points,
+				'scoring_picks' => (int) $row->scoring_picks,
+				'rank' => (int) $row->rank_pos,
+				'leagues' => 1,
+				'league_names' => array( $league_name ),
+				'best_league' => $league_name,
+				'leading' => 1 === (int) $row->rank_pos ? array( $league_name ) : array(),
+			);
 		}
 		return $out;
+	}
+
+	public static function count_for_season( int $season ): int {
+		$league_id = self::main_league_id( $season );
+		return $league_id ? Standings_Service::count_current( $league_id, $season ) : 0;
+	}
+
+	/** REST-friendly pagination contract; page sizes are capped for bounded work. */
+	public static function leaderboard_route( int $season, int $page = 1, int $per_page = 50 ): array {
+		$page = max( 1, $page );
+		$per_page = min( 100, max( 1, $per_page ) );
+		return array(
+			'rows' => self::for_season( $season, $per_page, ( $page - 1 ) * $per_page ) ?? array(),
+			'page' => $page,
+			'per_page' => $per_page,
+			'total' => self::count_for_season( $season ),
+		);
 	}
 }

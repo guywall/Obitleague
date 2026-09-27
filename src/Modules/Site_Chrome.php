@@ -72,8 +72,9 @@ final class Site_Chrome {
 				array( 'label' => 'Standings', 'url' => home_url( '/standings/' ) ),
 				array( 'label' => 'People', 'url' => home_url( '/catalogue/' ) ),
 				array( 'label' => 'Death Archive', 'url' => home_url( '/archive/' ) ),
-				array( 'label' => 'Rules', 'url' => home_url( '/rules/' ) ),
-			);
+		array( 'label' => 'Rules', 'url' => home_url( '/rules/' ) ),
+		array( 'label' => 'Forum', 'url' => home_url( '/forum/' ) ),
+	);
 		}
 		// Statistics sit beside Standings in every menu source.
 		$insert_at = 0;
@@ -98,32 +99,31 @@ final class Site_Chrome {
 		if ( is_user_logged_in() ) {
 			$items[] = array( 'label' => 'Log out', 'url' => wp_logout_url( home_url( '/' ) ) );
 		} else {
-			$items[] = array( 'label' => 'Join', 'url' => home_url( '/join/' ) );
+			$items[] = array( 'label' => 'Choose your 2027 team', 'url' => home_url( '/register/' ) );
 		}
 		return $items;
 	}
 
 	private static function is_current( string $url ): bool {
-		$req = isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '';
-		$path = (string) wp_parse_url( $req, PHP_URL_PATH );
-		$target = (string) wp_parse_url( $url, PHP_URL_PATH );
-		if ( '/' === $target ) {
-			return '/' === $path || '' === $path;
-		}
+		$req    = isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '';
+		$path   = rtrim( (string) wp_parse_url( $req, PHP_URL_PATH ), '/' );
+		$target = rtrim( (string) wp_parse_url( $url, PHP_URL_PATH ), '/' );
 		if ( '' === $target ) {
-			return false;
+			return '' === $path;
 		}
-		// Route families roll up to their parent nav item: league pages
-		// highlight Standings, person profiles highlight People.
-		$family = array(				'/standings/' => '~^/(standings|league|team)/~',
-				'/catalogue/' => '~^/(catalogue|person)/~',
+		// Route families roll up to their parent nav item: league and team
+		// pages highlight Standings; person profiles highlight People.
+		$families = array(
+			'/standings' => '~^/(standings|league|team)(/|$)~',
+			'/catalogue' => '~^/(catalogue|person)(/|$)~',
+			'/forum'     => '~^/forum(/|$)~',
 		);
-		foreach ( $family as $base => $re ) {
-			if ( $target === $base || str_starts_with( $path, $base ) ) {
-				return (bool) preg_match( $re, $path ) && ( $path === $target || str_starts_with( $path, $target ) || str_starts_with( $target, $path ) || preg_match( $re, $path ) );
+		foreach ( $families as $base => $re ) {
+			if ( $target === $base ) {
+				return (bool) preg_match( $re, $path . '/' );
 			}
 		}
-		return str_starts_with( $path, $target );
+		return str_starts_with( $path . '/', $target . '/' );
 	}
 
 	public static function render_header(): void {
@@ -152,7 +152,7 @@ final class Site_Chrome {
 					<?php if ( ! $logged_in ) : ?>
 						<a class="ob-nav__link" href="<?php echo esc_url( wp_login_url( home_url( '/my-leagues/' ) ) ); ?>">Sign in</a>
 					<?php endif; ?>
-					<a class="ob-nav__join" href="<?php echo esc_url( home_url( $logged_in ? '/my-leagues/' : '/join/' ) ); ?>"><?php echo $logged_in ? 'My game' : 'Join a league'; ?></a>
+					<a class="ob-nav__join" href="<?php echo esc_url( home_url( $logged_in ? '/my-leagues/' : '/register/' ) ); ?>"><?php echo $logged_in ? 'My game' : 'Choose your 2027 team'; ?></a>
 				</nav>
 			</div>
 		</header>
@@ -168,6 +168,7 @@ final class Site_Chrome {
 				'Rules'         => home_url( '/rules/' ),
 				'My Leagues'    => home_url( '/my-leagues/' ),
 				'Join a league' => home_url( '/join/' ),
+				'Forum'         => home_url( '/forum/' ),
 			);
 		?>
 		</main><!-- #ob-main -->
@@ -208,14 +209,18 @@ final class Site_Chrome {
 				window.addEventListener('scroll',onScroll,{passive:true});onScroll();
 			}
 			var reduced=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
-			if('IntersectionObserver' in window&&!reduced){
-				var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{threshold:.12});
-				document.querySelectorAll('.ob-anim').forEach(function(el){io.observe(el);});
-				var cio=new IntersectionObserver(function(es){es.forEach(function(e){if(!e.isIntersecting){return;}cio.unobserve(e.target);var el=e.target,end=parseInt(el.getAttribute('data-count'),10)||0,t0=null,dur=900;function step(ts){t0=t0||ts;var p=Math.min(1,(ts-t0)/dur),v=Math.round(end*p*p*(3-2*p));el.textContent=v.toLocaleString();if(p<1){requestAnimationFrame(step);}}requestAnimationFrame(step);});},{threshold:.4});
-				document.querySelectorAll('.ob-stat__num[data-count]').forEach(function(el){cio.observe(el);});
-			}else{
-				document.querySelectorAll('.ob-anim').forEach(function(el){el.classList.add('in');});
-			}
+			var revealAll=function(){document.querySelectorAll('.ob-anim:not(.in)').forEach(function(el){el.classList.add('in');});};
+			try{
+				if('IntersectionObserver' in window&&!reduced){
+					var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{threshold:.12});
+					document.querySelectorAll('.ob-anim').forEach(function(el){io.observe(el);});
+					var cio=new IntersectionObserver(function(es){es.forEach(function(e){if(!e.isIntersecting){return;}cio.unobserve(e.target);var el=e.target,end=parseInt(el.getAttribute('data-count'),10)||0,t0=null,dur=900;function step(ts){t0=t0||ts;var p=Math.min(1,(ts-t0)/dur),v=Math.round(end*p*p*(3-2*p));el.textContent=v.toLocaleString();if(p<1){requestAnimationFrame(step);}}requestAnimationFrame(step);});},{threshold:.4});
+					document.querySelectorAll('.ob-stat__num[data-count]').forEach(function(el){cio.observe(el);});
+					setTimeout(function(){var st=document.createElement('style');st.textContent='.ob-js .ob-anim{transition:none!important}';document.head.appendChild(st);revealAll();},1200);
+				}else{
+					revealAll();
+				}
+			}catch(e){revealAll();}
 		})();
 		</script>
 		<?php

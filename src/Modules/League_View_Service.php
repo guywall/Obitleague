@@ -17,6 +17,10 @@ namespace Obitleague\Modules;
 
 final class League_View_Service {
 
+	/** Request-local cache for catalogue UUID lookups. */
+	private static array $person_cards = array();
+	private static array $post_ids_by_uuid = array();
+
 	private function __construct() {}
 
 	/** League header row or null. */
@@ -69,21 +73,25 @@ final class League_View_Service {
 	 *
 	 * @return array[] Each: user_id, player, rank, points, scoring_picks, picks[].
 	 */
-	public static function scoreboard( int $league_id, int $season ): array {
-		$rows = Standings_Service::current( $league_id, $season );
+	public static function scoreboard( int $league_id, int $season, int $page = 1, int $per_page = 50 ): array {
+		$page = max( 1, $page );
+		$per_page = min( 100, max( 1, $per_page ) );
+		$rows = Standings_Service::current( $league_id, $season, $per_page, ( $page - 1 ) * $per_page );
 		if ( null === $rows ) {
 			return array();
-		}			$locked = ! \Obitleague\Domain\Deadline_Policy::is_entry_open( $season, new \DateTimeImmutable( 'now', new \DateTimeZone( 'Europe/London' ) ) );
-		$out    = array();
+		}
+		$locked = ! \Obitleague\Domain\Deadline_Policy::is_entry_open( $season, new \DateTimeImmutable( 'now', new \DateTimeZone( 'Europe/London' ) ) );
+		$entry_ids = array_map( static fn ( $row ): int => (int) ( $row['entry_id'] ?? 0 ), $rows );
+		$cards_by_entry = $locked ? self::pick_cards_for_entries( $entry_ids, $season ) : array();
+		$out = array();
 		foreach ( $rows as $row ) {
-			$entry_id = self::submitted_entry_id( (int) $row['user_id'], $league_id, $season );
-			$picks    = array();
-			if ( $entry_id && $locked ) {
-				$picks = self::pick_cards( $entry_id, $season );
-			}
+			$entry_id = (int) ( $row['entry_id'] ?? 0 );
+			$picks = $entry_id ? ( $cards_by_entry[ $entry_id ] ?? array() ) : array();
 			$out[] = array(
 				'user_id'       => (int) $row['user_id'],
 				'player'        => (string) $row['player'],
+				'team_name'     => (string) ( $row['team_name'] ?? '' ),
+				'owner'         => (string) ( $row['owner'] ?? '' ),
 				'rank'          => (int) $row['rank'],
 				'points'        => (int) $row['points'],
 				'scoring_picks' => (int) $row['scoring_picks'],
@@ -120,30 +128,132 @@ final class League_View_Service {
 		if ( ! $revision ) {
 			return array();
 		}
-		$picks = Entry_Service::revision_picks( (int) $revision->id );
+		return self::pick_cards_for_revision( (int) $revision->id, $entry_id, $season );
+	}
+
+	/** Batch-load pick cards and award totals for a bounded scoreboard page. */
+	public static function pick_cards_for_entries( array $entry_ids, int $season ): array {
+		$entry_ids = array_values( array_unique( array_filter( array_map( 'intval', $entry_ids ) ) ) );
+		if ( ! $entry_ids ) {
+			return array();
+		}
+		global $wpdb;
+		$ids = implode( ',', $entry_ids );
+		$revision_rows = $wpdb->get_results(
+			"SELECT r.id AS revision_id, r.entry_id, p.slot, p.person_uuid
+			 FROM {$wpdb->prefix}obitleague_entry_revisions r
+			 JOIN (SELECT entry_id, MAX(id) AS revision_id FROM {$wpdb->prefix}obitleague_entry_revisions WHERE kind = 'submitted' AND entry_id IN ({$ids}) GROUP BY entry_id) latest ON latest.revision_id = r.id
+			 JOIN {$wpdb->prefix}obitleague_entry_picks p ON p.revision_id = r.id
+			 ORDER BY r.entry_id ASC, p.slot ASC"
+		);
+		$uuids = array_values( array_unique( array_map( static fn ( $row ): string => (string) $row->person_uuid, (array) $revision_rows ) ) );
+		if ( ! $revision_rows ) {
+			return array();
+		}
+		$placeholders = implode( ',', array_fill( 0, count( $uuids ), '%s' ) );
+		$awards = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT entry_id, pick_slug, COALESCE(SUM(award_delta), 0) AS points FROM {$wpdb->prefix}obitleague_awards WHERE season = %d AND entry_id IN ({$ids}) AND pick_slug IN ({$placeholders}) GROUP BY entry_id, pick_slug",
+				$season,
+				...$uuids
+			)
+		);
+		$award_map = array();
+		foreach ( (array) $awards as $award ) {
+			$award_map[ (int) $award->entry_id ][ (string) $award->pick_slug ] = (int) $award->points;
+		}
+		$cards = array();
+		foreach ( $revision_rows as $row ) {
+			$entry_id = (int) $row->entry_id;
+			$uuid = (string) $row->person_uuid;
+			$card = self::person_card_by_uuid( $uuid );
+			$card['awarded'] = (int) ( $award_map[ $entry_id ][ $uuid ] ?? 0 );
+			$card['slot'] = (int) $row->slot;
+			$cards[ $entry_id ][] = $card;
+		}
+		return $cards;
+	}
+
+	private static function pick_cards_for_revision( int $revision_id, int $entry_id, int $season ): array {
+		global $wpdb;
+		$picks = Entry_Service::revision_picks( $revision_id );
 		if ( ! $picks ) {
 			return array();
 		}
-
-		global $wpdb;
+		$uuids = array_map( static fn ( $pick ): string => (string) $pick->person_uuid, $picks );
+		self::prefetch_person_cards( $uuids );
+		$placeholders = implode( ',', array_fill( 0, count( $uuids ), '%s' ) );
+		$awards = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT pick_slug, COALESCE(SUM(award_delta), 0) AS points FROM {$wpdb->prefix}obitleague_awards WHERE entry_id = %d AND season = %d AND pick_slug IN ({$placeholders}) GROUP BY pick_slug",
+				$entry_id, $season, ...$uuids
+			)
+		);
+		$award_map = array();
+		foreach ( (array) $awards as $award ) {
+			$award_map[ (string) $award->pick_slug ] = (int) $award->points;
+		}
 		$cards = array();
 		foreach ( $picks as $pick ) {
-			$uuid  = (string) $pick->person_uuid;
-			$card  = self::person_card_by_uuid( $uuid );
-			$award = (int) $wpdb->get_var(
-				$wpdb->prepare(
-					'SELECT COALESCE(SUM(award_delta), 0) FROM ' . $wpdb->prefix . 'obitleague_awards
-					 WHERE entry_id = %d AND pick_slug = %s AND season = %d',
-					$entry_id,
-					$uuid,
-					$season
-				)
-			);
-			$card['awarded'] = $award;
-			$card['slot']    = (int) $pick->slot;
-			$cards[]         = $card;
+			$uuid = (string) $pick->person_uuid;
+			$card = self::person_card_by_uuid( $uuid );
+			$card['awarded'] = (int) ( $award_map[ $uuid ] ?? 0 );
+			$card['slot'] = (int) $pick->slot;
+			$cards[] = $card;
 		}
 		return $cards;
+	}
+
+	/** Prime UUID-to-post and post-meta caches for one bounded set of picks. */
+	private static function prefetch_person_cards( array $uuids ): void {
+		$uuids = array_map( 'strval', $uuids );
+		$missing = array_values(
+			array_unique(
+				array_filter(
+					$uuids,
+					static fn ( string $uuid ): bool => '' !== $uuid && ! array_key_exists( $uuid, self::$person_cards ) && ! array_key_exists( $uuid, self::$post_ids_by_uuid )
+				)
+			)
+		);
+		if ( ! $missing ) {
+			return;
+		}
+		global $wpdb;
+		$placeholders = implode( ',', array_fill( 0, count( $missing ), '%s' ) );
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT post_id, meta_value AS uuid FROM {$wpdb->postmeta} WHERE meta_key = 'obit_uuid' AND meta_value IN ({$placeholders})",
+				...$missing
+			)
+		);
+		$post_ids = array();
+		foreach ( (array) $rows as $row ) {
+			self::$post_ids_by_uuid[ (string) $row->uuid ] = (int) $row->post_id;
+			$post_ids[] = (int) $row->post_id;
+		}
+		foreach ( $missing as $uuid ) {
+			if ( ! array_key_exists( $uuid, self::$post_ids_by_uuid ) ) {
+				self::$post_ids_by_uuid[ $uuid ] = 0;
+			}
+		}
+		if ( ! $post_ids ) {
+			return;
+		}
+		$posts = get_posts(
+			array(
+				'post_type' => Catalogue::POST_TYPE,
+				'post_status' => 'publish',
+				'post__in' => array_values( array_unique( $post_ids ) ),
+				'posts_per_page' => count( array_unique( $post_ids ) ),
+				'orderby' => 'post__in',
+			)
+		);
+		foreach ( $posts as $post ) {
+			$uuid = (string) get_post_meta( (int) $post->ID, 'obit_uuid', true );
+			if ( '' !== $uuid ) {
+				self::$person_cards[ $uuid ] = self::person_card_for_post( $uuid, (int) $post->ID );
+			}
+		}
 	}
 
 	/** Person summary by internal uuid (name, link, portrait, dates). */
@@ -161,16 +271,24 @@ final class League_View_Service {
 		if ( '' === $uuid ) {
 			return $empty;
 		}
+		if ( isset( self::$person_cards[ $uuid ] ) ) {
+			return self::$person_cards[ $uuid ];
+		}
 		global $wpdb;
-		$post_id = (int) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = 'obit_uuid' AND meta_value = %s LIMIT 1",
-				$uuid
-			)
-		);
+		if ( ! array_key_exists( $uuid, self::$post_ids_by_uuid ) ) {
+			self::$post_ids_by_uuid[ $uuid ] = (int) $wpdb->get_var(
+				$wpdb->prepare( "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = 'obit_uuid' AND meta_value = %s LIMIT 1", $uuid )
+			);
+		}
+		$post_id = (int) self::$post_ids_by_uuid[ $uuid ];
 		if ( ! $post_id || 'publish' !== get_post_status( $post_id ) ) {
 			return $empty;
 		}
+		return self::$person_cards[ $uuid ] = self::person_card_for_post( $uuid, $post_id );
+	}
+
+	/** Construct a cached catalogue summary from an already-loaded post. */
+	private static function person_card_for_post( string $uuid, int $post_id ): array {
 		$birth_raw = (string) get_post_meta( $post_id, 'obit_birth_date', true );
 		$death_raw = (string) get_post_meta( $post_id, 'obit_death_date', true );
 		$birth     = '' !== $birth_raw ? Import_Service::parse_partial( $birth_raw ) : null;

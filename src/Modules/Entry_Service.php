@@ -36,23 +36,61 @@ final class Entry_Service {
 				$user_id
 			)
 		);
+		$main_key = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT main_season_key FROM ' . $wpdb->prefix . 'obitleague_leagues WHERE id = %d AND is_main = 1',
+				$league_id
+			)
+		);
 		if ( $id ) {
+			if ( $main_key > 0 ) {
+				$wpdb->query(
+					$wpdb->prepare( "UPDATE {$table} SET main_season_key = %d WHERE id = %d AND main_season_key IS NULL", $main_key, $id )
+				);
+			}
 			return $id;
 		}
 
-		$wpdb->query(
-			$wpdb->prepare(
-				'INSERT INTO ' . $wpdb->prefix . 'obitleague_entries (league_id, season, user_id, state, expected_version, created_at)
-				 VALUES (%d, %d, %d, %s, 1, %s)',
-				$league_id,
-				$season,
-				$user_id,
-				Entry_Rules::DRAFT,
-				current_time( 'mysql', true )
-			)
-		);
+		if ( $main_key > 0 ) {
+			$wpdb->query(
+				$wpdb->prepare(
+					"INSERT IGNORE INTO {$table} (league_id, season, user_id, main_season_key, team_name, state, expected_version, created_at)
+					 VALUES (%d, %d, %d, %d, %s, %s, 1, %s)",
+					$league_id,
+					$season,
+					$user_id,
+					$main_key,
+					'',
+					Entry_Rules::DRAFT,
+					current_time( 'mysql', true )
+				)
+			);
+		} else {
+			// Leave the nullable main-season key NULL on every side-league entry.
+			$wpdb->query(
+				$wpdb->prepare(
+					"INSERT IGNORE INTO {$table} (league_id, season, user_id, team_name, state, expected_version, created_at)
+					 VALUES (%d, %d, %d, %s, %s, 1, %s)",
+					$league_id,
+					$season,
+					$user_id,
+					'',
+					Entry_Rules::DRAFT,
+					current_time( 'mysql', true )
+				)
+			);
+		}
 
-		return (int) $wpdb->insert_id;
+		$id = (int) $wpdb->insert_id;
+		if ( ! $id ) {
+			$id = (int) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT id FROM {$table} WHERE league_id = %d AND season = %d AND user_id = %d",
+					$league_id, $season, $user_id
+				)
+			);
+		}
+		return $id;
 	}
 
 	/**
@@ -61,10 +99,13 @@ final class Entry_Service {
 	 * @param string[] $picks Ten distinct person UUIDs.
 	 * @return array{revision_id:int, expected_version:int, picks:string[]}
 	 */
-	public static function save_draft( int $entry_id, int $user_id, array $picks, int $expected_version ): array {
+	public static function save_draft( int $entry_id, int $user_id, array $picks, int $expected_version, ?string $team_name = null ): array {
 		global $wpdb;
 
 		$entry = self::require_entry( $entry_id, $user_id );
+		if ( 'member' !== (string) League_Service::member_row( (int) $entry->league_id, $user_id )?->status ) {
+			throw new Locked_Exception( 'Spectators cannot change team picks.' );
+		}
 
 		$open = Deadline_Policy::is_entry_open( (int) $entry->season, new \DateTimeImmutable( 'now', new \DateTimeZone( 'UTC' ) ) );
 		if ( 'refuse' === Entry_Rules::save_effect( (string) $entry->state, $open ) ) {
@@ -72,30 +113,47 @@ final class Entry_Service {
 		}
 
 		$normalised = Entry_Rules::validate_picks( $picks );
+		$was_submitted = Entry_Rules::SUBMITTED === (string) $entry->state;
+		$previous_revision = $was_submitted ? self::submitted_revision( $entry_id ) : null;
+		$previous_picks = $previous_revision ? array_map( static fn ( $pick ): string => (string) $pick->person_uuid, self::revision_picks( (int) $previous_revision->id ) ) : array();
+		$added_picks = array_values( array_diff( $normalised, $previous_picks ) );
 
 		$revision_id = 0;
 		$wpdb->query( 'START TRANSACTION' );
 		try {
-			$updated = $wpdb->query(
-				$wpdb->prepare(
-					'UPDATE ' . $wpdb->prefix . 'obitleague_entries
-					 SET expected_version = expected_version + 1, updated_at = %s
-					 WHERE id = %d AND expected_version = %d',
-					current_time( 'mysql', true ),
-					$entry_id,
-					$expected_version
-				)
-			);
+			if ( ! Deadline_Policy::is_entry_open( (int) $entry->season, new \DateTimeImmutable( 'now', new \DateTimeZone( 'UTC' ) ) ) ) {
+				throw new Locked_Exception( 'The season has started — picks can no longer be changed.' );
+			}
+			if ( $was_submitted && $previous_revision ) {
+				$wpdb->query(
+					$wpdb->prepare(
+						"UPDATE {$wpdb->prefix}obitleague_entry_revisions SET kind = 'superseded' WHERE id = %d AND entry_id = %d AND kind = 'submitted'",
+						(int) $previous_revision->id,
+						$entry_id
+					)
+				);
+			}
+			$update_sql = 'UPDATE ' . $wpdb->prefix . 'obitleague_entries SET expected_version = expected_version + 1, updated_at = %s';
+			$update_args = array( current_time( 'mysql', true ) );
+			if ( null !== $team_name ) {
+				$update_sql .= ', team_name = %s';
+				$update_args[] = $team_name;
+			}
+			$update_sql .= ' WHERE id = %d AND expected_version = %d AND state = %s';
+			array_push( $update_args, $entry_id, $expected_version, (string) $entry->state );
+			$updated = $wpdb->query( $wpdb->prepare( $update_sql, ...$update_args ) );
 			if ( 1 !== (int) $updated ) {
 				throw new Stale_Exception( 'This draft was changed elsewhere — reload and try again.' );
 			}
 
 			$wpdb->query(
 				$wpdb->prepare(
-					'INSERT INTO ' . $wpdb->prefix . 'obitleague_entry_revisions (entry_id, kind, created_at)
-					 VALUES (%d, %s, %s)',
+					'INSERT INTO ' . $wpdb->prefix . 'obitleague_entry_revisions (entry_id, kind, receipt_id, submitted_at, created_at)
+					 VALUES (%d, %s, %s, %s, %s)',
 					$entry_id,
-					Entry_Rules::KIND_DRAFT,
+					$was_submitted ? Entry_Rules::KIND_SUBMITTED : Entry_Rules::KIND_DRAFT,
+					$was_submitted ? wp_generate_uuid4() : null,
+					$was_submitted ? current_time( 'mysql', true ) : null,
 					current_time( 'mysql', true )
 				)
 			);
@@ -119,10 +177,15 @@ final class Entry_Service {
 			throw $e;
 		}
 
+		if ( $was_submitted && $added_picks ) {
+			self::award_events_for_added_picks( $entry_id, (int) $entry->season, $added_picks );
+		}
+
 		return array(
 			'revision_id'      => $revision_id,
 			'expected_version' => $expected_version + 1,
 			'picks'            => $normalised,
+			'state'            => (string) $entry->state,
 		);
 	}
 
@@ -139,6 +202,9 @@ final class Entry_Service {
 		global $wpdb;
 
 		$entry = self::require_entry( $entry_id, $user_id );
+		if ( 'member' !== (string) League_Service::member_row( (int) $entry->league_id, $user_id )?->status ) {
+			throw new Locked_Exception( 'Spectators cannot change or submit team picks.' );
+		}
 
 		$now  = new \DateTimeImmutable( 'now', new \DateTimeZone( 'UTC' ) );
 		$open = Deadline_Policy::is_entry_open( (int) $entry->season, $now );
@@ -158,6 +224,19 @@ final class Entry_Service {
 			$txn_started = new \DateTimeImmutable( 'now', new \DateTimeZone( 'UTC' ) );
 
 			$wpdb->query( 'START TRANSACTION' );
+			$entry = $wpdb->get_row(
+				$wpdb->prepare(
+					"SELECT e.* FROM {$wpdb->prefix}obitleague_entries e
+					 JOIN {$wpdb->prefix}obitleague_league_members m ON m.league_id = e.league_id AND m.user_id = e.user_id AND m.status = 'member'
+					 WHERE e.id = %d AND e.user_id = %d AND e.state = %s FOR UPDATE",
+					$entry_id,
+					$user_id,
+					Entry_Rules::DRAFT
+				)
+			);
+			if ( ! $entry ) {
+				throw new Locked_Exception( 'Entry is no longer available for submission.' );
+			}
 
 			// Commit-time rule: re-check inside the transaction.
 			if ( ! Deadline_Policy::is_entry_open( (int) $entry->season, $txn_started ) ) {
@@ -192,13 +271,17 @@ final class Entry_Service {
 				);
 			}
 
-			$wpdb->query(
+			$updated = $wpdb->query(
 				$wpdb->prepare(
-					"UPDATE {$wpdb->prefix}obitleague_entries SET state = 'submitted', updated_at = %s WHERE id = %d",
+					"UPDATE {$wpdb->prefix}obitleague_entries SET state = 'submitted', updated_at = %s WHERE id = %d AND state = %s",
 					$committed_gmt,
-					$entry_id
+					$entry_id,
+					Entry_Rules::DRAFT
 				)
 			);
+			if ( 1 !== (int) $updated ) {
+				throw new Stale_Exception( 'This entry was submitted elsewhere — reload to see its receipt.' );
+			}
 
 			$wpdb->query( 'COMMIT' );
 
@@ -218,6 +301,25 @@ final class Entry_Service {
 			throw $e;
 		} finally {
 			$wpdb->query( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
+		}
+	}
+
+	/** Award approved events to new picks on an amended submitted team. */
+	private static function award_events_for_added_picks( int $entry_id, int $season, array $added_picks ): void {
+		global $wpdb;
+		$placeholders = implode( ',', array_fill( 0, count( $added_picks ), '%s' ) );
+		$events = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT uuid FROM {$wpdb->prefix}obitleague_events WHERE person_uuid IN ({$placeholders}) AND approved_at IS NOT NULL AND retracted_at IS NULL",
+				...$added_picks
+			)
+		);
+		foreach ( (array) $events as $event_uuid ) {
+			Outbox_Service::award_event( (string) $event_uuid, $entry_id );
+		}
+		$league_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT league_id FROM {$wpdb->prefix}obitleague_entries WHERE id = %d", $entry_id ) );
+		if ( $league_id ) {
+			Jobs::schedule_standings_rebuild( $league_id, $season );
 		}
 	}
 
@@ -252,13 +354,15 @@ final class Entry_Service {
 		global $wpdb;
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
-				'SELECT * FROM ' . $wpdb->prefix . 'obitleague_entries WHERE id = %d AND user_id = %d',
+				'SELECT e.* FROM ' . $wpdb->prefix . 'obitleague_entries e
+				 JOIN ' . $wpdb->prefix . 'obitleague_league_members m ON m.league_id = e.league_id AND m.user_id = e.user_id
+				 WHERE e.id = %d AND e.user_id = %d',
 				$entry_id,
 				$user_id
 			)
 		);
 		if ( ! $row ) {
-			throw new Locked_Exception( 'Entry not found for this player.' );
+			throw new Locked_Exception( 'Entry not found for this player or league membership.' );
 		}
 		return $row;
 	}

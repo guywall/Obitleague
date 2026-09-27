@@ -1223,6 +1223,17 @@ img.ob-profile__avatar--img {
 	box-shadow: inset 0 0 0 1px rgba(19, 28, 23, 0.1), 0 4px 14px rgba(19, 28, 23, 0.12);
 }
 
+/* Tables stay within their card; wide datasets scroll locally. */
+.ob-page,
+.ob-page .ob-grid,
+.ob-page .ob-card {
+	min-width: 0;
+	max-width: 100%;
+}
+.ob-table-scroll table {
+	margin-bottom: 0;
+}
+
 /* ---------- overall standings ---------- */
 .ob-table--overall .ob-player {
 	font-weight: 700;
@@ -1233,6 +1244,14 @@ img.ob-profile__avatar--img {
 	font-size: 0.74rem;
 	color: var(--ob-muted);
 	margin-top: 2px;
+}
+.ob-overall-owner,
+.ob-standing-owner {
+	display: block;
+	margin-top: 2px;
+	font-size: 0.72rem;
+	font-weight: 500;
+	color: var(--ob-muted);
 }
 .ob-table--overall .ob-crown {
 	color: #b98a2f;
@@ -1275,6 +1294,104 @@ img.ob-profile__avatar--img {
 	min-height: 46px;
 	font-size: 0.95rem;
 	font-family: inherit;
+}
+.ob-main-editor,
+.ob-side-editor {
+	margin-top: 18px;
+	padding-top: 18px;
+	border-top: 1px solid var(--ob-line);
+}
+.ob-main-editor label,
+.ob-side-editor label {
+	display: block;
+	margin: 12px 0 6px;
+	font-size: 0.84rem;
+	font-weight: 700;
+}
+.ob-main-editor input,
+.ob-side-editor input {
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 44px;
+	padding: 10px 12px;
+	border: 1px solid var(--ob-line);
+	border-radius: 9px;
+	font: inherit;
+}
+.ob-main-results,
+.ob-side-editor ul,
+.ob-main-picks,
+.ob-side-editor ol {
+	margin: 8px 0 16px;
+	padding: 0;
+	list-style: none;
+}
+.ob-main-results li,
+.ob-side-editor ul li {
+	margin: 6px 0;
+}
+.ob-pick-result,
+.ob-wikidata-search {
+	width: 100%;
+	padding: 10px 12px;
+	border: 1px solid var(--ob-line);
+	border-radius: 9px;
+	background: #fff;
+	color: var(--ob-ink);
+	text-align: left;
+	cursor: pointer;
+}
+.ob-pick-result:hover,
+.ob-wikidata-search:hover {
+	border-color: var(--ob-accent);
+	background: #f4f8f4;
+}
+.ob-pick-result small,
+.ob-main-picks small,
+.ob-side-editor ol small {
+	display: block;
+	margin-top: 3px;
+	color: var(--ob-muted);
+	font-size: 0.76rem;
+	font-weight: 500;
+}
+.ob-main-picks li,
+.ob-side-editor ol li {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 8px 12px;
+	align-items: center;
+	padding: 10px 0;
+	border-bottom: 1px solid var(--ob-line);
+}
+.ob-main-picks li small,
+.ob-side-editor ol li small {
+	grid-column: 1;
+}
+.ob-main-picks li button,
+.ob-side-editor ol li button {
+	grid-column: 2;
+	grid-row: 1 / span 2;
+	min-height: 36px;
+	padding: 6px 10px;
+	border: 1px solid var(--ob-line);
+	border-radius: 8px;
+	background: #fff;
+	cursor: pointer;
+}
+.ob-main-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+.ob-main-editor [hidden],
+.ob-side-editor[hidden] {
+	display: none !important;
+}
+@media (min-width: 720px) {
+	.ob-join-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
 }
 .ob-btn {
 	display: inline-flex;
@@ -1330,6 +1447,13 @@ img.ob-profile__avatar--img {
 	padding: 14px 16px;
 	cursor: pointer;
 	user-select: none;
+	min-width: 0;
+}
+.ob-league-row__owner {
+	display: block;
+	margin-top: 3px;
+	font: 500 0.75rem/1.3 'Public Sans', sans-serif;
+	color: var(--ob-muted);
 }
 .ob-league-row__player {
 	font-family: 'Fraunces', Georgia, serif;
@@ -1345,6 +1469,22 @@ img.ob-profile__avatar--img {
 	color: var(--ob-muted);
 	font-size: 0.8rem;
 	white-space: nowrap;
+}
+.ob-league-row__head > .ob-pts,
+.ob-league-row__chev {
+	flex: 0 0 auto;
+}
+@media (max-width: 520px) {
+	.ob-league-row__head {
+		gap: 8px;
+		padding: 12px;
+	}
+	.ob-league-row__meta {
+		max-width: 76px;
+		white-space: normal;
+		text-align: right;
+		font-size: 0.7rem;
+	}
 }
 .ob-league-row__chev {
 	color: var(--ob-muted);
@@ -1720,11 +1860,190 @@ a.ob-pick__name:hover {
 	border-color: var(--ob-accent);
 }
 
+/* ---------- forum ---------- */
+.ob-forum-note {
+	padding: 12px 16px;
+	border-radius: 10px;
+	background: var(--ob-accent-soft, #e2f2ea);
+	color: var(--ob-green-deep, #0a3d2c);
+	font-weight: 600;
+	font-size: 0.9rem;
+	margin: 14px 0 0;
+}
+.ob-forum-note--error {
+	background: var(--ob-rose-soft, #f6e3dd);
+	color: var(--ob-rose, #b3452f);
+}
+.ob-forum-topic__row {
+	display: flex;
+	gap: 14px;
+	align-items: baseline;
+	padding: 13px 2px;
+	border-bottom: 1px solid var(--ob-line, #dfe3d8);
+}
+.ob-forum-topic__row:last-child {
+	border-bottom: 0;
+}
+.ob-forum-topic.is-pinned .ob-forum-topic__title {
+	color: #7a5c12;
+}
+.ob-forum-topic__main {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+}
+.ob-forum-topic__title {
+	font-family: 'Fraunces', Georgia, serif;
+	font-weight: 700;
+	font-size: 1.05rem;
+	color: var(--ob-ink, #131c17);
+	text-decoration: none;
+}
+.ob-forum-topic__title:hover {
+	color: var(--ob-accent, #0d7d5a);
+}
+.ob-forum-topic__meta {
+	font-size: 0.78rem;
+	color: var(--ob-muted, #5f6f66);
+	margin-top: 3px;
+}
+.ob-forum-topic__counts {
+	flex: 0 0 auto;
+	text-align: right;
+	font-size: 0.78rem;
+	color: var(--ob-muted, #5f6f66);
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	font-variant-numeric: tabular-nums;
+}
+.ob-forum-topic__counts > span:first-child {
+	font-weight: 800;
+	color: var(--ob-accent-deep, #0a3d2c);
+}
+.ob-forum-pages {
+	display: flex;
+	gap: 16px;
+	justify-content: center;
+	margin-top: 16px;
+	font-size: 0.86rem;
+}
+.ob-forum-pages a {
+	font-weight: 700;
+}
+.ob-forum-post {
+	padding: 12px 0;
+	border-bottom: 1px solid var(--ob-line, #dfe3d8);
+}
+.ob-forum-post:last-child {
+	border-bottom: 0;
+}
+.ob-forum-post__head {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	flex-wrap: wrap;
+	margin-bottom: 6px;
+}
+.ob-forum-post__author {
+	font-weight: 800;
+	font-size: 0.9rem;
+	color: var(--ob-accent-deep, #0a3d2c);
+}
+.ob-forum-post__time {
+	font-size: 0.76rem;
+	color: var(--ob-muted, #5f6f66);
+	font-variant-numeric: tabular-nums;
+}
+.ob-forum-post__body p {
+	margin: 0 0 8px;
+	line-height: 1.65;
+	color: #2c3833;
+}
+.ob-forum-post__body p:last-child {
+	margin-bottom: 0;
+}
+.ob-forum-form {
+	display: grid;
+	gap: 8px;
+}
+.ob-forum-form label {
+	font-weight: 700;
+	font-size: 0.86rem;
+	margin-top: 6px;
+}
+.ob-forum-form input,
+.ob-forum-form textarea {
+	width: 100%;
+	padding: 11px 13px;
+	border: 1px solid var(--ob-line, #dfe3d8);
+	border-radius: 10px;
+	font: inherit;
+	background: #fff;
+}
+.ob-forum-form textarea {
+	min-height: 120px;
+	resize: vertical;
+}
+.ob-forum-form .ob-btn {
+	justify-self: start;
+	margin-top: 4px;
+}
+.ob-forum-mod__actions {
+	display: flex;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+.ob-btn--danger {
+	background: var(--ob-rose, #b3452f);
+	color: #fff;
+}
+.ob-btn--danger:hover {
+	background: #8f3523;
+	color: #fff;
+}
+
+/* ---------- occupation tags ---------- */
+.ob-occ-tag {
+	display: inline-block;
+	margin: 0 4px 4px 0;
+	padding: 2px 9px;
+	border-radius: 999px;
+	background: var(--ob-accent-soft, #e2f2ea);
+	color: var(--ob-green-deep, #0a3d2c) !important;
+	font-size: 0.7rem;
+	font-weight: 700;
+	text-decoration: none;
+	transition: background 0.15s, color 0.15s;
+}
+.ob-occ-tag:hover {
+	background: var(--ob-green-deep, #0a3d2c);
+	color: #fff !important;
+}
+.ob-profile__occ-tags {
+	margin: 8px 0 0;
+}
+.ob-stats-profile {
+	margin-top: 34px;
+}
+.ob-timeline__label a {
+	color: inherit;
+	text-decoration: none;
+	border-bottom: 1px solid transparent;
+}
+.ob-timeline__label a:hover {
+	color: var(--ob-accent);
+	border-color: var(--ob-accent);
+}
+
 /* Links inside dark heroes stay light (the generic content-link rule
-   above would render them near-invisible). */
-.ob-hero a {
+   above would render them near-invisible). The gold CTA buttons are
+   excluded: light text on gold is unreadable, so they keep their dark
+   ink from obitleague.css. */
+.ob-hero a:not(.ob-btn):not([class*="ob-hero__cta"]) {
 	color: #8fd3b6 !important;
 }
-.ob-hero a:hover {
+.ob-hero a:not(.ob-btn):not([class*="ob-hero__cta"]):hover {
 	color: #fff !important;
 }

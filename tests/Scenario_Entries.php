@@ -25,10 +25,11 @@ final class Scenario_Entries {
 
 	private const TEN = array( 'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'p10' );
 
-	public function test_drafts_save_before_lock_and_refuse_after( Runner $t ): void {
+	public function test_drafts_and_submitted_teams_can_change_until_lock( Runner $t ): void {
 		$t->check( 'create_draft' === Entry_Rules::save_effect( Entry_Rules::DRAFT, true ), __METHOD__, 'open deadline: save creates a draft' );
-		$t->check( 'refuse' === Entry_Rules::save_effect( Entry_Rules::SUBMITTED, true ), __METHOD__, 'submitted entry cannot be re-saved' );
-		$t->check( 'refuse' === Entry_Rules::save_effect( Entry_Rules::DRAFT, false ), __METHOD__, 'late save is refused' );
+		$t->check( 'create_amendment' === Entry_Rules::save_effect( Entry_Rules::SUBMITTED, true ), __METHOD__, 'submitted team can be amended before next season starts' );
+		$t->check( 'refuse' === Entry_Rules::save_effect( Entry_Rules::DRAFT, false ), __METHOD__, 'late draft save is refused' );
+		$t->check( 'refuse' === Entry_Rules::save_effect( Entry_Rules::SUBMITTED, false ), __METHOD__, 'late submitted amendment is refused' );
 	}
 
 	public function test_submit_only_from_draft_while_open( Runner $t ): void {

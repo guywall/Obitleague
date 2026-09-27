@@ -184,37 +184,37 @@ final class Shortcodes {
 	}
 
 	public static function standings( $atts = array() ): string {
-		$a      = shortcode_atts( array( 'league' => '', 'season' => self::season(), 'top' => 0 ), $atts, 'obitleague_standings' );
+		$a = shortcode_atts( array( 'league' => '', 'season' => self::season(), 'top' => 10 ), $atts, 'obitleague_standings' );
 		$season = (int) $a['season'];
-
+		$top = min( 100, max( 1, (int) $a['top'] ) );
 		$league_ids = '' !== $a['league'] ? array( self::league_id_by_name( (string) $a['league'] ) ) : array_map( static fn ( $l ) => (int) $l->id, self::all_leagues( $season ) );
 
 		$out = '<div class="ob-grid' . ( count( $league_ids ) > 2 ? ' ob-grid--3' : '' ) . '">';
 		foreach ( $league_ids as $league_id ) {
 			$name = $league_id ? (string) $GLOBALS['wpdb']->get_var( $GLOBALS['wpdb']->prepare( 'SELECT name FROM ' . $GLOBALS['wpdb']->prefix . 'obitleague_leagues WHERE id = %d', $league_id ) ) : '';
 			$out .= '<section class="ob-card"><h2 class="ob-card__title"><a class="ob-league-link" href="' . esc_url( home_url( '/league/' . $league_id . '/' ) ) . '">' . esc_html( $name ?: 'League' ) . '</a></h2>';
-			$rows = $league_id ? Standings_Service::current( $league_id, $season ) : null;
+			$rows = $league_id ? Standings_Service::current( $league_id, $season, $top ) : null;
 			if ( ! $rows ) {
 				$out .= '<p><em>Standings not published yet.</em></p></section>';
 				continue;
 			}
-			if ( $a['top'] > 0 ) {
-				$rows = array_slice( $rows, 0, (int) $a['top'] );
-			}
-			$out .= '<table class="ob-table"><thead><tr><th>#</th><th>Player</th><th>Pts</th><th>Scoring</th></tr></thead><tbody>';
+
+			$out .= '<div class="ob-table-scroll" role="region" tabindex="0" aria-label="League standings; scroll horizontally to see every column"><table class="ob-table ob-table--compact"><thead><tr><th>#</th><th>Team</th><th>Pts</th><th>Scoring</th></tr></thead><tbody>';
 			$lead = (int) ( $rows[0]['points'] ?? 0 );
-			$entry_ids = self::entry_ids_for_league( $league_id, $season );
 			foreach ( $rows as $row ) {
 				$rank  = (int) $row['rank'];
 				$medal = '<span class="ob-medal ob-medal--' . $rank . '">' . (int) $row['rank'] . '</span>';
 				$lead_class = ( (int) $row['points'] === $lead && $lead > 0 ) ? ' ob-lead' : '';
-				$entry_id = $entry_ids[ (int) $row['user_id'] ] ?? 0;
+				$entry_id = (int) ( $row['entry_id'] ?? 0 );
 				$player_cell = $entry_id
 					? '<a class="ob-team-link" href="' . esc_url( home_url( '/team/' . $entry_id . '/' ) ) . '">' . esc_html( $row['player'] ) . '</a>'
 					: esc_html( $row['player'] );
-				$out .= '<tr><td class="ob-rank">' . $medal . '</td><td>' . $player_cell . '</td><td class="ob-pts' . $lead_class . '">' . esc_html( (string) $row['points'] ) . '</td><td>' . esc_html( (string) $row['scoring_picks'] ) . '</td></tr>';
+			if ( $entry_id && ! empty( $row['team_name'] ) && ! empty( $row['owner'] ) ) {
+				$player_cell .= '<small class="ob-standing-owner">managed by ' . esc_html( $row['owner'] ) . '</small>';
 			}
-			$out .= '</tbody></table></section>';
+			$out .= '<tr><td class="ob-rank">' . $medal . '</td><td>' . $player_cell . '</td><td class="ob-pts' . $lead_class . '">' . esc_html( (string) $row['points'] ) . '</td><td>' . esc_html( (string) $row['scoring_picks'] ) . '</td></tr>';
+			}
+			$out .= '</tbody></table></div></section>';
 		}
 		$out .= '</div>';
 		return self::style() . $out;
@@ -248,6 +248,10 @@ final class Shortcodes {
 			$out .= '<span class="ob-person__status">' . ( $death ? 'In memoriam' : 'Living' ) . '</span>';
 			$out .= '<p class="ob-person__name"><a href="' . esc_url( (string) get_permalink( $post ) ) . '">' . esc_html( get_the_title( $post ) ) . '</a></p>';
 			$out .= '<p class="ob-person__role">' . esc_html( (string) get_post_meta( $post->ID, 'obit_role', true ) ) . '</p>';
+			$occ = People_Sync::occupation_labels( (int) $post->ID );
+			if ( array() !== $occ ) {
+				$out .= '<p class="ob-person__occ" title="' . esc_attr( implode( ', ', $occ ) ) . '">' . esc_html( implode( ', ', $occ ) ) . '</p>';
+			}
 			$out .= '<p class="ob-person__dates">';
 			$out .= $birth ? esc_html( 'b. ' . $birth->label() ) : '';
 			$out .= $death ? esc_html( ' · d. ' . $death->label() ) : '';
@@ -291,6 +295,10 @@ final class Shortcodes {
 			$out .= '<span class="ob-person__status">In memoriam</span>';
 			$out .= '<p class="ob-person__name"><a href="' . esc_url( (string) get_permalink( $post ) ) . '">' . esc_html( get_the_title( $post ) ) . '</a></p>';
 			$out .= '<p class="ob-person__role">' . esc_html( (string) get_post_meta( $post->ID, 'obit_role', true ) ) . '</p>';
+			$occ = People_Sync::occupation_labels( (int) $post->ID );
+			if ( array() !== $occ ) {
+				$out .= '<p class="ob-person__occ" title="' . esc_attr( implode( ', ', $occ ) ) . '">' . esc_html( implode( ', ', $occ ) ) . '</p>';
+			}
 			$out .= '<p class="ob-person__dates">';
 			$out .= $death ? esc_html( 'd. ' . $death->label() ) : '';
 			$out .= ( null !== $age ) ? esc_html( ' · age ' . $age ) : '';
@@ -306,20 +314,24 @@ final class Shortcodes {
 		$season = self::season();
 		$steps  = array(
 			array(
-				'Join',
-				'Leagues are private. An editor issues an invite token, valid for ' . (int) \Obitleague\Domain\League_Rules::INVITE_TTL_DAYS . ' days — one league per token, members join by link.',
+				'Get yourself into a league',
+				'Obitleague is free to play. Create an account, verify your email, and you are in the main game for the coming season — your team competes against everyone else on the overall leaderboard. If your friends, family or office run a private league, they can share an invite code with you; side leagues are small, friendly and entirely optional, and they never change your main-game score.',
 			),
 			array(
-				'Draft',
-				'Pick exactly ' . (int) \Obitleague\Domain\Value\Ruleset::TEAM_SIZE . ' living public figures (minimum age ' . (int) \Obitleague\Domain\Value\Ruleset::MIN_AGE . ' at season start) and submit before the deadline: ' . \Obitleague\Domain\Value\Ruleset::DEADLINE_RULE . ' Submissions at 23:59:59.9 on 31 December are too late — the lock is absolute.',
+				'Pick your ten',
+				'Build a team of exactly ' . (int) \Obitleague\Domain\Value\Ruleset::TEAM_SIZE . ' living public figures from the catalogue. Everyone you pick must be at least ' . (int) \Obitleague\Domain\Value\Ruleset::MIN_AGE . ' years old when the season starts, and you cannot pick the same person twice. You can save a draft and keep editing it, but once the deadline passes — ' . \Obitleague\Domain\Value\Ruleset::DEADLINE_RULE . ' — your team is locked for the year. One second late is still late.',
 			),
 			array(
-				'Follow',
-				'Death reports are collected from public feeds. Nothing scores automatically: editors verify identity, the exact date, and the cause before any case is approved. One approved death event per person, ever.',
+				'Then wait for the news',
+				'Through the season, the editors watch public reporting. When someone on your team dies, the story is checked before it counts: the identity is verified, the exact date is confirmed, and the cause is recorded where it is known. Nothing scores itself — a human editor approves every case, and only one approved death per person is ever recorded.',
 			),
 			array(
-				'Score',
-				'Each approved death scores max(1, 100 − age at death) to every team holding that pick. Standings stay provisional until ' . rtrim( \Obitleague\Domain\Value\Ruleset::SETTLEMENT_RULE, '.' ) . ', then the season settles.',
+				'How your team scores',
+				'When a death is approved, every team carrying that person scores points: take their age at death, subtract it from 100, and that is the score (a minimum of 1 point, so every confirmed death is worth something). The younger the life, the heavier the loss, and the more points your team collects. Standings stay provisional until ' . rtrim( \Obitleague\Domain\Value\Ruleset::SETTLEMENT_RULE, '.' ) . ' in case a December death surfaces after New Year, and then the season is settled.',
+			),
+			array(
+				'If something goes wrong',
+				'Corrections are part of the game, not an exception to it. If a date turns out to be wrong, the record is corrected and every affected score is recalculated openly. If a death turns out to be a hoax or a case of mistaken identity, the award is reversed and the correction is visible in the archive. Nobody can quietly edit a total: every point comes from a recorded, auditable event.',
 			),
 		);
 
@@ -333,17 +345,17 @@ final class Shortcodes {
 		$out     .= '</ol>';
 
 		$out     .= '<section class="ob-card ob-rules__scoring ob-anim"><h2 class="ob-card__title">How points work</h2>';
-		$out     .= '<p>A confirmed death scores <strong>max(1, 100 − age)</strong> — the younger the life, the heavier the loss. Worked examples for season ' . (int) $season . ':</p>';
+		$out     .= '<p>Each confirmed death is worth <strong>100 minus the person\'s age at death</strong>, with a floor of 1 point — so a life cut short at 64 scores 36 points, and a remarkable life ending at 99 still scores 1. Worked examples:</p>';
 		$out     .= '<table class="ob-table"><thead><tr><th>Age at death</th><th>Points scored</th></tr></thead><tbody>';
 		foreach ( $examples as $age ) {
 			$pts = \Obitleague\Domain\Value\Ruleset::points_for_age( $age );
 			$out .= '<tr><td>' . esc_html( (string) $age ) . '</td><td class="ob-pts">' . esc_html( (string) $pts ) . '</td></tr>';
 		}
-		$out     .= '</tbody></table><p class="ob-rules__note">Deaths with month-only precision are verified but never scored — the record waits for an exact date.</p>';
+		$out     .= '</tbody></table><p class="ob-rules__note">Ties in the leaderboard are broken by the number of scoring picks; teams still level share a position. Deaths known only to the month or year are verified but never scored — the record waits for an exact date. A death on 31 December still counts for that season if it is confirmed by the settlement date.</p>';
 		$out     .= '</section>';
 
 		$out     .= '<section class="ob-card ob-rules__ethics ob-anim"><h2 class="ob-card__title">Played with respect</h2>';
-		$out     .= '<p>The figures in this catalogue are real people. Obitleague reports only what public sources and our editors confirm, credits every fact, and exists for people who read the obituaries — not for shock. If a case touches an actively grieving family, editors may hold publication; the game waits.</p>';
+		$out     .= '<p>The figures in this catalogue are real people, and the game treats them that way. Obitleague reports only what public sources and our editors confirm, credits every fact to its source, and exists for people who read the obituaries — not for shock. If a case touches an actively grieving family, editors may hold publication; the game waits. Discussion in the forum follows the same spirit: argue about picks and points as much as you like, but keep it decent.</p>';
 		$out     .= '</section>';
 		$out     .= '</div>';
 		return self::style() . $out;

@@ -21,6 +21,7 @@ final class Jobs {
 	private const HOOK_FEED_POLL   = 'obitleague_feed_poll';
 	private const HOOK_REFRESH     = 'obitleague_profile_refresh';
 	private const HOOK_OUTBOX_TICK = 'obitleague_outbox_tick';
+	private const HOOK_STANDINGS_REBUILD = 'obitleague_standings_rebuild';
 
 	private function __construct() {}
 
@@ -35,6 +36,8 @@ final class Jobs {
 		add_action( self::HOOK_FEED_POLL, array( self::class, 'poll_feeds' ) );
 		add_action( self::HOOK_REFRESH, array( self::class, 'refresh_profiles' ) );
 		add_action( self::HOOK_OUTBOX_TICK, array( self::class, 'outbox_tick' ) );
+		add_action( self::HOOK_STANDINGS_REBUILD, array( self::class, 'rebuild_standings' ), 10, 2 );
+		add_action( 'obitleague_main_user_backfill', array( Main_League_Service::class, 'run_user_backfill' ), 10, 2 );
 	}
 
 	/** @param array<string, array{interval:int, display:string}> $schedules */
@@ -225,6 +228,22 @@ final class Jobs {
 	/** Placeholder until the enrichment module lands: refresh runs in batches. */
 	public static function refresh_profiles(): void {
 		do_action( 'obitleague_profile_refresh_tick' );
+	}
+
+	/** Coalesce standings refreshes so every team submission avoids a full rebuild. */
+	public static function schedule_standings_rebuild( int $league_id, int $season ): void {
+		if ( $league_id < 1 || $season < 2000 || $season > 2200 ) {
+			return;
+		}
+		$args = array( $league_id, $season );
+		if ( ! wp_next_scheduled( self::HOOK_STANDINGS_REBUILD, $args ) ) {
+			wp_schedule_single_event( time() + 15, self::HOOK_STANDINGS_REBUILD, $args );
+		}
+	}
+
+	/** Rebuild one dirty league/season outside the user's submission request. */
+	public static function rebuild_standings( int $league_id, int $season ): void {
+		Standings_Service::rebuild( $league_id, $season );
 	}
 
 	/** Drain the scoring/notification outbox every minute. */
