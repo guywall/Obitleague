@@ -104,6 +104,11 @@ $pages = array(
 		'front'    => false,
 		'sections' => array(),
 	),
+	'stats' => array(
+		'title'    => 'Statistics',
+		'front'    => false,
+		'sections' => array(),
+	),
 	'join' => array(
 		'title'    => 'Join a League',
 		'front'    => false,
