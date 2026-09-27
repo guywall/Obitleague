@@ -30,13 +30,15 @@ final class Game_Pages {
 		add_shortcode( 'obitleague_join', array( self::class, 'join_shortcode' ) );
 	}
 
-	/** Rewrite /league/<id>/ and register query vars. */
+	/** Rewrite /league/<id>/ and /team/<entry-id>/ and register query vars. */
 	public static function rewrites(): void {
 		add_rewrite_rule( '^league/(\d+)/?$', 'index.php?ob_league_id=$matches[1]', 'top' );
+		add_rewrite_rule( '^team/(\d+)/?$', 'index.php?ob_team_id=$matches[1]', 'top' );
 	}
 
 	public static function query_vars( array $vars ): array {
 		$vars[] = 'ob_league_id';
+		$vars[] = 'ob_team_id';
 		return $vars;
 	}
 
@@ -45,6 +47,10 @@ final class Game_Pages {
 		$league_id = (int) get_query_var( 'ob_league_id' );
 		if ( $league_id > 0 ) {
 			return OBITLEAGUE_DIR . 'src/Templates/league-detail.php';
+		}
+		$team_id = (int) get_query_var( 'ob_team_id' );
+		if ( $team_id > 0 ) {
+			return OBITLEAGUE_DIR . 'src/Templates/team-detail.php';
 		}
 
 		// Static game pages by slug (created by the demo page builder).
@@ -59,6 +65,9 @@ final class Game_Pages {
 		}
 		if ( 'join' === $path ) {
 			return OBITLEAGUE_DIR . 'src/Templates/join-league.php';
+		}
+		if ( 'stats' === $path ) {
+			return OBITLEAGUE_DIR . 'src/Templates/stats.php';
 		}
 		return $template;
 	}

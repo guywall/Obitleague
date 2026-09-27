@@ -1586,3 +1586,145 @@ a.ob-pick__name:hover {
 .ob-main .ob-league-link {
 	color: inherit;
 }
+
+/* ---------- team page pick grid ---------- */
+.ob-picks--page {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 8px;
+	margin-top: 20px;
+}
+@media (min-width: 720px) {
+	.ob-picks--page {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+
+/* ---------- stats boards ---------- */
+.ob-stats-boards {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 16px;
+	margin-top: 20px;
+}
+@media (min-width: 900px) {
+	.ob-stats-boards {
+		grid-template-columns: repeat(2, 1fr);
+	}
+	.ob-stats-timeline {
+		grid-column: 1 / -1;
+	}
+}
+.ob-stat-list {
+	display: flex;
+	flex-direction: column;
+}
+.ob-stat-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 9px 0;
+	border-bottom: 1px solid var(--ob-line);
+}
+.ob-stat-row:last-child {
+	border-bottom: 0;
+}
+.ob-stat-row__pos {
+	flex: 0 0 auto;
+	width: 24px;
+	height: 24px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 8px;
+	background: #eef0ea;
+	color: var(--ob-muted);
+	font-size: 0.72rem;
+	font-weight: 800;
+}
+.ob-stat-row__pos--fire {
+	background: var(--ob-brass-soft);
+	color: #8a6a1d;
+}
+.ob-stat-row__body {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+}
+.ob-stat-row__body a {
+	font-weight: 700;
+	font-size: 0.94rem;
+	text-decoration: none;
+	color: var(--ob-ink);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.ob-stat-row__body a:hover {
+	color: var(--ob-accent);
+}
+.ob-stat-row__body > span {
+	font-size: 0.76rem;
+	color: var(--ob-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.ob-timeline {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin: 8px 0;
+}
+.ob-timeline__row {
+	display: grid;
+	grid-template-columns: 92px 1fr auto;
+	align-items: center;
+	gap: 12px;
+}
+.ob-timeline__label {
+	font-size: 0.8rem;
+	font-weight: 700;
+	color: var(--ob-muted);
+}
+.ob-timeline__bar {
+	height: 14px;
+	border-radius: 7px;
+	background: #eef0ea;
+	overflow: hidden;
+	display: block;
+}
+.ob-timeline__bar span {
+	display: block;
+	height: 100%;
+	border-radius: 7px;
+	background: linear-gradient(90deg, #12a06f, #0a5c40);
+}
+.ob-timeline__value {
+	font-size: 0.76rem;
+	font-weight: 700;
+	color: var(--ob-accent-deep);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.ob-team-link {
+	font-weight: 600;
+	color: var(--ob-ink);
+	text-decoration: none;
+	border-bottom: 1px solid transparent;
+}
+.ob-team-link:hover {
+	color: var(--ob-accent);
+	border-color: var(--ob-accent);
+}
+
+/* Links inside dark heroes stay light (the generic content-link rule
+   above would render them near-invisible). */
+.ob-hero a {
+	color: #8fd3b6 !important;
+}
+.ob-hero a:hover {
+	color: #fff !important;
+}

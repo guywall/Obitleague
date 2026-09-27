@@ -75,6 +75,15 @@ final class Site_Chrome {
 				array( 'label' => 'Rules', 'url' => home_url( '/rules/' ) ),
 			);
 		}
+		// Statistics sit beside Standings in every menu source.
+		$insert_at = 0;
+		foreach ( $items as $i => $item ) {
+			if ( str_ends_with( (string) wp_parse_url( (string) $item['url'], PHP_URL_PATH ), '/standings/' ) ) {
+				$insert_at = $i + 1;
+				break;
+			}
+		}
+		array_splice( $items, $insert_at, 0, array( array( 'label' => 'Stats', 'url' => home_url( '/stats/' ) ) ) );
 		// Hide the primary-menu duplicate of account pages (rendered below
 		// from the auth-aware fallback list instead).
 		$items = array_values( array_filter(
@@ -106,9 +115,8 @@ final class Site_Chrome {
 		}
 		// Route families roll up to their parent nav item: league pages
 		// highlight Standings, person profiles highlight People.
-		$family = array(
-			'/standings/' => '~^/(standings|league)/~',
-			'/catalogue/' => '~^/(catalogue|person)/~',
+		$family = array(				'/standings/' => '~^/(standings|league|team)/~',
+				'/catalogue/' => '~^/(catalogue|person)/~',
 		);
 		foreach ( $family as $base => $re ) {
 			if ( $target === $base || str_starts_with( $path, $base ) ) {

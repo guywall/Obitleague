@@ -5,6 +5,28 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+## [0.6.1] — 2026-09-27
+
+### Fixed
+- Hero links stay light on dark backgrounds (team page "back to league"
+  was nearly invisible after the content-link palette change).
+- Stats route no longer double-highlights Standings in the nav.
+
+## [0.6.0] — 2026-09-27
+
+### Added
+- Team pages at `/team/<entry-id>/`: full ten-pick card grid with slot
+  numbers, portraits, award badges and honest pre-lock-death zeros;
+  header carries rank, points and scoring-pick summary. Draft entries
+  redirect (team pages exist only for submitted teams).
+- Statistics page at `/stats/` with four boards computed live from the
+  awards ledger: Most picked, Flying under the radar (unpicked living
+  figures), Highest-scoring teams (cross-league, linked to team pages)
+  and Streaking teams (2+ scoring picks inside any 14-day window), plus
+  a Season momentum timeline of points awarded per month.
+- Standings tables link every player to their team page; the nav gains
+  a Stats item beside Standings.
+
 ## [0.5.0] — 2026-09-27
 
 First GitHub release. Functional demo season (2026) with real sourced data.

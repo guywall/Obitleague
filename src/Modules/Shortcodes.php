@@ -59,6 +59,24 @@ final class Shortcodes {
 		return $latest > 0 ? $latest : League_Service::current_season();
 	}
 
+	/** Submitted entry id per user in one league+season (for team links). */
+	private static function entry_ids_for_league( int $league_id, int $season ): array {
+		global $wpdb;
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT e.user_id, e.id FROM {$wpdb->prefix}obitleague_entries e
+				 WHERE e.league_id = %d AND e.season = %d AND e.state = 'submitted'",
+				$league_id,
+				$season
+			)
+		);
+		$out = array();
+		foreach ( (array) $rows as $row ) {
+			$out[ (int) $row->user_id ] = (int) $row->id;
+		}
+		return $out;
+	}
+
 	private static function league_id_by_name( string $name ): int {
 		global $wpdb;
 		return (int) $wpdb->get_var(
@@ -185,11 +203,16 @@ final class Shortcodes {
 			}
 			$out .= '<table class="ob-table"><thead><tr><th>#</th><th>Player</th><th>Pts</th><th>Scoring</th></tr></thead><tbody>';
 			$lead = (int) ( $rows[0]['points'] ?? 0 );
+			$entry_ids = self::entry_ids_for_league( $league_id, $season );
 			foreach ( $rows as $row ) {
 				$rank  = (int) $row['rank'];
 				$medal = '<span class="ob-medal ob-medal--' . $rank . '">' . (int) $row['rank'] . '</span>';
 				$lead_class = ( (int) $row['points'] === $lead && $lead > 0 ) ? ' ob-lead' : '';
-				$out .= '<tr><td class="ob-rank">' . $medal . '</td><td>' . esc_html( $row['player'] ) . '</td><td class="ob-pts' . $lead_class . '">' . esc_html( (string) $row['points'] ) . '</td><td>' . esc_html( (string) $row['scoring_picks'] ) . '</td></tr>';
+				$entry_id = $entry_ids[ (int) $row['user_id'] ] ?? 0;
+				$player_cell = $entry_id
+					? '<a class="ob-team-link" href="' . esc_url( home_url( '/team/' . $entry_id . '/' ) ) . '">' . esc_html( $row['player'] ) . '</a>'
+					: esc_html( $row['player'] );
+				$out .= '<tr><td class="ob-rank">' . $medal . '</td><td>' . $player_cell . '</td><td class="ob-pts' . $lead_class . '">' . esc_html( (string) $row['points'] ) . '</td><td>' . esc_html( (string) $row['scoring_picks'] ) . '</td></tr>';
 			}
 			$out .= '</tbody></table></section>';
 		}
