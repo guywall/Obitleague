@@ -41,6 +41,7 @@
 			if(count)count.textContent='('+picks.length+'/10)';
 		}
 		function add(person){
+			if(!canEdit){return false;}
 			if(picks.length>=10){message.textContent='Your team already has ten picks.';return false;}
 			if(!person.uuid||picks.some(function(pick){return pick.uuid===person.uuid;})){message.textContent='That person is already on your team.';return false;}
 			picks.push(person);render();results.replaceChildren();search.value='';message.textContent='';return true;
@@ -82,14 +83,16 @@
 			if(picks.length!==10){message.textContent='Choose exactly ten eligible people before saving.';return;}
 			message.textContent='Saving…';var path=kind==='main'?'/main-entry':'/entries/'+data.entry_id;
 			var body={picks:picks.map(function(person){return person.uuid;}),expected_version:version};if(name)body.team_name=name.value;
-			request(path,'PUT',body).then(function(saved){version=saved.expected_version;message.textContent='Team saved.';}).catch(function(error){message.textContent=error.message;});
+			var button=editor.querySelector('[data-'+kind+'-save]');button.disabled=true;
+			request(path,'PUT',body).then(function(saved){version=saved.expected_version;data.state=saved.state||data.state;message.textContent='Team saved.';}).catch(function(error){message.textContent=error.message;}).finally(function(){button.disabled=!canEdit;});
 		});
 		var submit=editor.querySelector('[data-'+kind+'-submit]');
 		if(submit){submit.hidden=!canEdit||data.state==='submitted';submit.disabled=!canEdit;submit.addEventListener('click',function(){
 			if(picks.length!==10){message.textContent='Choose exactly ten eligible people before submitting.';return;}
 			if(!window.confirm('Submit this team? You can still amend it until the next season starts.'))return;
 			message.textContent='Submitting…';var path=kind==='main'?'/main-entry/submit':'/entries/'+data.entry_id+'/submit';
-			request(path,'POST',{picks:picks.map(function(person){return person.uuid;})}).then(function(){data.state='submitted';submit.hidden=true;message.textContent='Team submitted. You can continue to amend it until the next season starts.';}).catch(function(error){message.textContent=error.message;});
+			submit.disabled=true;
+			request(path,'POST',{picks:picks.map(function(person){return person.uuid;})}).then(function(){data.state='submitted';submit.hidden=true;message.textContent='Team submitted. You can continue to amend it until the next season starts.';}).catch(function(error){message.textContent=error.message;}).finally(function(){submit.disabled=!canEdit||data.state==='submitted';});
 		});}
 		render();
 	}
@@ -105,8 +108,9 @@
 	}).catch(function(error){mainMessage.textContent=error.message;});
 
 	Array.prototype.forEach.call(document.querySelectorAll('[data-side-team]'),function(section){
-		var trigger=section.querySelector('[data-side-edit]'),editor=section.querySelector('[data-side-editor]'),message=editor.querySelector('[data-side-message]');
-		if(!trigger)return;
+		var trigger=section.querySelector('[data-side-edit]'),editor=section.querySelector('[data-side-editor]');
+		if(!trigger||!editor)return;
+		var message=editor.querySelector('[data-side-message]');
 		trigger.addEventListener('click',function(){editor.hidden=false;if(editor.dataset.loaded==='1')return;editor.dataset.loaded='1';
 			request('/entries/'+section.dataset.entryId,'GET').then(function(data){mountEditor(editor,'side',data,!!data.can_edit&&verified);}).catch(function(error){editor.dataset.loaded='';message.textContent=error.message;});
 		});

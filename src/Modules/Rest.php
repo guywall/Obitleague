@@ -435,10 +435,18 @@ final class Rest {
 		} catch ( Locked_Exception $exception ) {
 			return new \WP_Error( 'obitleague_not_found', 'Entry not available.', array( 'status' => 404 ) );
 		}
+		$previous_revision = self::latest_draft_revision( $entry_id );
+		$previous_picks = $previous_revision ? array_map( static fn ( $pick ): string => (string) $pick->person_uuid, Entry_Service::revision_picks( (int) $previous_revision->id ) ) : array();
 		$picks = (array) $request->get_param( 'picks' );
+		try {
+			$picks = \Obitleague\Domain\Entry_Rules::validate_picks( $picks );
+		} catch ( \Obitleague\Domain\Invalid_Team_Exception $exception ) {
+			return new \WP_Error( 'obitleague_invalid_selection', implode( ' ', $exception->problems ), array( 'status' => 422 ) );
+		}
 		foreach ( $picks as $uuid ) {
 			$post_id = Review_Service::person_post_id( (string) $uuid );
-			if ( ! $post_id || 'publish' !== get_post_status( $post_id ) || 'approved' !== (string) get_post_meta( $post_id, 'obit_eligibility', true ) || ! Catalogue::is_selectable( $post_id, (int) $entry->season ) ) {
+			$is_existing = in_array( (string) $uuid, $previous_picks, true );
+			if ( ! $post_id || 'publish' !== get_post_status( $post_id ) || ( ! $is_existing && ( 'approved' !== (string) get_post_meta( $post_id, 'obit_eligibility', true ) || ! Catalogue::is_selectable( $post_id, (int) $entry->season ) ) ) ) {
 				return new \WP_Error( 'obitleague_unselectable', 'Team picks must be published and selectable for this season.', array( 'status' => 422 ) );
 			}
 		}
