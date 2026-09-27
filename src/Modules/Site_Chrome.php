@@ -86,7 +86,9 @@ final class Site_Chrome {
 		) );
 		// Auth-aware account entries (plan §5: My leagues + join paths).
 		$items[] = array( 'label' => 'My Leagues', 'url' => home_url( '/my-leagues/' ) );
-		if ( ! is_user_logged_in() ) {
+		if ( is_user_logged_in() ) {
+			$items[] = array( 'label' => 'Log out', 'url' => wp_logout_url( home_url( '/' ) ) );
+		} else {
 			$items[] = array( 'label' => 'Join', 'url' => home_url( '/join/' ) );
 		}
 		return $items;
@@ -99,7 +101,21 @@ final class Site_Chrome {
 		if ( '/' === $target ) {
 			return '/' === $path || '' === $path;
 		}
-		return '' !== $target && str_starts_with( $path, $target );
+		if ( '' === $target ) {
+			return false;
+		}
+		// Route families roll up to their parent nav item: league pages
+		// highlight Standings, person profiles highlight People.
+		$family = array(
+			'/standings/' => '~^/(standings|league)/~',
+			'/catalogue/' => '~^/(catalogue|person)/~',
+		);
+		foreach ( $family as $base => $re ) {
+			if ( $target === $base || str_starts_with( $path, $base ) ) {
+				return (bool) preg_match( $re, $path ) && ( $path === $target || str_starts_with( $path, $target ) || str_starts_with( $target, $path ) || preg_match( $re, $path ) );
+			}
+		}
+		return str_starts_with( $path, $target );
 	}
 
 	public static function render_header(): void {
@@ -120,10 +136,15 @@ final class Site_Chrome {
 					<span></span><span></span><span></span>
 				</button>
 				<nav class="ob-nav__menu" id="ob-nav-menu" aria-label="Primary">
+					<?php $logged_in = is_user_logged_in(); ?>
 					<?php foreach ( self::nav_items() as $item ) : ?>
+						<?php if ( 'Log out' === $item['label'] && ! $logged_in ) { continue; } ?>
 						<a class="ob-nav__link<?php echo self::is_current( $item['url'] ) ? ' is-current' : ''; ?>" href="<?php echo esc_url( $item['url'] ); ?>"><?php echo esc_html( $item['label'] ); ?></a>
 					<?php endforeach; ?>
-					<a class="ob-nav__join" href="<?php echo esc_url( home_url( '/rules/' ) ); ?>">Join a league</a>
+					<?php if ( ! $logged_in ) : ?>
+						<a class="ob-nav__link" href="<?php echo esc_url( wp_login_url( home_url( '/my-leagues/' ) ) ); ?>">Sign in</a>
+					<?php endif; ?>
+					<a class="ob-nav__join" href="<?php echo esc_url( home_url( $logged_in ? '/my-leagues/' : '/join/' ) ); ?>"><?php echo $logged_in ? 'My game' : 'Join a league'; ?></a>
 				</nav>
 			</div>
 		</header>

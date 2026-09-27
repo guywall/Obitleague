@@ -130,10 +130,12 @@ final class Game_Pages {
 		$out .= '</div>';
 
 		$rest = esc_url( rest_url( 'obitleague/v1' ) );
-		$out .= <<<HTML
+		$my_url = esc_url( home_url( '/my-leagues/' ) );
+		$out   .= <<<HTML
 <script>
 (function(){
 	var rest = '{$rest}';
+	var MY_URL = '{$my_url}';
 	function bind(formSel, msgSel, path, okMsg){
 		var form = document.querySelector(formSel);
 		if(!form) return;
@@ -161,10 +163,14 @@ final class Game_Pages {
 		});
 	}
 	bind('[data-ob-join]', '[data-ob-join-msg]', '/leagues/join', function(j){
-		return j.already_member ? 'You are already a member of that league.' : 'Joined! Opening your leagues…';
+		if (j.already_member) { return 'You are already a member of that league.'; }
+		setTimeout(function(){ window.location.href = MY_URL; }, 900);
+		return 'Joined! Opening your leagues…';
 	});
 	bind('[data-ob-create]', '[data-ob-create-msg]', '/leagues', function(j){
-		return 'League created. Invite code: ' + (j.invite && j.invite.token ? j.invite.token : '(see admin)') + ' — it expires in 14 days.';
+		var code = (j.invite && j.invite.token) ? j.invite.token : '(see admin)';
+		setTimeout(function(){ window.location.href = MY_URL; }, 2500);
+		return 'League created. Invite code: ' + code + ' — it expires in 14 days. Copy it now; taking you to your leagues…';
 	});
 })();
 </script>

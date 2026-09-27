@@ -174,7 +174,7 @@ final class Shortcodes {
 		$out = '<div class="ob-grid' . ( count( $league_ids ) > 2 ? ' ob-grid--3' : '' ) . '">';
 		foreach ( $league_ids as $league_id ) {
 			$name = $league_id ? (string) $GLOBALS['wpdb']->get_var( $GLOBALS['wpdb']->prepare( 'SELECT name FROM ' . $GLOBALS['wpdb']->prefix . 'obitleague_leagues WHERE id = %d', $league_id ) ) : '';
-			$out .= '<section class="ob-card"><h2 class="ob-card__title">' . esc_html( $name ?: 'League' ) . '</h2>';
+			$out .= '<section class="ob-card"><h2 class="ob-card__title"><a class="ob-league-link" href="' . esc_url( home_url( '/league/' . $league_id . '/' ) ) . '">' . esc_html( $name ?: 'League' ) . '</a></h2>';
 			$rows = $league_id ? Standings_Service::current( $league_id, $season ) : null;
 			if ( ! $rows ) {
 				$out .= '<p><em>Standings not published yet.</em></p></section>';
