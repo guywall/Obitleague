@@ -14,6 +14,7 @@ use Obitleague\Domain\Age;
 use Obitleague\Domain\Value\Cause_Status;
 use Obitleague\Domain\Value\Ruleset;
 use Obitleague\Modules\Import_Service;
+use Obitleague\Modules\People_Sync;
 
 $post_id    = (int) get_the_ID();
 $name       = get_the_title( $post_id );
@@ -26,6 +27,8 @@ $cause_text = (string) get_post_meta( $post_id, 'obit_cause_text', true );
 $qid        = (string) get_post_meta( $post_id, 'obit_qid', true );
 $enwiki     = (string) get_post_meta( $post_id, 'obit_enwiki', true );
 $content    = get_the_content( null, false, $post_id );
+$portrait   = (string) get_post_meta( $post_id, People_Sync::META_IMAGE_URL, true );
+$credit     = (string) get_post_meta( $post_id, People_Sync::META_IMAGE_CREDIT, true );
 
 $birth = '' !== $birth_raw ? Import_Service::parse_partial( $birth_raw ) : null;
 $death = '' !== $death_raw ? Import_Service::parse_partial( $death_raw ) : null;
@@ -53,7 +56,11 @@ get_header();
 
 	<section class="ob-profile ob-anim<?php echo $is_dead ? ' ob-profile--memoriam' : ''; ?>">
 		<div class="ob-profile__id">
-			<span class="ob-profile__avatar" aria-hidden="true"><?php echo esc_html( mb_substr( $name, 0, 1 ) ); ?></span>
+			<?php if ( '' !== $portrait ) : ?>
+				<img class="ob-profile__avatar ob-profile__avatar--img" src="<?php echo esc_url( $portrait ); ?>" alt="<?php echo esc_attr( 'Portrait of ' . $name ); ?>" />
+			<?php else : ?>
+				<span class="ob-profile__avatar" aria-hidden="true"><?php echo esc_html( mb_substr( $name, 0, 1 ) ); ?></span>
+			<?php endif; ?>
 			<div>
 				<span class="ob-profile__kicker"><?php echo $is_dead ? esc_html( 'In memoriam' ) : esc_html( 'Catalogue profile' ); ?></span>
 				<h1 class="ob-profile__name"><?php echo esc_html( $name ); ?></h1>
@@ -135,10 +142,13 @@ get_header();
 				</section>
 			<?php endif; ?>
 
-			<?php if ( '' !== $qid || '' !== $enwiki ) : ?>
+			<?php if ( '' !== $qid || '' !== $enwiki || '' !== $portrait ) : ?>
 				<section class="ob-card ob-sources">
 					<h2 class="ob-card__title">Sources</h2>
 					<ul>
+						<?php if ( '' !== $portrait ) : ?>
+							<li><a href="<?php echo esc_url( $portrait ); ?>">Portrait <span><?php echo esc_html( $credit ?: 'Wikimedia Commons' ); ?></span></a></li>
+						<?php endif; ?>
 						<?php if ( '' !== $qid ) : ?>
 							<li><a href="<?php echo esc_url( 'https://www.wikidata.org/wiki/' . rawurlencode( $qid ) ); ?>">Wikidata <span><?php echo esc_html( $qid ); ?></span></a></li>
 						<?php endif; ?>

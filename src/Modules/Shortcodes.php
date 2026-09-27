@@ -44,9 +44,14 @@ final class Shortcodes {
 		return '';
 	}
 
+	/** Public enqueue for sibling modules rendering design-system blocks. */
+	public static function enqueue(): string {
+		return self::style();
+	}
+
 	/* ---------- helpers ---------- */
 
-	private static function season(): int {
+	public static function season(): int {
 		// Prefer the season that actually has published standings (the one in
 		// play); fall back to the season currently open for entries.
 		global $wpdb;
@@ -211,7 +216,12 @@ final class Shortcodes {
 		foreach ( $q->posts as $post ) {
 			[ $birth, $death ] = self::person_bits( (int) $post->ID );
 			$out .= '<div class="ob-person' . ( $death ? ' ob-person--dead' : '' ) . ' ob-anim">';
-			$out .= '<span class="ob-person__avatar" aria-hidden="true">' . esc_html( mb_substr( (string) get_the_title( $post ), 0, 1 ) ) . '</span>';
+			$image = (string) get_post_meta( $post->ID, People_Sync::META_IMAGE_URL, true );
+			if ( '' !== $image ) {
+				$out .= '<img class="ob-person__avatar ob-person__avatar--img" src="' . esc_url( $image ) . '" alt="" loading="lazy" />'; 
+			} else {
+				$out .= '<span class="ob-person__avatar" aria-hidden="true">' . esc_html( mb_substr( (string) get_the_title( $post ), 0, 1 ) ) . '</span>';
+			}
 			$out .= '<span class="ob-person__status">' . ( $death ? 'In memoriam' : 'Living' ) . '</span>';
 			$out .= '<p class="ob-person__name"><a href="' . esc_url( (string) get_permalink( $post ) ) . '">' . esc_html( get_the_title( $post ) ) . '</a></p>';
 			$out .= '<p class="ob-person__role">' . esc_html( (string) get_post_meta( $post->ID, 'obit_role', true ) ) . '</p>';
@@ -248,8 +258,13 @@ final class Shortcodes {
 		$out .= '<div class="ob-people ob-people--archive">';
 		foreach ( $q->posts as $post ) {
 			[ $birth, $death, $age ] = self::person_bits( (int) $post->ID );
+			$image = (string) get_post_meta( $post->ID, People_Sync::META_IMAGE_URL, true );
 			$out .= '<article class="ob-person ob-person--dead ob-anim">';
-			$out .= '<span class="ob-person__avatar" aria-hidden="true">' . esc_html( mb_substr( (string) get_the_title( $post ), 0, 1 ) ) . '</span>';
+			if ( '' !== $image ) {
+				$out .= '<img class="ob-person__avatar ob-person__avatar--img" src="' . esc_url( $image ) . '" alt="" loading="lazy" />';
+			} else {
+				$out .= '<span class="ob-person__avatar" aria-hidden="true">' . esc_html( mb_substr( (string) get_the_title( $post ), 0, 1 ) ) . '</span>';
+			}
 			$out .= '<span class="ob-person__status">In memoriam</span>';
 			$out .= '<p class="ob-person__name"><a href="' . esc_url( (string) get_permalink( $post ) ) . '">' . esc_html( get_the_title( $post ) ) . '</a></p>';
 			$out .= '<p class="ob-person__role">' . esc_html( (string) get_post_meta( $post->ID, 'obit_role', true ) ) . '</p>';

@@ -75,6 +75,12 @@ final class Site_Chrome {
 				array( 'label' => 'Rules', 'url' => home_url( '/rules/' ) ),
 			);
 		}
+		// Auth-aware account entries (plan §5: My leagues + join paths).
+		if ( is_user_logged_in() ) {
+			array_splice( $items, 1, 0, array( array( 'label' => 'My Leagues', 'url' => home_url( '/my-leagues/' ) ) ) );
+		} else {
+			$items[] = array( 'label' => 'My Leagues', 'url' => home_url( '/my-leagues/' ) );
+		}
 		return $items;
 	}
 
@@ -118,13 +124,14 @@ final class Site_Chrome {
 	}
 
 	public static function render_footer(): void {
-		$year  = date_i18n( 'Y' );
-		$links = array(
-			'Standings'    => home_url( '/standings/' ),
-			'People'       => home_url( '/catalogue/' ),
-			'Death Archive' => home_url( '/archive/' ),
-			'Rules'        => home_url( '/rules/' ),
-		);
+		$year  = date_i18n( 'Y' );				$links = array(
+				'Standings'     => home_url( '/standings/' ),
+				'People'        => home_url( '/catalogue/' ),
+				'Death Archive' => home_url( '/archive/' ),
+				'Rules'         => home_url( '/rules/' ),
+				'My Leagues'    => home_url( '/my-leagues/' ),
+				'Join a league' => home_url( '/join/' ),
+			);
 		?>
 		</main><!-- #ob-main -->
 		<footer class="ob-foot">

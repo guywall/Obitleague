@@ -11,6 +11,7 @@
 declare( strict_types = 1 );
 
 use Obitleague\Modules\Import_Service;
+use Obitleague\Modules\People_Sync;
 
 get_header();
 ?>
@@ -44,9 +45,13 @@ get_header();
 					// Leave dates off the listing if malformed.
 				}
 				$is_dead = null !== $death;
-				?>
-				<article class="ob-person<?php echo $is_dead ? ' ob-person--dead' : ''; ?> ob-anim">
-					<span class="ob-person__avatar" aria-hidden="true"><?php echo esc_html( mb_substr( $name, 0, 1 ) ); ?></span>
+				?>					<?php $portrait = (string) get_post_meta( $post_id, People_Sync::META_IMAGE_URL, true ); ?>
+					<article class="ob-person<?php echo $is_dead ? ' ob-person--dead' : ''; ?> ob-anim">
+						<?php if ( '' !== $portrait ) : ?>
+							<img class="ob-person__avatar ob-person__avatar--img" src="<?php echo esc_url( $portrait ); ?>" alt="" loading="lazy" />
+						<?php else : ?>
+							<span class="ob-person__avatar" aria-hidden="true"><?php echo esc_html( mb_substr( $name, 0, 1 ) ); ?></span>
+						<?php endif; ?>
 					<span class="ob-person__status"><?php echo $is_dead ? esc_html( 'In memoriam' ) : esc_html( 'Living' ); ?></span>
 					<p class="ob-person__name"><a href="<?php the_permalink(); ?>"><?php echo esc_html( $name ); ?></a></p>
 					<?php if ( '' !== $role ) : ?>

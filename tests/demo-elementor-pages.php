@@ -73,7 +73,8 @@ $pages = array(
 		'title'    => 'Standings',
 		'front'    => false,
 		'sections' => array(
-			array( 'Season standings', '[obitleague_standings]' ),
+			array( 'Overall rankings', '[obitleague_overall_standings]' ),
+			array( 'League standings', '[obitleague_standings]' ),
 		),
 	),
 	'catalogue' => array(
@@ -97,6 +98,16 @@ $pages = array(
 		'sections' => array(
 			array( '', '[obitleague_rules]' ),
 		),
+	),
+	'my-leagues' => array(
+		'title'    => 'My Leagues',
+		'front'    => false,
+		'sections' => array(),
+	),
+	'join' => array(
+		'title'    => 'Join a League',
+		'front'    => false,
+		'sections' => array(),
 	),
 );
 
@@ -132,10 +143,16 @@ foreach ( $pages as $slug => $conf ) {
 		$sections[] = obit_el_section( $heading, $shortcode );
 	}
 
-	update_post_meta( $page_id, '_elementor_data', obit_el_page( $sections ) );
+	if ( $sections ) {
+		update_post_meta( $page_id, '_elementor_data', obit_el_page( $sections ) );
+		update_post_meta( $page_id, '_elementor_edit_mode', 'builder' );
+		update_post_meta( $page_id, '_elementor_template_type', 'wp-page' );
+	} else {
+		// Plugin-routed pages (my-leagues, join) render their own content.
+		delete_post_meta( $page_id, '_elementor_data' );
+		delete_post_meta( $page_id, '_elementor_edit_mode' );
+	}
 	update_post_meta( $page_id, '_wp_page_template', 'elementor_header_footer' );
-	update_post_meta( $page_id, '_elementor_edit_mode', 'builder' );
-	update_post_meta( $page_id, '_elementor_template_type', 'wp-page' );
 	update_post_meta( $page_id, '_elementor_version', defined( 'ELEMENTOR_VERSION' ) ? ELEMENTOR_VERSION : '3.0.0' );
 	delete_post_meta( $page_id, '_elementor_css' );
 	delete_post_meta( $page_id, '_elementor_element_cache' ); // Elementor caches rendered output; stale caches shadow new data.
@@ -159,7 +176,7 @@ if ( ! $menu ) {
 } else {
 	$menu_id = (int) $menu->term_id;
 }
-foreach ( array( 'home' => 'Home', 'standings' => 'Standings', 'catalogue' => 'People', 'archive' => 'Death Archive', 'rules' => 'Rules' ) as $slug => $label ) {
+foreach ( array( 'home' => 'Home', 'standings' => 'Standings', 'catalogue' => 'People', 'archive' => 'Death Archive', 'rules' => 'Rules', 'my-leagues' => 'My Leagues', 'join' => 'Join a League' ) as $slug => $label ) {
 	$pid = get_page_by_path( $slug );
 	if ( $pid && ! wp_get_nav_menu_object( $label ) ) {
 		// no-op guard; items added below.
