@@ -1569,3 +1569,20 @@ a.ob-pick__name:hover {
 	color: var(--ob-accent);
 	gap: 9px;
 }
+
+/* Content links inside our blocks keep the editorial palette, not the
+   Elementor kit link colour. */
+.ob-main .ob-card a,
+.ob-main .ob-page a:not(.ob-btn):not(.ob-nav__link):not(.ob-hero__cta a) {
+	color: var(--ob-accent-deep);
+}
+.ob-main .ob-card a:hover,
+.ob-main .ob-page a:not(.ob-btn):not(.ob-nav__link):not(.ob-hero__cta a):hover {
+	color: var(--ob-accent);
+}
+.ob-main .ob-person__name a,
+.ob-main .ob-death__name a,
+.ob-main .ob-profile__back,
+.ob-main .ob-league-link {
+	color: inherit;
+}

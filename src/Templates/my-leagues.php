@@ -7,9 +7,9 @@
 
 declare( strict_types = 1 );
 
-use Obitleague\Domain\Deadline_Policy;
 use Obitleague\Modules\League_Service;
 use Obitleague\Modules\League_View_Service;
+use Obitleague\Modules\Standings_Service;
 
 $user_id = get_current_user_id();
 
@@ -96,7 +96,7 @@ $memberships = (array) $wpdb->get_results(
 						<?php endif; ?>
 						<div class="ob-my-league__stat">
 							<span class="ob-my-league__num"><?php echo $entry_id ? '✓' : '·'; ?></span>
-							<span><?php echo $entry_id ? 'team submitted' : ( (int) $m->season === $season ? 'no submitted team' : 'season over' ); ?></span>
+							<span><?php echo $entry_id ? 'team submitted' : ( (int) $m->season > $season ? 'next season' : ( (int) $m->season === $season ? 'no submitted team' : 'season over' ) ); ?></span>
 						</div>
 					</div>
 					<div class="ob-my-league__actions">
