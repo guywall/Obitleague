@@ -3,7 +3,7 @@
  * Plugin Name:       Obitleague
  * Plugin URI:        https://example.com/obitleague
  * Description:       Fantasy dead pool league platform: people catalogue, feed discovery, editorial review, leagues, teams and reversible scoring.
- * Version:           0.1.0
+ * Version:           0.3.1
  * Requires at least: 6.4
  * Requires PHP:      8.2
  * Author:            Obitleague
@@ -28,7 +28,7 @@ defined( 'ABSPATH' ) || exit;
 
 /* Constants. */
 if ( ! defined( 'OBITLEAGUE_VERSION' ) ) {
-	define( 'OBITLEAGUE_VERSION', '0.1.0' );
+	define( 'OBITLEAGUE_VERSION', '0.3.1' );
 }
 if ( ! defined( 'OBITLEAGUE_DB_VERSION' ) ) {
 	define( 'OBITLEAGUE_DB_VERSION', '0.1.0' );
@@ -78,10 +78,10 @@ register_deactivation_hook(
 
 add_action(
 	'plugins_loaded',
-	static function (): void {
-		Obitleague\Modules\Catalogue::boot();
+	static function (): void {		Obitleague\Modules\Catalogue::boot();
 		Obitleague\Modules\Admin_Review::boot();
 		Obitleague\Modules\Front_Templates::boot();
+		Obitleague\Modules\Site_Chrome::boot();
 		Obitleague\Modules\Shortcodes::boot();
 		Obitleague\Modules\Jobs::boot();
 		Obitleague\Modules\Rest::boot();

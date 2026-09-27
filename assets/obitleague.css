@@ -1,99 +1,592 @@
 /**
- * Obitleague front-end design system.
- * Mobile-first; scales at 720px and 1024px. Statistics-driven, WCAG-friendly.
+ * Obitleague design system.
+ * Editorial obituary aesthetic: deep green, brass, serif display type.
+ * Mobile-first; scales at 720px and 1024px. Site chrome lives in chrome.css.
  */
 
 :root {
-	--ob-ink: #14202b;
-	--ob-muted: #5a6b7b;
-	--ob-paper: #f4f7f9;
+	--ob-ink: #131c17;
+	--ob-muted: #5f6f66;
+	--ob-paper: #f3f4ef;
 	--ob-card: #ffffff;
-	--ob-line: #dde5ec;
-	--ob-accent: #0a7d5a;
-	--ob-accent-soft: #e3f3ec;
-	--ob-warn: #b3541e;
-	--ob-radius: 12px;
-	--ob-shadow: 0 1px 2px rgba(20, 32, 43, 0.06), 0 4px 14px rgba(20, 32, 43, 0.05);
+	--ob-line: #dfe3d8;
+	--ob-accent: #0d7d5a;
+	--ob-accent-deep: #0a3d2c;
+	--ob-accent-soft: #e2f2ea;
+	--ob-brass: #b98a2f;
+	--ob-brass-soft: #f3e8cf;
+	--ob-rose: #b3452f;
+	--ob-rose-soft: #f6e3dd;
+	--ob-radius: 14px;
+	--ob-radius-sm: 10px;
+	--ob-shadow: 0 1px 2px rgba(19, 28, 23, 0.05), 0 6px 18px rgba(19, 28, 23, 0.06);
+	--ob-shadow-lift: 0 3px 8px rgba(19, 28, 23, 0.1), 0 14px 34px rgba(19, 28, 23, 0.12);
+	--ob-ease: cubic-bezier(0.22, 1, 0.1, 1);
 }
 
-.ob-page { max-width: 1120px; margin: 0 auto; padding: 16px; color: var(--ob-ink); }
-
-.ob-heading { font-size: 1.45rem; line-height: 1.2; margin: 0 0 6px; font-weight: 700; }
-.ob-sub { color: var(--ob-muted); margin: 0 0 18px; font-size: 0.95rem; }
-
-/* Stat tiles */
-.ob-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 18px 0; }
-.ob-stat { background: var(--ob-card); border: 1px solid var(--ob-line); border-radius: var(--ob-radius); box-shadow: var(--ob-shadow); padding: 14px 12px; text-align: center; }
-.ob-stat__num { display: block; font-size: 1.9rem; font-weight: 800; color: var(--ob-accent); line-height: 1.1; font-variant-numeric: tabular-nums; }
-.ob-stat__label { display: block; margin-top: 4px; font-size: 0.78rem; color: var(--ob-muted); text-transform: uppercase; letter-spacing: 0.04em; }
-
-/* Cards and grids */
-.ob-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin: 14px 0; }
-.ob-card { background: var(--ob-card); border: 1px solid var(--ob-line); border-radius: var(--ob-radius); box-shadow: var(--ob-shadow); padding: 14px; }
-.ob-card__title { font-weight: 700; margin: 0 0 8px; font-size: 1.02rem; }
-
-/* Tables */
-.ob-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
-.ob-table th { text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ob-muted); padding: 6px 8px; border-bottom: 2px solid var(--ob-line); }
-.ob-table td { padding: 8px; border-bottom: 1px solid var(--ob-line); font-variant-numeric: tabular-nums; }
-.ob-table tr:last-child td { border-bottom: 0; }
-.ob-rank { font-weight: 800; color: var(--ob-accent); }
-.ob-pts { font-weight: 800; }
-
-/* Death rows */
-.ob-death { display: flex; gap: 10px; align-items: baseline; padding: 10px 2px; border-bottom: 1px solid var(--ob-line); }
-.ob-death:last-child { border-bottom: 0; }
-.ob-death__date { flex: 0 0 auto; font-size: 0.78rem; color: var(--ob-muted); font-variant-numeric: tabular-nums; min-width: 74px; }
-.ob-death__name { font-weight: 700; }
-.ob-death__meta { color: var(--ob-muted); font-size: 0.82rem; }
-.ob-badge { display: inline-block; background: var(--ob-accent-soft); color: var(--ob-accent); border-radius: 999px; padding: 2px 9px; font-size: 0.72rem; font-weight: 700; margin-left: 6px; white-space: nowrap; }
-.ob-badge--warn { background: #f7e9de; color: var(--ob-warn); }
-
-/* People grid */
-.ob-people { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-.ob-person { background: var(--ob-card); border: 1px solid var(--ob-line); border-radius: var(--ob-radius); padding: 12px; }
-.ob-person__name { font-weight: 700; font-size: 0.95rem; margin: 0 0 2px; }
-.ob-person__name a { color: var(--ob-ink); text-decoration: none; }
-.ob-person__role { color: var(--ob-muted); font-size: 0.8rem; margin: 0 0 6px; }
-.ob-person__dates { font-size: 0.78rem; color: var(--ob-muted); font-variant-numeric: tabular-nums; }
-
-/* Filters */
-.ob-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
-.ob-filters input[type="text"], .ob-filters select {
-	padding: 9px 10px; border: 1px solid var(--ob-line); border-radius: 9px; background: var(--ob-card); font-size: 0.9rem; min-height: 44px;
+/* ---------- page scaffold ---------- */
+.ob-page {
+	max-width: 1140px;
+	margin: 0 auto;
+	padding: 20px 16px 8px;
+	color: var(--ob-ink);
 }
-.ob-filters button { padding: 9px 16px; min-height: 44px; border: 0; border-radius: 9px; background: var(--ob-accent); color: #fff; font-weight: 700; }
 
-/* Hero */
-.ob-hero { background: linear-gradient(135deg, #0d3b2e, #0a7d5a); color: #fff; border-radius: 16px; padding: 26px 18px; margin: 0 0 8px; }
-.ob-hero h1 { margin: 0 0 6px; font-size: 1.7rem; line-height: 1.15; }
-.ob-hero p { margin: 0 0 14px; opacity: 0.92; font-size: 0.98rem; }
-.ob-hero__cta { display: flex; flex-wrap: wrap; gap: 10px; }
-.ob-hero__cta a { background: #fff; color: #0d3b2e; font-weight: 700; text-decoration: none; padding: 11px 18px; border-radius: 10px; min-height: 44px; display: inline-flex; align-items: center; }
-.ob-hero__cta a--ghost, .ob-hero__cta a.ghost { background: rgba(255,255,255,0.14); color: #fff; }
+/* ---------- typography ---------- */
+.ob-heading {
+	font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+	font-weight: 700;
+	font-size: 1.75rem;
+	letter-spacing: -0.015em;
+	line-height: 1.15;
+	margin: 34px 0 6px;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+.ob-heading::after {
+	content: '';
+	height: 2px;
+	width: 42px;
+	border-radius: 2px;
+	background: linear-gradient(90deg, var(--ob-brass), transparent);
+	flex: 0 0 auto;
+}
+.ob-heading:first-child { margin-top: 8px; }
+.ob-sub {
+	color: var(--ob-muted);
+	margin: 0 0 20px;
+	font-size: 0.98rem;
+	max-width: 62ch;
+}
 
-/* Person template bits */
-.obitleague-person, .obitleague-archive { max-width: 900px; margin: 0 auto; padding: 16px; }
-.obitleague-person__facts { display: grid; grid-template-columns: 1fr; gap: 4px 12px; background: var(--ob-card); border: 1px solid var(--ob-line); border-radius: var(--ob-radius); padding: 14px; }
-.obitleague-person__facts dt { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ob-muted); margin-top: 8px; }
-.obitleague-person__facts dd { margin: 0; font-weight: 600; }
-.obitleague-archive__list { list-style: none; margin: 0; padding: 0; }
-.obitleague-archive__list li { padding: 10px 2px; border-bottom: 1px solid var(--ob-line); }
+/* ---------- hero ---------- */
+.ob-hero {
+	position: relative;
+	overflow: hidden;
+	border-radius: 20px;
+	margin: 22px 0 6px;
+	padding: 46px 26px 44px;
+	background:
+		radial-gradient(900px 420px at 88% -20%, rgba(240, 199, 94, 0.14), transparent 55%),
+		radial-gradient(700px 380px at -10% 110%, rgba(18, 160, 111, 0.25), transparent 60%),
+		linear-gradient(150deg, #0d4633, #07281c 75%);
+	color: #fff;
+	box-shadow: 0 18px 50px rgba(7, 40, 28, 0.35);
+}
+.ob-hero::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1.4px);
+	background-size: 22px 22px;
+	pointer-events: none;
+}
+.ob-hero__kicker {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-family: 'Public Sans', sans-serif;
+	font-size: 0.72rem;
+	font-weight: 800;
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+	color: #f0c75e;
+	margin: 0 0 14px;
+}
+.ob-hero__kicker::before {
+	content: '';
+	width: 26px;
+	height: 1px;
+	background: #f0c75e;
+}
+.ob-hero h1 {
+	position: relative;
+	font-family: 'Fraunces', Georgia, serif;
+	font-weight: 900;
+	font-size: clamp(2.1rem, 6vw, 3.4rem);
+	line-height: 1.04;
+	letter-spacing: -0.02em;
+	margin: 0 0 14px;
+	max-width: 16ch;
+}
+.ob-hero p {
+	position: relative;
+	margin: 0 0 24px;
+	font-size: 1.02rem;
+	line-height: 1.6;
+	opacity: 0.88;
+	max-width: 58ch;
+}
+.ob-hero__cta {
+	position: relative;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+}
+.ob-hero__cta a {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 48px;
+	padding: 12px 22px;
+	border-radius: 12px;
+	background: #f0c75e;
+	color: #07281c;
+	font-weight: 800;
+	font-size: 0.95rem;
+	text-decoration: none;
+	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+	transition: transform 0.18s var(--ob-ease), box-shadow 0.18s;
+}
+.ob-hero__cta a:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 10px 26px rgba(0, 0, 0, 0.34);
+	color: #07281c;
+}
+.ob-hero__cta a.ghost {
+	background: rgba(255, 255, 255, 0.1);
+	color: #fff;
+	box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.35);
+}
+.ob-hero__cta a.ghost:hover {
+	background: rgba(255, 255, 255, 0.18);
+	box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.5);
+}
 
-/* Responsive */
+/* ---------- stat tiles ---------- */
+.ob-stats {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 12px;
+	margin: 20px 0 6px;
+}
+.ob-stat {
+	position: relative;
+	background: var(--ob-card);
+	border: 1px solid var(--ob-line);
+	border-radius: var(--ob-radius);
+	box-shadow: var(--ob-shadow);
+	padding: 18px 14px 16px;
+	text-align: center;
+	overflow: hidden;
+	transition: transform 0.2s var(--ob-ease), box-shadow 0.2s;
+}
+.ob-stat:hover {
+	transform: translateY(-2px);
+	box-shadow: var(--ob-shadow-lift);
+}
+.ob-stat::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 3px;
+	background: linear-gradient(90deg, #12a06f, #0a5c40);
+}
+.ob-stat:nth-child(2)::before { background: linear-gradient(90deg, #d9a93c, #b98a2f); }
+.ob-stat:nth-child(3)::before { background: linear-gradient(90deg, #3e7bb6, #2b5d8f); }
+.ob-stat:nth-child(4)::before { background: linear-gradient(90deg, #b3452f, #8f3523); }
+.ob-stat:nth-child(5)::before { background: linear-gradient(90deg, #12a06f, #b98a2f); }
+.ob-stat__num {
+	display: block;
+	font-family: 'Fraunces', Georgia, serif;
+	font-weight: 900;
+	font-size: 2.4rem;
+	line-height: 1.05;
+	color: var(--ob-accent-deep);
+	font-variant-numeric: tabular-nums;
+}
+.ob-stat__label {
+	display: block;
+	margin-top: 6px;
+	font-size: 0.72rem;
+	font-weight: 700;
+	color: var(--ob-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.09em;
+}
+
+/* ---------- cards & grids ---------- */
+.ob-grid {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 14px;
+	margin: 16px 0;
+}
+.ob-card {
+	background: var(--ob-card);
+	border: 1px solid var(--ob-line);
+	border-radius: var(--ob-radius);
+	box-shadow: var(--ob-shadow);
+	padding: 18px 16px;
+	transition: transform 0.2s var(--ob-ease), box-shadow 0.2s;
+}
+.ob-card:hover {
+	box-shadow: var(--ob-shadow-lift);
+}
+.ob-card__title {
+	font-family: 'Fraunces', Georgia, serif;
+	font-weight: 700;
+	font-size: 1.12rem;
+	margin: 0 0 12px;
+	letter-spacing: -0.01em;
+}
+
+/* ---------- standings tables ---------- */
+.ob-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.92rem;
+}
+.ob-table th {
+	text-align: left;
+	font-size: 0.68rem;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 0.09em;
+	color: var(--ob-muted);
+	padding: 8px 8px 10px;
+	border-bottom: 2px solid var(--ob-accent-deep);
+}
+.ob-table td {
+	padding: 10px 8px;
+	border-bottom: 1px solid var(--ob-line);
+	font-variant-numeric: tabular-nums;
+}
+.ob-table tbody tr {
+	transition: background 0.15s;
+}
+.ob-table tbody tr:hover {
+	background: #f7f8f4;
+}
+.ob-table tr:last-child td {
+	border-bottom: 0;
+}
+.ob-rank {
+	font-weight: 800;
+	color: var(--ob-muted);
+	width: 2.2em;
+}
+.ob-rank--1, .ob-rank--2, .ob-rank--3 {
+	color: #8a6a1d;
+}
+.ob-medal {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 26px;
+	height: 26px;
+	border-radius: 50%;
+	font-size: 0.78rem;
+	font-weight: 800;
+	color: var(--ob-muted);
+	background: #eef0ea;
+	box-shadow: inset 0 0 0 1px var(--ob-line);
+}
+.ob-medal--1 {
+	color: #7a5c12;
+	background: linear-gradient(150deg, #f6df9a, #e3b84f);
+	box-shadow: inset 0 0 0 1px rgba(122, 92, 18, 0.35), 0 2px 6px rgba(185, 138, 47, 0.35);
+}
+.ob-medal--2 {
+	color: #5d6470;
+	background: linear-gradient(150deg, #eef0f4, #c7ccd6);
+	box-shadow: inset 0 0 0 1px rgba(93, 100, 112, 0.35), 0 2px 6px rgba(93, 100, 112, 0.25);
+}
+.ob-medal--3 {
+	color: #7c4a24;
+	background: linear-gradient(150deg, #ecc39a, #cd8f58);
+	box-shadow: inset 0 0 0 1px rgba(124, 74, 36, 0.35), 0 2px 6px rgba(179, 90, 47, 0.3);
+}
+.ob-pts {
+	font-weight: 800;
+	color: var(--ob-accent-deep);
+}
+.ob-lead {
+	font-weight: 700;
+	border-left: 3px solid var(--ob-brass);
+	padding-left: 8px;
+	margin-left: -11px;
+}
+
+/* ---------- death rows ---------- */
+.ob-deaths {
+	display: flex;
+	flex-direction: column;
+}
+.ob-death {
+	display: flex;
+	gap: 12px;
+	align-items: baseline;
+	padding: 12px 2px;
+	border-bottom: 1px solid var(--ob-line);
+}
+.ob-death:last-child {
+	border-bottom: 0;
+}
+.ob-death__date {
+	flex: 0 0 auto;
+	font-size: 0.76rem;
+	color: var(--ob-muted);
+	font-variant-numeric: tabular-nums;
+	min-width: 82px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	font-weight: 600;
+}
+.ob-death__name {
+	font-family: 'Fraunces', Georgia, serif;
+	font-weight: 700;
+	font-size: 1.02rem;
+}
+.ob-death__name a {
+	color: var(--ob-ink);
+	text-decoration: none;
+	border-bottom: 1px solid transparent;
+	transition: border-color 0.15s, color 0.15s;
+}
+.ob-death__name a:hover {
+	color: var(--ob-accent);
+	border-color: var(--ob-accent);
+}
+.ob-death__meta {
+	color: var(--ob-muted);
+	font-size: 0.82rem;
+	margin-top: 2px;
+}
+.ob-badge {
+	display: inline-block;
+	background: var(--ob-accent-soft);
+	color: var(--ob-accent-deep);
+	border-radius: 999px;
+	padding: 3px 10px;
+	font-size: 0.7rem;
+	font-weight: 800;
+	margin-left: 6px;
+	white-space: nowrap;
+	letter-spacing: 0.02em;
+}
+.ob-badge--brass {
+	background: var(--ob-brass-soft);
+	color: #7a5c12;
+}
+.ob-badge--warn {
+	background: var(--ob-rose-soft);
+	color: var(--ob-rose);
+}
+
+/* ---------- people grid ---------- */
+.ob-people {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 12px;
+}
+.ob-person {
+	position: relative;
+	background: var(--ob-card);
+	border: 1px solid var(--ob-line);
+	border-radius: var(--ob-radius);
+	padding: 14px 12px 12px;
+	box-shadow: var(--ob-shadow);
+	transition: transform 0.2s var(--ob-ease), box-shadow 0.2s, border-color 0.2s;
+	overflow: hidden;
+}
+.ob-person:hover {
+	transform: translateY(-2px);
+	box-shadow: var(--ob-shadow-lift);
+	border-color: #c9d2c4;
+}
+.ob-person__avatar {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	border-radius: 12px;
+	margin: 0 0 10px;
+	background: linear-gradient(150deg, #e2f2ea, #cfe8dc);
+	color: var(--ob-accent-deep);
+	font-family: 'Fraunces', Georgia, serif;
+	font-weight: 900;
+	font-size: 1rem;
+}
+.ob-person--dead .ob-person__avatar {
+	background: linear-gradient(150deg, #ece7db, #ddd3bd);
+	color: #6b5b32;
+}
+.ob-person__name {
+	font-family: 'Fraunces', Georgia, serif;
+	font-weight: 700;
+	font-size: 0.98rem;
+	margin: 0 0 3px;
+	line-height: 1.25;
+}
+.ob-person__name a {
+	color: var(--ob-ink);
+	text-decoration: none;
+}
+.ob-person__name a:hover {
+	color: var(--ob-accent);
+}
+.ob-person__role {
+	color: var(--ob-muted);
+	font-size: 0.78rem;
+	margin: 0 0 8px;
+	line-height: 1.4;
+}
+.ob-person__dates {
+	font-size: 0.74rem;
+	color: var(--ob-muted);
+	font-variant-numeric: tabular-nums;
+	margin: 0;
+}
+.ob-person__status {
+	position: absolute;
+	top: 10px;
+	right: 10px;
+	font-size: 0.62rem;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--ob-accent);
+	background: var(--ob-accent-soft);
+	border-radius: 999px;
+	padding: 3px 8px;
+}
+.ob-person--dead .ob-person__status {
+	color: #7a5c12;
+	background: var(--ob-brass-soft);
+}
+
+/* ---------- filters ---------- */
+.ob-filters {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin: 0 0 16px;
+	align-items: center;
+}
+.ob-filters input[type="text"],
+.ob-filters select {
+	padding: 10px 12px;
+	border: 1px solid var(--ob-line);
+	border-radius: var(--ob-radius-sm);
+	background: var(--ob-card);
+	font-size: 0.92rem;
+	min-height: 46px;
+	font-family: inherit;
+	color: var(--ob-ink);
+	box-shadow: var(--ob-shadow);
+}
+.ob-filters button {
+	padding: 10px 20px;
+	min-height: 46px;
+	border: 0;
+	border-radius: var(--ob-radius-sm);
+	background: var(--ob-accent-deep);
+	color: #fff;
+	font-weight: 700;
+	font-size: 0.9rem;
+	cursor: pointer;
+	transition: transform 0.15s var(--ob-ease), background 0.15s;
+	font-family: inherit;
+}
+.ob-filters button:hover {
+	transform: translateY(-1px);
+	background: #0d4633;
+}
+
+/* ---------- responsive ---------- */
 @media (min-width: 720px) {
-	.ob-page { padding: 28px 20px; }
-	.ob-grid { grid-template-columns: repeat(2, 1fr); }
-	.ob-stats { grid-template-columns: repeat(4, 1fr); }
-	.ob-people { grid-template-columns: repeat(3, 1fr); }
-	.obitleague-person__facts { grid-template-columns: 130px 1fr; }
-	.obitleague-person__facts dt { margin-top: 0; }
-	.ob-heading { font-size: 1.8rem; }
-	.ob-hero { padding: 40px 32px; }
-	.ob-hero h1 { font-size: 2.2rem; }
+	.ob-page {
+		padding: 30px 22px 10px;
+	}
+	.ob-grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+	.ob-stats {
+		grid-template-columns: repeat(3, 1fr);
+	}
+	.ob-people {
+		grid-template-columns: repeat(3, 1fr);
+	}
+	.ob-heading {
+		font-size: 2.1rem;
+	}
+	.ob-hero {
+		padding: 60px 40px 56px;
+		margin-top: 30px;
+	}
+	.ob-deaths--feature {
+		display: grid;
+		grid-template-columns: 1.1fr 1fr;
+		gap: 0 22px;
+	}
 }
 @media (min-width: 1024px) {
-	.ob-people { grid-template-columns: repeat(4, 1fr); }
-	.ob-grid--3 { grid-template-columns: repeat(3, 1fr); }
-	.ob-page { padding: 36px 24px; }
+	.ob-page {
+		padding: 38px 26px 12px;
+	}
+	.ob-grid--3 {
+		grid-template-columns: repeat(3, 1fr);
+	}
+	.ob-people {
+		grid-template-columns: repeat(4, 1fr);
+	}
+	.ob-stats {
+		grid-template-columns: repeat(5, 1fr);
+	}
+	.ob-hero h1 {
+		font-size: 3.6rem;
+	}
+}
+
+/* ---------- person template bits ---------- */
+.obitleague-person,
+.obitleague-archive {
+	max-width: 920px;
+	margin: 0 auto;
+	padding: 24px 16px;
+}
+.obitleague-person__facts {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 4px 14px;
+	background: var(--ob-card);
+	border: 1px solid var(--ob-line);
+	border-radius: var(--ob-radius);
+	padding: 18px 16px;
+	box-shadow: var(--ob-shadow);
+}
+.obitleague-person__facts dt {
+	font-size: 0.68rem;
+	text-transform: uppercase;
+	letter-spacing: 0.09em;
+	color: var(--ob-muted);
+	margin-top: 10px;
+	font-weight: 700;
+}
+.obitleague-person__facts dd {
+	margin: 0;
+	font-weight: 600;
+}
+.obitleague-archive__list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+.obitleague-archive__list li {
+	padding: 10px 2px;
+	border-bottom: 1px solid var(--ob-line);
+}
+@media (min-width: 720px) {
+	.obitleague-person__facts {
+		grid-template-columns: 150px 1fr;
+	}
+	.obitleague-person__facts dt {
+		margin-top: 0;
+	}
 }

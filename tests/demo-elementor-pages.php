@@ -95,7 +95,7 @@ $pages = array(
 		'title'    => 'Rules',
 		'front'    => false,
 		'sections' => array(
-			array( '', '[obitleague_hero]' ),
+			array( '', '[obitleague_rules]' ),
 		),
 	),
 );
