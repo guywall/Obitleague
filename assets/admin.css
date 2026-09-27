@@ -1,0 +1,362 @@
+/**
+ * Obitleague admin theme.
+ *
+ * Brings the front-end editorial design system into wp-admin for
+ * Obitleague screens: deep-green accents, brass highlights, Fraunces
+ * display headings and Public Sans UI type. Loaded only on plugin
+ * screens (body.ob-admin); core admin screens elsewhere are untouched.
+ * Specificity is kept modest and scoped under .ob-admin so it beats
+ * default admin greys without breaking native components.
+ */
+
+:root {
+	--obad-ink: #131c17;
+	--obad-muted: #5f6f66;
+	--obad-line: #dfe3d8;
+	--obad-paper: #f3f4ef;
+	--obad-card: #ffffff;
+	--obad-green: #0d7d5a;
+	--obad-green-deep: #0a3d2c;
+	--obad-green-ink: #07281c;
+	--obad-brass: #b98a2f;
+	--obad-brass-soft: #f3e8cf;
+	--obad-brass-ink: #7a5c12;
+	--obad-rose: #b3452f;
+	--obad-rose-soft: #f6e3dd;
+	--obad-shadow: 0 1px 2px rgba(19, 28, 23, 0.05), 0 6px 18px rgba(19, 28, 23, 0.06);
+}
+
+/* ---------- typography ---------- */
+body.ob-admin {
+	font-family: 'Public Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+	color: var(--obad-ink);
+}
+body.ob-admin #wpcontent {
+	background: var(--obad-paper);
+	color: var(--obad-ink);
+}
+body.ob-admin h1,
+body.ob-admin h2,
+body.ob-admin h3,
+body.ob-admin .ob-admin-title {
+	font-family: 'Fraunces', ui-serif, Georgia, 'Times New Roman', serif;
+	letter-spacing: -0.015em;
+	color: var(--obad-ink);
+}
+body.ob-admin h1 {
+	font-weight: 900;
+	font-size: 1.9rem;
+	line-height: 1.1;
+	padding-top: 6px;
+}
+body.ob-admin h1::after {
+	content: '';
+	display: block;
+	width: 46px;
+	height: 3px;
+	border-radius: 2px;
+	margin-top: 10px;
+	background: linear-gradient(90deg, var(--obad-brass), transparent);
+}
+body.ob-admin h2 {
+	font-weight: 700;
+	margin-top: 1.8em;
+}
+body.ob-admin h3 {
+	font-weight: 700;
+}
+body.ob-admin .description,
+body.ob-admin p.description {
+	color: var(--obad-muted);
+}
+body.ob-admin a {
+	color: var(--obad-green-deep);
+}
+body.ob-admin a:hover,
+body.ob-admin a:focus {
+	color: var(--obad-green);
+}
+body.ob-admin code {
+	background: #eef1ea;
+	color: #37453d;
+	border-radius: 4px;
+	padding: 1px 5px;
+}
+
+/* ---------- header strip on plugin screens ---------- */
+body.ob-admin .wrap {
+	position: relative;
+}
+body.ob-admin .wrap > h1::before {
+	content: '';
+	display: none;
+}
+body.ob-admin .wrap > h1,
+body.ob-admin .wrap > h2 {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+body.ob-admin .wrap > h1::after,
+body.ob-admin .wrap > h2::after {
+	content: '';
+	width: 34px;
+	height: 2px;
+	border-radius: 2px;
+	background: linear-gradient(90deg, var(--obad-brass), transparent);
+	flex: 0 0 auto;
+	display: inline-block;
+	margin-left: 2px;
+}
+
+/* ---------- buttons ---------- */
+body.ob-admin .button,
+body.ob-admin .button-secondary {
+	border-radius: 8px;
+	border: 1px solid #c7d0c6;
+	background: #fff;
+	color: var(--obad-green-ink);
+	font-weight: 600;
+	box-shadow: 0 1px 1px rgba(19, 28, 23, 0.06);
+	transition: background 0.15s, border-color 0.15s;
+}
+body.ob-admin .button:hover,
+body.ob-admin .button-secondary:hover {
+	background: #f2f6f1;
+	border-color: var(--obad-green);
+	color: var(--obad-green-ink);
+}
+body.ob-admin .button-primary,
+body.ob-admin .wp-core-ui .button-primary {
+	background: var(--obad-green-deep);
+	border: 1px solid var(--obad-green-deep);
+	color: #fff;
+	border-radius: 8px;
+	font-weight: 700;
+	text-shadow: none;
+	box-shadow: 0 2px 6px rgba(10, 61, 44, 0.28);
+}
+body.ob-admin .button-primary:hover,
+body.ob-admin .wp-core-ui .button-primary:hover {
+	background: #10523b;
+	border-color: #10523b;
+	color: #fff;
+}
+body.ob-admin .button-primary:focus,
+body.ob-admin .button:focus {
+	box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(13, 125, 90, 0.45);
+}
+body.ob-admin .button-link-delete,
+body.ob-admin .submitdelete {
+	color: var(--obad-rose) !important;
+}
+body.ob-admin .button.button-link-delete:hover {
+	background: var(--obad-rose-soft);
+	border-color: var(--obad-rose);
+	color: #8f3523 !important;
+}
+
+/* ---------- tables ---------- */
+body.ob-admin table.widefat,
+body.ob-admin .wp-list-table {
+	border-radius: 10px;
+	border-color: var(--obad-line);
+	box-shadow: var(--obad-shadow);
+	background: var(--obad-card);
+	overflow: hidden;
+}
+body.ob-admin table.widefat thead th,
+body.ob-admin table.widefat tfoot th,
+body.ob-admin .wp-list-table thead th,
+body.ob-admin .wp-list-table tfoot th {
+	font-family: 'Public Sans', sans-serif;
+	font-size: 0.72rem;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 0.07em;
+	color: var(--obad-muted);
+	background: #f7f8f4;
+	border-color: var(--obad-line);
+}
+body.ob-admin table.widefat td,
+body.ob-admin table.widefat th,
+body.ob-admin .wp-list-table td,
+body.ob-admin .wp-list-table th {
+	color: var(--obad-ink);
+	border-color: var(--obad-line);
+}
+body.ob-admin table.widefat.striped > tbody > :nth-child(odd),
+body.ob-admin .wp-list-table.striped > tbody > :nth-child(odd) {
+	background-color: #fafbf7;
+}
+body.ob-admin .wp-list-table tbody tr:hover {
+	background: #f0f6f1;
+}
+body.ob-admin .wp-list-table th.column-primary strong,
+body.ob-admin .wp-list-table .row-title {
+	color: var(--obad-ink);
+	font-weight: 700;
+}
+body.ob-admin .row-actions span.delete a,
+body.ob-admin .row-actions span.trash a {
+	color: var(--obad-rose);
+}
+
+/* ---------- forms ---------- */
+body.ob-admin .form-table th {
+	color: var(--obad-ink);
+	font-weight: 700;
+	width: 220px;
+}
+body.ob-admin input[type="text"],
+body.ob-admin input[type="search"],
+body.ob-admin input[type="email"],
+body.ob-admin input[type="number"],
+body.ob-admin input[type="password"],
+body.ob-admin select,
+body.ob-admin textarea {
+	border-radius: 8px;
+	border-color: #c7d0c6;
+	min-height: 34px;
+}
+body.ob-admin input[type="text"]:focus,
+body.ob-admin select:focus,
+body.ob-admin textarea:focus {
+	border-color: var(--obad-green);
+	box-shadow: 0 0 0 1px rgba(13, 125, 90, 0.35);
+}
+body.ob-admin .form-table textarea {
+	max-width: 640px;
+}
+
+/* ---------- notices ---------- */
+body.ob-admin .notice {
+	border-radius: 10px;
+	border-left-width: 4px;
+	background: #fff;
+	box-shadow: var(--obad-shadow);
+}
+body.ob-admin .notice-success {
+	border-left-color: var(--obad-green);
+}
+body.ob-admin .notice-error {
+	border-left-color: var(--obad-rose);
+}
+body.ob-admin .notice-warning {
+	border-left-color: var(--obad-brass);
+}
+body.ob-admin .notice p {
+	color: var(--obad-ink);
+}
+
+/* ---------- metaboxes (person edit screen) ---------- */
+body.ob-admin .postbox {
+	border-radius: 12px;
+	border-color: var(--obad-line);
+	box-shadow: var(--obad-shadow);
+	overflow: hidden;
+}
+body.ob-admin .postbox .hndle,
+body.ob-admin .postbox-header {
+	background: #f7f8f4;
+	border-bottom: 1px solid var(--obad-line);
+}
+body.ob-admin .postbox .hndle {
+	font-family: 'Fraunces', Georgia, serif;
+	font-weight: 700;
+	color: var(--obad-ink);
+}
+body.ob-admin .postbox .hndle::before {
+	content: '';
+	display: inline-block;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: linear-gradient(140deg, #12a06f, #0a5c40);
+	margin-right: 8px;
+	vertical-align: middle;
+}
+body.ob-admin .postbox-header h2,
+body.ob-admin .postbox-header h3 {
+	font-family: 'Fraunces', Georgia, serif;
+	font-weight: 700;
+}
+body.ob-admin .postbox .inside {
+	color: var(--obad-ink);
+}
+body.ob-admin .postbox button.handle-order-higher,
+body.ob-admin .postbox button.handle-lower {
+	color: var(--obad-muted);
+}
+
+/* ---------- taxonomy + list chrome ---------- */
+body.ob-admin .tablenav .tablenav-pages a,
+body.ob-admin .tablenav-pages-navspan {
+	border-radius: 6px;
+}
+body.ob-admin .search-box input[type="search"],
+body.ob-admin .search-box input[type="submit"] {
+	border-radius: 6px;
+}
+body.ob-admin #col-container,
+body.ob-admin #col-left,
+body.ob-admin #col-right {
+	color: var(--obad-ink);
+}
+body.ob-admin .tagcloud {
+	color: var(--obad-muted);
+}
+
+/* ---------- obitleague pills and misc marks ---------- */
+.ob-admin-pill {
+	display: inline-block;
+	padding: 2px 9px;
+	border-radius: 999px;
+	background: var(--obad-brass-soft);
+	color: var(--obad-brass-ink);
+	font-size: 11px;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	vertical-align: middle;
+}
+.ob-admin-pill--green {
+	background: #e2f2ea;
+	color: var(--obad-green-deep);
+}
+.ob-admin-pill--rose {
+	background: var(--obad-rose-soft);
+	color: var(--obad-rose);
+}
+
+/* ---------- review queue & case cards ---------- */
+body.ob-admin .ob-admin-case {
+	background: var(--obad-card);
+	border: 1px solid var(--obad-line);
+	border-radius: 12px;
+	box-shadow: var(--obad-shadow);
+	padding: 16px 18px;
+	margin: 14px 0;
+}
+body.ob-admin .ob-admin-case h2 {
+	margin-top: 0;
+}
+
+/* ---------- menu highlight (admin left nav, plugin pages) ---------- */
+body.ob-admin #adminmenu li.current a.menu-top {
+	background: var(--obad-green-deep);
+	color: #fff;
+}
+
+/* ---------- small screens ---------- */
+@media (max-width: 782px) {
+	body.ob-admin .form-table th {
+		width: auto;
+	}
+}
+
+/* ---------- dark scheme sanity ---------- */
+body.admin-color-modern.ob-admin #wpcontent {
+	background: var(--obad-paper);
+}
