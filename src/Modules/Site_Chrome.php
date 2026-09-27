@@ -75,11 +75,19 @@ final class Site_Chrome {
 				array( 'label' => 'Rules', 'url' => home_url( '/rules/' ) ),
 			);
 		}
+		// Hide the primary-menu duplicate of account pages (rendered below
+		// from the auth-aware fallback list instead).
+		$items = array_values( array_filter(
+			$items,
+			static function ( array $item ): bool {
+				$path = (string) wp_parse_url( (string) $item['url'], PHP_URL_PATH );
+				return ! preg_match( '~/(my-leagues|join)/?$~', $path );
+			}
+		) );
 		// Auth-aware account entries (plan §5: My leagues + join paths).
-		if ( is_user_logged_in() ) {
-			array_splice( $items, 1, 0, array( array( 'label' => 'My Leagues', 'url' => home_url( '/my-leagues/' ) ) ) );
-		} else {
-			$items[] = array( 'label' => 'My Leagues', 'url' => home_url( '/my-leagues/' ) );
+		$items[] = array( 'label' => 'My Leagues', 'url' => home_url( '/my-leagues/' ) );
+		if ( ! is_user_logged_in() ) {
+			$items[] = array( 'label' => 'Join', 'url' => home_url( '/join/' ) );
 		}
 		return $items;
 	}

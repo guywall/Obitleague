@@ -32,7 +32,7 @@ final class Overall_Standings {
 
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT sr.user_id, sr.points, sr.scoring_picks, lg.id AS league_id, lg.name AS league_name
+				"SELECT sr.user_id, sr.points, sr.scoring_picks, sr.rank_pos, lg.id AS league_id, lg.name AS league_name
 				 FROM {$wpdb->prefix}obitleague_standings_generations sg
 				 JOIN {$wpdb->prefix}obitleague_standings_rows sr ON sr.generation_id = sg.id
 				 JOIN {$wpdb->prefix}obitleague_leagues lg ON lg.id = sg.league_id
@@ -64,7 +64,7 @@ final class Overall_Standings {
 
 		// League leaders (rank 1 holders) for the "leading" column.
 		foreach ( (array) $rows as $row ) {
-			if ( 1 === (int) $row->rank_pos ?? 0 ) {
+			if ( 1 === (int) ( $row->rank_pos ?? 0 ) ) {
 				$leads[ (int) $row->user_id ][] = (string) $row->league_name;
 			}
 		}
