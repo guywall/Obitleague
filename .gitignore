@@ -11,8 +11,12 @@ work/*
 !work/source-register-template.md
 !work/seed-manifest.md
 !work/build-seed.cjs
+!work/build-cohort-1946.cjs
+!work/seed-cohort-1946.json
 !work/lan-proxy.cjs
 !work/deploy-obitleague.co.uk.md
+# The cohort builder's HTTP cache: large, and rebuilt on demand
+work/.cohort-cache/
 
 # OS noise
 .DS_Store

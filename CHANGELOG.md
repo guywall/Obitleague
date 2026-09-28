@@ -5,6 +5,31 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Added
+- **`work/build-cohort-1946.cjs`** builds a 1946 birth-year cohort of living
+  people from Wikidata, diverse by construction: 11,157 candidates, ranked so
+  that rare nationalities and occupations are taken first and admitted only
+  while their country and occupation stay under hard caps. The 150 rows it
+  writes span 93 countries and 265 occupations.
+- **`tests/import-seed-file.php`** loads any builder-produced seed file into the
+  catalogue. `demo-import-people.php` knew three filenames; this takes a path,
+  so a new cohort needs no code change. People land as private candidates
+  unless `OBITLEAGUE_SEED_APPROVE=1` is set, and it refuses to write to a
+  production site without `OBITLEAGUE_ALLOW_SEED_IMPORT=1`.
+
+### Fixed
+- The cohort builder is now correct about liveness, dates and sampling. A
+  Wikidata item with no date of death is not proof of being alive, and the
+  original candidate query filtered on exactly that absence; liveness is now
+  cross-checked against Wikipedia's death-year categories as well, with a
+  `--selftest` that proves the check can fail. Birth dates are rebuilt from
+  each statement's own precision instead of letting a month-precision date
+  masquerade as the 1st, and candidates are sampled by hashing the QID — a
+  positional sample silently took January, which holds 30% of the cohort.
+- `work/build-cohort-1946.cjs` refuses to write an empty or sub-minimum cohort,
+  and `--any-precision` is now the opt-in rather than the default, so the rows
+  it writes can be approved for publication.
+
 ## [0.12.0] — 2026-09-28
 
 ### Added

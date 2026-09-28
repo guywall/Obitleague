@@ -25,6 +25,34 @@ These are user accounts only, not league memberships or entries. Use only on a
 non-production site; the importer refuses a WordPress production environment
 unless explicitly overridden.
 
+## Cohort builders
+
+`build-seed.cjs` harvests deaths. `build-cohort-1946.cjs` builds a *living*
+cohort instead — people born in a given year who are still alive, and who can
+be picked. Run it, then load the result:
+
+```
+node work/build-cohort-1946.cjs --target 150
+OBITLEAGUE_SEED_APPROVE=1 wp eval-file tests/import-seed-file.php work/seed-cohort-1946.json
+```
+
+Useful switches: `--target` (rows to write, minimum 100), `--sample` (how many
+candidates to enrich), `--out`, and `--any-precision` to keep birth dates that
+lack a day, which the plugin will not publish without an editor reviewing them.
+`--selftest` proves the liveness cross-check can fail.
+
+The builder caches every HTTP response under `work/.cohort-cache/`, so an
+interrupted run resumes instead of starting over. The cache is local and not
+committed. The row data is committed, and the method is recorded in
+`seed-manifest.md`.
+
+`tests/import-seed-file.php` takes any path, so it also loads a hand-built list.
+It imports people as private candidates unless `OBITLEAGUE_SEED_APPROVE=1` is
+set, and refuses to write to a production environment without
+`OBITLEAGUE_ALLOW_SEED_IMPORT=1`. Its switches come from the environment rather
+than the command line because WP-CLI rejects an unknown `--flag` on
+`eval-file` before the script is reached.
+
 ## Add a source
 
 1. Copy `source-register-template.md` into `source-register.md` if it does not exist.

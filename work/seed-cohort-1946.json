@@ -1,0 +1,2793 @@
+[
+	{
+		"qid": "Q4665662",
+		"name": "Abdul Rasheed Hussain",
+		"birth": "1946-09-16",
+		"birth_precision": "day",
+		"role": "poet, Maldives",
+		"occupation": "poet",
+		"occupations": [
+			"poet"
+		],
+		"countries": [
+			"Maldives"
+		],
+		"enwiki": "Abdul_Rasheed_Hussain",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q4670336",
+		"name": "Abu Saleh Mohammad Nasim",
+		"birth": "1946-01-04",
+		"birth_precision": "day",
+		"role": "military personnel, Bangladesh",
+		"occupation": "military personnel",
+		"occupations": [
+			"military personnel"
+		],
+		"countries": [
+			"Bangladesh"
+		],
+		"enwiki": "Abu_Saleh_Mohammad_Nasim",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q336042",
+		"name": "Aburizal Bakrie",
+		"birth": "1946-11-15",
+		"birth_precision": "day",
+		"role": "socialite, Indonesia",
+		"occupation": "socialite",
+		"occupations": [
+			"socialite",
+			"entrepreneur",
+			"politician",
+			"businessperson"
+		],
+		"countries": [
+			"Indonesia"
+		],
+		"enwiki": "Aburizal_Bakrie",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q8077118",
+		"name": "Åge Korsvold",
+		"birth": "1946-04-08",
+		"birth_precision": "day",
+		"role": "siviløkonom, Norway",
+		"occupation": "siviløkonom",
+		"occupations": [
+			"siviløkonom",
+			"manager"
+		],
+		"countries": [
+			"Norway"
+		],
+		"enwiki": "Åge_Korsvold",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q11625639",
+		"name": "Akiko Takojima",
+		"birth": "1946-03-19",
+		"birth_precision": "day",
+		"role": "professional shogi player, Japan",
+		"occupation": "professional shogi player",
+		"occupations": [
+			"professional shogi player"
+		],
+		"countries": [
+			"Japan"
+		],
+		"enwiki": "Akiko_Takojima",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q642775",
+		"name": "Al Cueto",
+		"birth": "1946-08-02",
+		"birth_precision": "day",
+		"role": "basketball player, Cuba",
+		"occupation": "basketball player",
+		"occupations": [
+			"basketball player"
+		],
+		"countries": [
+			"Cuba"
+		],
+		"enwiki": "Al_Cueto",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q4707442",
+		"name": "Alan Trounson",
+		"birth": "1946-02-16",
+		"birth_precision": "day",
+		"role": "embryologist, Australia",
+		"occupation": "embryologist",
+		"occupations": [
+			"embryologist",
+			"geneticist",
+			"university teacher",
+			"biologist"
+		],
+		"countries": [
+			"Australia"
+		],
+		"enwiki": "Alan_Trounson",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q69938833",
+		"name": "Alena Bílková",
+		"birth": "1946-09-13",
+		"birth_precision": "day",
+		"role": "printmaker, Czech Republic",
+		"occupation": "printmaker",
+		"occupations": [
+			"printmaker",
+			"glass artist",
+			"graphic artist",
+			"painter",
+			"teacher"
+		],
+		"countries": [
+			"Czech Republic"
+		],
+		"enwiki": "Alena_Bílková",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": false
+	},
+	{
+		"qid": "Q491023",
+		"name": "Anders Gärderud",
+		"birth": "1946-08-28",
+		"birth_precision": "day",
+		"role": "orienteer, Sweden",
+		"occupation": "orienteer",
+		"occupations": [
+			"orienteer",
+			"middle-distance runner"
+		],
+		"countries": [
+			"Sweden"
+		],
+		"enwiki": "Anders_Gärderud",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q4776938",
+		"name": "Antonio Rotolo",
+		"birth": "1946-01-03",
+		"birth_precision": "day",
+		"role": "mobster, Italy",
+		"occupation": "mobster",
+		"occupations": [
+			"mobster"
+		],
+		"countries": [
+			"Italy"
+		],
+		"enwiki": "Antonio_Rotolo",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q20509023",
+		"name": "Arax Mansourian",
+		"birth": "1946-08-01",
+		"birth_precision": "day",
+		"role": "opera singer, Lebanon",
+		"occupation": "opera singer",
+		"occupations": [
+			"opera singer"
+		],
+		"countries": [
+			"Lebanon"
+		],
+		"enwiki": "Arax_Mansourian",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q76947760",
+		"name": "Ashraf Gamil",
+		"birth": "1946-04-01",
+		"birth_precision": "day",
+		"role": "water polo player, Egypt",
+		"occupation": "water polo player",
+		"occupations": [
+			"water polo player"
+		],
+		"countries": [
+			"Egypt"
+		],
+		"enwiki": "Ashraf_Gamil",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q11361983",
+		"name": "Bakhvain Buyadaa",
+		"birth": "1946-04-20",
+		"birth_precision": "day",
+		"role": "mixed martial arts fighter, Mongolia",
+		"occupation": "mixed martial arts fighter",
+		"occupations": [
+			"mixed martial arts fighter",
+			"judoka"
+		],
+		"countries": [
+			"Mongolia"
+		],
+		"enwiki": "Bakhvain_Buyadaa",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q4865850",
+		"name": "Baruch Chait",
+		"birth": "1946-02-23",
+		"birth_precision": "day",
+		"role": "rabbi, Israel",
+		"occupation": "rabbi",
+		"occupations": [
+			"rabbi"
+		],
+		"countries": [
+			"Israel"
+		],
+		"enwiki": "Baruch_Chait",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q526696",
+		"name": "Beatrix Kisházi",
+		"birth": "1946-10-13",
+		"birth_precision": "day",
+		"role": "table tennis player, Hungary",
+		"occupation": "table tennis player",
+		"occupations": [
+			"table tennis player"
+		],
+		"countries": [
+			"Hungary"
+		],
+		"enwiki": "Beatrix_Kisházi",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q2746386",
+		"name": "Bernard Sergent",
+		"birth": "1946-02-23",
+		"birth_precision": "day",
+		"role": "mythographer, France",
+		"occupation": "mythographer",
+		"occupations": [
+			"mythographer",
+			"religious studies scholar",
+			"archaeologist",
+			"historian"
+		],
+		"countries": [
+			"France"
+		],
+		"enwiki": "Bernard_Sergent",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q16298852",
+		"name": "Bernardo Donoso",
+		"birth": "1946-02-12",
+		"birth_precision": "day",
+		"role": "sales engineer, Chile",
+		"occupation": "sales engineer",
+		"occupations": [
+			"sales engineer"
+		],
+		"countries": [
+			"Chile"
+		],
+		"enwiki": "Bernardo_Donoso",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q59474",
+		"name": "Bjørn Kjos",
+		"birth": "1946-07-18",
+		"birth_precision": "day",
+		"role": "fighter pilot, Norway",
+		"occupation": "fighter pilot",
+		"occupations": [
+			"fighter pilot",
+			"chief executive officer",
+			"entrepreneur",
+			"businessperson",
+			"lawyer"
+		],
+		"countries": [
+			"Norway"
+		],
+		"enwiki": "Bjørn_Kjos",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q17627311",
+		"name": "Boubacar Traoré (basketball)",
+		"birth": "1946-12-17",
+		"birth_precision": "day",
+		"role": "basketball player, Senegal",
+		"occupation": "basketball player",
+		"occupations": [
+			"basketball player"
+		],
+		"countries": [
+			"Senegal"
+		],
+		"enwiki": "Boubacar_Traoré_(basketball)",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q23017256",
+		"name": "Bruno Morri",
+		"birth": "1946-05-24",
+		"birth_precision": "day",
+		"role": "sport shooter, San Marino",
+		"occupation": "sport shooter",
+		"occupations": [
+			"sport shooter"
+		],
+		"countries": [
+			"San Marino"
+		],
+		"enwiki": "Bruno_Morri",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q712928",
+		"name": "Cameron Mackintosh",
+		"birth": "1946-10-17",
+		"birth_precision": "day",
+		"role": "theatrical producer, United Kingdom",
+		"occupation": "theatrical producer",
+		"occupations": [
+			"theatrical producer",
+			"impresario",
+			"record producer"
+		],
+		"countries": [
+			"United Kingdom"
+		],
+		"enwiki": "Cameron_Mackintosh",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q101242654",
+		"name": "Carmela Gross",
+		"birth": "1946-02-16",
+		"birth_precision": "day",
+		"role": "printmaker, Brazil",
+		"occupation": "printmaker",
+		"occupations": [
+			"printmaker",
+			"ceramicist",
+			"visual artist",
+			"university teacher",
+			"sculptor",
+			"painter",
+			"artist",
+			"engraver"
+		],
+		"countries": [
+			"Brazil"
+		],
+		"enwiki": "Carmela_Gross",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": false
+	},
+	{
+		"qid": "Q992521",
+		"name": "Charles Asati",
+		"birth": "1946-03-03",
+		"birth_precision": "day",
+		"role": "athletics competitor, Kenya",
+		"occupation": "athletics competitor",
+		"occupations": [
+			"athletics competitor",
+			"sprinter"
+		],
+		"countries": [
+			"Kenya"
+		],
+		"enwiki": "Charles_Asati",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q5079880",
+		"name": "Charles Kraus (clown)",
+		"birth": "1946-07-26",
+		"birth_precision": "day",
+		"role": "circus performer, United States",
+		"occupation": "circus performer",
+		"occupations": [
+			"circus performer",
+			"magician"
+		],
+		"countries": [
+			"United States"
+		],
+		"enwiki": "Charles_Kraus_(clown)",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q5094239",
+		"name": "Cheung Chi Wai",
+		"birth": "1946-05-06",
+		"birth_precision": "day",
+		"role": "association football player, China",
+		"occupation": "association football player",
+		"occupations": [
+			"association football player",
+			"association football coach"
+		],
+		"countries": [
+			"China"
+		],
+		"enwiki": "Cheung_Chi_Wai",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q5113457",
+		"name": "Christopher Woodhouse, 6th Baron Terrington",
+		"birth": "1946-09-20",
+		"birth_precision": "day",
+		"role": "urologist, United Kingdom",
+		"occupation": "urologist",
+		"occupations": [
+			"urologist",
+			"aristocrat",
+			"researcher"
+		],
+		"countries": [
+			"United Kingdom"
+		],
+		"enwiki": "Christopher_Woodhouse,_6th_Baron_Terrington",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q18350043",
+		"name": "Dan Dever",
+		"birth": "1946-02-07",
+		"birth_precision": "day",
+		"role": "Canadian football player, Canada",
+		"occupation": "Canadian football player",
+		"occupations": [
+			"Canadian football player"
+		],
+		"countries": [
+			"Canada"
+		],
+		"enwiki": "Dan_Dever",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q5213750",
+		"name": "Dan Jason",
+		"birth": "1946-07-22",
+		"birth_precision": "day",
+		"role": "environmentalist, Canada",
+		"occupation": "environmentalist",
+		"occupations": [
+			"environmentalist"
+		],
+		"countries": [
+			"Canada"
+		],
+		"enwiki": "Dan_Jason",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q2047789",
+		"name": "Denko Maleski",
+		"birth": "1946-11-14",
+		"birth_precision": "day",
+		"role": "politician, North Macedonia",
+		"occupation": "politician",
+		"occupations": [
+			"politician"
+		],
+		"countries": [
+			"North Macedonia"
+		],
+		"enwiki": "Denko_Maleski",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q2662541",
+		"name": "Didjob Divungi Di Ndinge",
+		"birth": "1946-05-05",
+		"birth_precision": "day",
+		"role": "minister, Gabon",
+		"occupation": "minister",
+		"occupations": [
+			"minister",
+			"politician"
+		],
+		"countries": [
+			"Gabon"
+		],
+		"enwiki": "Didjob_Divungi_Di_Ndinge",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q1224584",
+		"name": "Digby Fairweather",
+		"birth": "1946-04-25",
+		"birth_precision": "day",
+		"role": "cornetist, United Kingdom",
+		"occupation": "cornetist",
+		"occupations": [
+			"cornetist",
+			"horn player",
+			"jazz musician",
+			"non-fiction writer",
+			"trumpeter",
+			"author"
+		],
+		"countries": [
+			"United Kingdom"
+		],
+		"enwiki": "Digby_Fairweather",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q3713320",
+		"name": "Domingo Benegas",
+		"birth": "1946-08-04",
+		"birth_precision": "day",
+		"role": "association football player, Paraguay",
+		"occupation": "association football player",
+		"occupations": [
+			"association football player"
+		],
+		"countries": [
+			"Paraguay"
+		],
+		"enwiki": "Domingo_Benegas",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q1282403",
+		"name": "Ed Lukowich",
+		"birth": "1946-03-01",
+		"birth_precision": "day",
+		"role": "curler, Canada",
+		"occupation": "curler",
+		"occupations": [
+			"curler"
+		],
+		"countries": [
+			"Canada"
+		],
+		"enwiki": "Ed_Lukowich",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q827132",
+		"name": "Eduard Thelen",
+		"birth": "1946-07-07",
+		"birth_precision": "day",
+		"role": "field hockey player, West Germany",
+		"occupation": "field hockey player",
+		"occupations": [
+			"field hockey player"
+		],
+		"countries": [
+			"West Germany"
+		],
+		"enwiki": "Eduard_Thelen",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q45907760",
+		"name": "Elena Vintilă",
+		"birth": "1946-01-27",
+		"birth_precision": "day",
+		"role": "pentathlete, Romania",
+		"occupation": "pentathlete",
+		"occupations": [
+			"pentathlete",
+			"long jumper"
+		],
+		"countries": [
+			"Romania"
+		],
+		"enwiki": "Elena_Vintilă",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q17058521",
+		"name": "Ellinor Flor",
+		"birth": "1946-01-16",
+		"birth_precision": "day",
+		"role": "textile artist, Norway",
+		"occupation": "textile artist",
+		"occupations": [
+			"textile artist",
+			"fashion designer",
+			"jewelry designer"
+		],
+		"countries": [
+			"Norway"
+		],
+		"enwiki": "Ellinor_Flor",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q15940285",
+		"name": "Els van Noorduyn",
+		"birth": "1946-05-25",
+		"birth_precision": "day",
+		"role": "shot putter, Kingdom of the Netherlands",
+		"occupation": "shot putter",
+		"occupations": [
+			"shot putter"
+		],
+		"countries": [
+			"Kingdom of the Netherlands"
+		],
+		"enwiki": "Els_van_Noorduyn",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q172849",
+		"name": "Emerson Fittipaldi",
+		"birth": "1946-12-12",
+		"birth_precision": "day",
+		"role": "Champ Car driver, Brazil",
+		"occupation": "Champ Car driver",
+		"occupations": [
+			"Champ Car driver",
+			"Formula One driver",
+			"racing automobile driver"
+		],
+		"countries": [
+			"Brazil",
+			"Poland"
+		],
+		"enwiki": "Emerson_Fittipaldi",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q5379553",
+		"name": "Enrico Fumia",
+		"birth": "1946-05-16",
+		"birth_precision": "day",
+		"role": "car designer, Italy",
+		"occupation": "car designer",
+		"occupations": [
+			"car designer",
+			"designer"
+		],
+		"countries": [
+			"Italy"
+		],
+		"enwiki": "Enrico_Fumia",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q676169",
+		"name": "Erich Schärer",
+		"birth": "1946-09-01",
+		"birth_precision": "day",
+		"role": "bobsledder, Switzerland",
+		"occupation": "bobsledder",
+		"occupations": [
+			"bobsledder"
+		],
+		"countries": [
+			"Switzerland"
+		],
+		"enwiki": "Erich_Schärer",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q2203777",
+		"name": "Ever Meulen",
+		"birth": "1946-02-12",
+		"birth_precision": "day",
+		"role": "draftsperson, Belgium",
+		"occupation": "draftsperson",
+		"occupations": [
+			"draftsperson",
+			"caricaturist",
+			"postage stamp designer",
+			"cartoonist",
+			"painter",
+			"comics artist",
+			"illustrator"
+		],
+		"countries": [
+			"Belgium"
+		],
+		"enwiki": "Ever_Meulen",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q61257",
+		"name": "Fancy (singer)",
+		"birth": "1946-07-07",
+		"birth_precision": "day",
+		"role": "pop singer, Germany",
+		"occupation": "pop singer",
+		"occupations": [
+			"pop singer",
+			"decorator",
+			"music executive",
+			"musician",
+			"author",
+			"singer"
+		],
+		"countries": [
+			"Germany"
+		],
+		"enwiki": "Fancy_(singer)",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q5444305",
+		"name": "Ferid Berberi",
+		"birth": "1946-12-06",
+		"birth_precision": "day",
+		"role": "athlete, Albania",
+		"occupation": "athlete",
+		"occupations": [
+			"athlete"
+		],
+		"countries": [
+			"Albania"
+		],
+		"enwiki": "Ferid_Berberi",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q2262303",
+		"name": "Finbar Furey",
+		"birth": "1946-09-28",
+		"birth_precision": "day",
+		"role": "banjoist, Ireland",
+		"occupation": "banjoist",
+		"occupations": [
+			"banjoist",
+			"musician",
+			"singer"
+		],
+		"countries": [
+			"Ireland"
+		],
+		"enwiki": "Finbar_Furey",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q3750074",
+		"name": "Francesco Gostoli",
+		"birth": "1946-02-09",
+		"birth_precision": "day",
+		"role": "urban planner, Italy",
+		"occupation": "urban planner",
+		"occupations": [
+			"urban planner",
+			"architect"
+		],
+		"countries": [
+			"Italy"
+		],
+		"enwiki": "Francesco_Gostoli",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q3087214",
+		"name": "Frederik de Groot",
+		"birth": "1946-05-23",
+		"birth_precision": "day",
+		"role": "radio drama actor, Kingdom of the Netherlands",
+		"occupation": "radio drama actor",
+		"occupations": [
+			"radio drama actor",
+			"film actor",
+			"television actor",
+			"actor"
+		],
+		"countries": [
+			"Kingdom of the Netherlands"
+		],
+		"enwiki": "Frederik_de_Groot",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q5529698",
+		"name": "Gediminas Motuza",
+		"birth": "1946-08-24",
+		"birth_precision": "day",
+		"role": "geologist, Lithuania",
+		"occupation": "geologist",
+		"occupations": [
+			"geologist"
+		],
+		"countries": [
+			"Lithuania"
+		],
+		"enwiki": "Gediminas_Motuza",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q67154536",
+		"name": "Georg Krog (skier)",
+		"birth": "1946-08-18",
+		"birth_precision": "day",
+		"role": "Nordic combined skier, United States",
+		"occupation": "Nordic combined skier",
+		"occupations": [
+			"Nordic combined skier",
+			"skier"
+		],
+		"countries": [
+			"United States"
+		],
+		"enwiki": "Georg_Krog_(skier)",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q329586",
+		"name": "George Anthony Frendo",
+		"birth": "1946-04-04",
+		"birth_precision": "day",
+		"role": "Catholic bishop, Malta",
+		"occupation": "Catholic bishop",
+		"occupations": [
+			"Catholic bishop",
+			"friar",
+			"Catholic priest",
+			"archbishop"
+		],
+		"countries": [
+			"Malta",
+			"Albania"
+		],
+		"enwiki": "George_Anthony_Frendo",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q724571",
+		"name": "György Spiró",
+		"birth": "1946-04-04",
+		"birth_precision": "day",
+		"role": "literary scholar, Hungary",
+		"occupation": "literary scholar",
+		"occupations": [
+			"literary scholar",
+			"essayist",
+			"theatre director",
+			"theatre manager",
+			"university teacher",
+			"pedagogue",
+			"editing staff",
+			"translator",
+			"playwright",
+			"writer"
+		],
+		"countries": [
+			"Hungary"
+		],
+		"enwiki": "György_Spiró",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q699562",
+		"name": "Ha Yu (actor)",
+		"birth": "1946-06-14",
+		"birth_precision": "day",
+		"role": "television actor, British Hong Kong",
+		"occupation": "television actor",
+		"occupations": [
+			"television actor",
+			"actor"
+		],
+		"countries": [
+			"British Hong Kong"
+		],
+		"enwiki": "Ha_Yu_(actor)",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q69803288",
+		"name": "Harnahal Singh Sewa",
+		"birth": "1946-10-29",
+		"birth_precision": "day",
+		"role": "field hockey player, Malaysia",
+		"occupation": "field hockey player",
+		"occupations": [
+			"field hockey player"
+		],
+		"countries": [
+			"Malaysia"
+		],
+		"enwiki": "Harnahal_Singh_Sewa",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q6087461",
+		"name": "Hasan Iğsız",
+		"birth": "1946-01-21",
+		"birth_precision": "day",
+		"role": "soldier, Turkey",
+		"occupation": "soldier",
+		"occupations": [
+			"soldier"
+		],
+		"countries": [
+			"Turkey"
+		],
+		"enwiki": "Hasan_Iğsız",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q5702914",
+		"name": "Helen Nishikawa",
+		"birth": "1946-10-06",
+		"birth_precision": "day",
+		"role": "tarento, Japan",
+		"occupation": "tarento",
+		"occupations": [
+			"tarento",
+			"television presenter",
+			"comedian"
+		],
+		"countries": [
+			"Japan"
+		],
+		"enwiki": "Helen_Nishikawa",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q1389387",
+		"name": "Henk van Kessel",
+		"birth": "1946-06-25",
+		"birth_precision": "day",
+		"role": "motorcycle racer, Kingdom of the Netherlands",
+		"occupation": "motorcycle racer",
+		"occupations": [
+			"motorcycle racer"
+		],
+		"countries": [
+			"Kingdom of the Netherlands"
+		],
+		"enwiki": "Henk_van_Kessel",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q369895",
+		"name": "Isaías Samakuva",
+		"birth": "1946-07-08",
+		"birth_precision": "day",
+		"role": "sociologist, Angola",
+		"occupation": "sociologist",
+		"occupations": [
+			"sociologist",
+			"theologian",
+			"politician"
+		],
+		"countries": [
+			"Angola"
+		],
+		"enwiki": "Isaías_Samakuva",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q6086798",
+		"name": "Israel Bartal",
+		"birth": "1946-10-22",
+		"birth_precision": "day",
+		"role": "university teacher, Israel",
+		"occupation": "university teacher",
+		"occupations": [
+			"university teacher",
+			"dean",
+			"historian"
+		],
+		"countries": [
+			"Israel"
+		],
+		"enwiki": "Israel_Bartal",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q1031617",
+		"name": "István Görgényi",
+		"birth": "1946-11-02",
+		"birth_precision": "day",
+		"role": "water polo coach, Hungary",
+		"occupation": "water polo coach",
+		"occupations": [
+			"water polo coach",
+			"water polo player"
+		],
+		"countries": [
+			"Hungary"
+		],
+		"enwiki": "István_Görgényi",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q5585186",
+		"name": "Ivan Bratko (computer scientist)",
+		"birth": "1946-06-10",
+		"birth_precision": "day",
+		"role": "electrical engineer, Slovenia",
+		"occupation": "electrical engineer",
+		"occupations": [
+			"electrical engineer",
+			"computer scientist",
+			"engineer"
+		],
+		"countries": [
+			"Slovenia"
+		],
+		"enwiki": "Ivan_Bratko_(computer_scientist)",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q3159361",
+		"name": "Jacques Legrand (Mongolist)",
+		"birth": "1946-06-26",
+		"birth_precision": "day",
+		"role": "mongolist, France",
+		"occupation": "mongolist",
+		"occupations": [
+			"mongolist",
+			"lexicographer",
+			"linguist",
+			"anthropologist",
+			"research fellow",
+			"translator"
+		],
+		"countries": [
+			"France"
+		],
+		"enwiki": "Jacques_Legrand_(Mongolist)",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q317431",
+		"name": "Jan Kodeš",
+		"birth": "1946-03-01",
+		"birth_precision": "day",
+		"role": "tennis coach, Czechoslovakia",
+		"occupation": "tennis coach",
+		"occupations": [
+			"tennis coach",
+			"tennis player"
+		],
+		"countries": [
+			"Czechoslovakia",
+			"Czech Republic"
+		],
+		"enwiki": "Jan_Kodeš",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q6145744",
+		"name": "Jasna Diklić",
+		"birth": "1946-03-08",
+		"birth_precision": "day",
+		"role": "film actor, Bosnia and Herzegovina",
+		"occupation": "film actor",
+		"occupations": [
+			"film actor",
+			"actor"
+		],
+		"countries": [
+			"Bosnia and Herzegovina"
+		],
+		"enwiki": "Jasna_Diklić",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q1490053",
+		"name": "Jean-Claude Schmitt",
+		"birth": "1946-03-04",
+		"birth_precision": "day",
+		"role": "director of studies, France",
+		"occupation": "director of studies",
+		"occupations": [
+			"director of studies",
+			"medievalist",
+			"researcher",
+			"archivist",
+			"historian"
+		],
+		"countries": [
+			"France"
+		],
+		"enwiki": "Jean-Claude_Schmitt",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q3169754",
+		"name": "Jean-Pierre Schneider",
+		"birth": "1946-07-24",
+		"birth_precision": "day",
+		"role": "scenographer, France",
+		"occupation": "scenographer",
+		"occupations": [
+			"scenographer",
+			"painter"
+		],
+		"countries": [
+			"France"
+		],
+		"enwiki": "Jean-Pierre_Schneider",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q444262",
+		"name": "Jeff Halper",
+		"birth": "1946-11-28",
+		"birth_precision": "day",
+		"role": "peace activist, Israel",
+		"occupation": "peace activist",
+		"occupations": [
+			"peace activist",
+			"non-fiction writer",
+			"anthropologist",
+			"literary editor",
+			"university teacher",
+			"human rights defender",
+			"author"
+		],
+		"countries": [
+			"Israel",
+			"United States"
+		],
+		"enwiki": "Jeff_Halper",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q553913",
+		"name": "Jeffrey Hammond",
+		"birth": "1946-07-30",
+		"birth_precision": "day",
+		"role": "rock musician, United Kingdom",
+		"occupation": "rock musician",
+		"occupations": [
+			"rock musician",
+			"guitarist",
+			"bassist"
+		],
+		"countries": [
+			"United Kingdom"
+		],
+		"enwiki": "Jeffrey_Hammond",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q6278727",
+		"name": "Jorge Velásquez",
+		"birth": "1946-12-28",
+		"birth_precision": "day",
+		"role": "jockey, Panama",
+		"occupation": "jockey",
+		"occupations": [
+			"jockey"
+		],
+		"countries": [
+			"Panama",
+			"United States"
+		],
+		"enwiki": "Jorge_Velásquez",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q2033682",
+		"name": "José Areas",
+		"birth": "1946-07-25",
+		"birth_precision": "day",
+		"role": "percussionist, Nicaragua",
+		"occupation": "percussionist",
+		"occupations": [
+			"percussionist"
+		],
+		"countries": [
+			"Nicaragua"
+		],
+		"enwiki": "José_Areas",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q5940079",
+		"name": "José Ginés",
+		"birth": "1946-02-18",
+		"birth_precision": "day",
+		"role": "gymnastics coach, Spain",
+		"occupation": "gymnastics coach",
+		"occupations": [
+			"gymnastics coach",
+			"artistic gymnast",
+			"coach"
+		],
+		"countries": [
+			"Spain"
+		],
+		"enwiki": "José_Ginés",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": false
+	},
+	{
+		"qid": "Q6304327",
+		"name": "Judy Baca",
+		"birth": "1946-09-20",
+		"birth_precision": "day",
+		"role": "lithographer, State of Mexico",
+		"occupation": "lithographer",
+		"occupations": [
+			"lithographer",
+			"muralist",
+			"painter"
+		],
+		"countries": [
+			"State of Mexico"
+		],
+		"enwiki": "Judy_Baca",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q3735466",
+		"name": "Juhani Kaskeala",
+		"birth": "1946-07-26",
+		"birth_precision": "day",
+		"role": "naval officer, Finland",
+		"occupation": "naval officer",
+		"occupations": [
+			"naval officer"
+		],
+		"countries": [
+			"Finland"
+		],
+		"enwiki": "Juhani_Kaskeala",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q6375197",
+		"name": "Katarzyna Chałasińska-Macukow",
+		"birth": "1946-03-20",
+		"birth_precision": "day",
+		"role": "optician, Poland",
+		"occupation": "optician",
+		"occupations": [
+			"optician",
+			"physicist"
+		],
+		"countries": [
+			"Poland"
+		],
+		"enwiki": "Katarzyna_Chałasińska-Macukow",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q242538",
+		"name": "Katia Ricciarelli",
+		"birth": "1946-01-16",
+		"birth_precision": "day",
+		"role": "music educator, Kingdom of Italy",
+		"occupation": "music educator",
+		"occupations": [
+			"music educator",
+			"film actor",
+			"opera singer"
+		],
+		"countries": [
+			"Kingdom of Italy",
+			"Italy"
+		],
+		"enwiki": "Katia_Ricciarelli",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q3435950",
+		"name": "Katica Ileš",
+		"birth": "1946-03-30",
+		"birth_precision": "day",
+		"role": "handball player, Socialist Federal Republic of Yugoslavia",
+		"occupation": "handball player",
+		"occupations": [
+			"handball player"
+		],
+		"countries": [
+			"Socialist Federal Republic of Yugoslavia",
+			"Croatia"
+		],
+		"enwiki": "Katica_Ileš",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q56254629",
+		"name": "Katsumi Yamamoto (rowing)",
+		"birth": "1946-12-16",
+		"birth_precision": "day",
+		"role": "coxswain, Japan",
+		"occupation": "coxswain",
+		"occupations": [
+			"coxswain"
+		],
+		"countries": [
+			"Japan"
+		],
+		"enwiki": "Katsumi_Yamamoto_(rowing)",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": false
+	},
+	{
+		"qid": "Q5909251",
+		"name": "Kim Gwong-hyong",
+		"birth": "1946-03-01",
+		"birth_precision": "day",
+		"role": "amateur wrestler, North Korea",
+		"occupation": "amateur wrestler",
+		"occupations": [
+			"amateur wrestler"
+		],
+		"countries": [
+			"North Korea"
+		],
+		"enwiki": "Kim_Gwong-hyong",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q437293",
+		"name": "Kumiko Sato",
+		"birth": "1946-02-22",
+		"birth_precision": "day",
+		"role": "figure skating coach, Japan",
+		"occupation": "figure skating coach",
+		"occupations": [
+			"figure skating coach",
+			"figure skating choreographer",
+			"figure skater"
+		],
+		"countries": [
+			"Japan"
+		],
+		"enwiki": "Kumiko_Sato",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q3228899",
+		"name": "Lee Kwan-Young",
+		"birth": "1946-04-19",
+		"birth_precision": "day",
+		"role": "taekwondo athlete, South Korea",
+		"occupation": "taekwondo athlete",
+		"occupations": [
+			"taekwondo athlete",
+			"soldier",
+			"instructor",
+			"coach"
+		],
+		"countries": [
+			"South Korea",
+			"France"
+		],
+		"enwiki": "Lee_Kwan-Young",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q6515378",
+		"name": "Lee Tzu Pheng",
+		"birth": "1946-05-13",
+		"birth_precision": "day",
+		"role": "docent, Singapore",
+		"occupation": "docent",
+		"occupations": [
+			"docent",
+			"poet",
+			"writer"
+		],
+		"countries": [
+			"Singapore"
+		],
+		"enwiki": "Lee_Tzu_Pheng",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q27288820",
+		"name": "Lennox Burgher",
+		"birth": "1946-03-17",
+		"birth_precision": "day",
+		"role": "triple jumper, Jamaica",
+		"occupation": "triple jumper",
+		"occupations": [
+			"triple jumper"
+		],
+		"countries": [
+			"Jamaica"
+		],
+		"enwiki": "Lennox_Burgher",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q24006837",
+		"name": "Lola Greeno",
+		"birth": "1946-05-27",
+		"birth_precision": "day",
+		"role": "contemporary artist, Australia",
+		"occupation": "contemporary artist",
+		"occupations": [
+			"contemporary artist"
+		],
+		"countries": [
+			"Australia"
+		],
+		"enwiki": "Lola_Greeno",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q76947656",
+		"name": "Mamadou Amir",
+		"birth": "1946-05-26",
+		"birth_precision": "day",
+		"role": "water polo player, Egypt",
+		"occupation": "water polo player",
+		"occupations": [
+			"water polo player"
+		],
+		"countries": [
+			"Egypt"
+		],
+		"enwiki": "Mamadou_Amir",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": false
+	},
+	{
+		"qid": "Q5993318",
+		"name": "Manuel Iturralde-Vinent",
+		"birth": "1946-07-10",
+		"birth_precision": "day",
+		"role": "paleobotanist, Cuba",
+		"occupation": "paleobotanist",
+		"occupations": [
+			"paleobotanist",
+			"paleontologist",
+			"geologist"
+		],
+		"countries": [
+			"Cuba"
+		],
+		"enwiki": "Manuel_Iturralde-Vinent",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q6757439",
+		"name": "Marco Antonio Zago",
+		"birth": "1946-11-01",
+		"birth_precision": "day",
+		"role": "oncologist, Brazil",
+		"occupation": "oncologist",
+		"occupations": [
+			"oncologist",
+			"hematologist",
+			"scientist"
+		],
+		"countries": [
+			"Brazil"
+		],
+		"enwiki": "Marco_Antonio_Zago",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q1894594",
+		"name": "Marek Lieberberg",
+		"birth": "1946-05-07",
+		"birth_precision": "day",
+		"role": "music promoter, Germany",
+		"occupation": "music promoter",
+		"occupations": [
+			"music promoter",
+			"music executive",
+			"musician"
+		],
+		"countries": [
+			"Germany"
+		],
+		"enwiki": "Marek_Lieberberg",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q6761330",
+		"name": "Maria Kämmerling",
+		"birth": "1946-02-20",
+		"birth_precision": "day",
+		"role": "classical guitarist, Germany",
+		"occupation": "classical guitarist",
+		"occupations": [
+			"classical guitarist"
+		],
+		"countries": [
+			"Germany"
+		],
+		"enwiki": "Maria_Kämmerling",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q3211506",
+		"name": "Marianne Heske",
+		"birth": "1946-02-21",
+		"birth_precision": "day",
+		"role": "conceptual artist, Norway",
+		"occupation": "conceptual artist",
+		"occupations": [
+			"conceptual artist",
+			"video artist",
+			"artist"
+		],
+		"countries": [
+			"Norway"
+		],
+		"enwiki": "Marianne_Heske",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q1758581",
+		"name": "Mario Moretti",
+		"birth": "1946-01-16",
+		"birth_precision": "day",
+		"role": "terrorist, Italy",
+		"occupation": "terrorist",
+		"occupations": [
+			"terrorist",
+			"political activist"
+		],
+		"countries": [
+			"Italy"
+		],
+		"enwiki": "Mario_Moretti",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q10002689",
+		"name": "Mariusz Ziółko",
+		"birth": "1946-09-18",
+		"birth_precision": "day",
+		"role": "electronic engineer, Poland",
+		"occupation": "electronic engineer",
+		"occupations": [
+			"electronic engineer",
+			"university teacher",
+			"mathematician"
+		],
+		"countries": [
+			"Poland"
+		],
+		"enwiki": "Mariusz_Ziółko",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q28007559",
+		"name": "Michael Czerny",
+		"birth": "1946-07-18",
+		"birth_precision": "day",
+		"role": "Catholic theologian, Vatican City",
+		"occupation": "Catholic theologian",
+		"occupations": [
+			"Catholic theologian",
+			"Praefectus",
+			"regular cleric",
+			"cardinal of the Roman Curia",
+			"university teacher",
+			"Catholic bishop",
+			"Catholic priest"
+		],
+		"countries": [
+			"Vatican City",
+			"Canada"
+		],
+		"enwiki": "Michael_Czerny",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q8555045",
+		"name": "Michael Sarris",
+		"birth": "1946-04-14",
+		"birth_precision": "day",
+		"role": "economist, Cyprus",
+		"occupation": "economist",
+		"occupations": [
+			"economist",
+			"politician"
+		],
+		"countries": [
+			"Cyprus"
+		],
+		"enwiki": "Michael_Sarris",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q4057026",
+		"name": "Mikhail Agranovich (cinematographer)",
+		"birth": "1946-09-08",
+		"birth_precision": "day",
+		"role": "film director, Soviet Union",
+		"occupation": "film director",
+		"occupations": [
+			"film director",
+			"pedagogue",
+			"camera operator",
+			"cinematographer"
+		],
+		"countries": [
+			"Soviet Union",
+			"Russia"
+		],
+		"enwiki": "Mikhail_Agranovich_(cinematographer)",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q23005219",
+		"name": "Miroslav Kříženecký",
+		"birth": "1946-06-01",
+		"birth_precision": "day",
+		"role": "public procurator, Czechoslovakia",
+		"occupation": "public procurator",
+		"occupations": [
+			"public procurator",
+			"lawyer"
+		],
+		"countries": [
+			"Czechoslovakia",
+			"Czech Republic"
+		],
+		"enwiki": "Miroslav_Kříženecký",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q1944579",
+		"name": "Monika Brudlewsky",
+		"birth": "1946-05-04",
+		"birth_precision": "day",
+		"role": "nurse, German Democratic Republic",
+		"occupation": "nurse",
+		"occupations": [
+			"nurse",
+			"politician"
+		],
+		"countries": [
+			"German Democratic Republic",
+			"Germany"
+		],
+		"enwiki": "Monika_Brudlewsky",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q6932592",
+		"name": "Muhammad Mahdi Salih",
+		"birth": "1946-06-01",
+		"birth_precision": "day",
+		"role": "assistant professor, Iraq",
+		"occupation": "assistant professor",
+		"occupations": [
+			"assistant professor",
+			"politician"
+		],
+		"countries": [
+			"Iraq"
+		],
+		"enwiki": "Muhammad_Mahdi_Salih",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q443483",
+		"name": "Natalya Pechonkina",
+		"birth": "1946-07-15",
+		"birth_precision": "day",
+		"role": "librettist, Soviet Union",
+		"occupation": "librettist",
+		"occupations": [
+			"librettist",
+			"sprinter"
+		],
+		"countries": [
+			"Soviet Union"
+		],
+		"enwiki": "Natalya_Pechonkina",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q452736",
+		"name": "Nataša Kandić",
+		"birth": "1946-12-16",
+		"birth_precision": "day",
+		"role": "social activist, Serbia",
+		"occupation": "social activist",
+		"occupations": [
+			"social activist",
+			"human rights defender"
+		],
+		"countries": [
+			"Serbia"
+		],
+		"enwiki": "Nataša_Kandić",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q7022823",
+		"name": "Nguyễn Đức Soát",
+		"birth": "1946-06-24",
+		"birth_precision": "day",
+		"role": "flying ace, Vietnam",
+		"occupation": "flying ace",
+		"occupations": [
+			"flying ace"
+		],
+		"countries": [
+			"Vietnam"
+		],
+		"enwiki": "Nguyễn_Đức_Soát",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q7025447",
+		"name": "Nicholas Goche",
+		"birth": "1946-08-01",
+		"birth_precision": "day",
+		"role": "civil servant, Zimbabwe",
+		"occupation": "civil servant",
+		"occupations": [
+			"civil servant",
+			"minister",
+			"politician"
+		],
+		"countries": [
+			"Zimbabwe"
+		],
+		"enwiki": "Nicholas_Goche",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q3876483",
+		"name": "Nicoletta Maraschio",
+		"birth": "1946-04-11",
+		"birth_precision": "day",
+		"role": "italianist, Kingdom of Italy",
+		"occupation": "italianist",
+		"occupations": [
+			"italianist",
+			"linguist",
+			"university teacher"
+		],
+		"countries": [
+			"Kingdom of Italy",
+			"Italy"
+		],
+		"enwiki": "Nicoletta_Maraschio",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q17444390",
+		"name": "Nikolay Ushmaev",
+		"birth": "1946-05-13",
+		"birth_precision": "day",
+		"role": "skydiver, Russia",
+		"occupation": "skydiver",
+		"occupations": [
+			"skydiver"
+		],
+		"countries": [
+			"Russia"
+		],
+		"enwiki": "Nikolay_Ushmaev",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q436587",
+		"name": "Olubanke King Akerele",
+		"birth": "1946-05-11",
+		"birth_precision": "day",
+		"role": "foreign minister, Liberia",
+		"occupation": "foreign minister",
+		"occupations": [
+			"foreign minister",
+			"diplomat",
+			"minister",
+			"politician"
+		],
+		"countries": [
+			"Liberia"
+		],
+		"enwiki": "Olubanke_King_Akerele",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q4353373",
+		"name": "Paolo Agazzi",
+		"birth": "1946-05-05",
+		"birth_precision": "day",
+		"role": "film producer, Bolivia",
+		"occupation": "film producer",
+		"occupations": [
+			"film producer",
+			"film director",
+			"screenwriter"
+		],
+		"countries": [
+			"Bolivia",
+			"Italy"
+		],
+		"enwiki": "Paolo_Agazzi",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q44187",
+		"name": "Patriarch Kirill of Moscow",
+		"birth": "1946-01-27",
+		"birth_precision": "day",
+		"role": "Eastern Orthodox priest, Russia",
+		"occupation": "Eastern Orthodox priest",
+		"occupations": [
+			"Eastern Orthodox priest",
+			"Eastern Orthodox bishop",
+			"intelligence agent",
+			"patriarch",
+			"priest"
+		],
+		"countries": [
+			"Russia"
+		],
+		"enwiki": "Patriarch_Kirill_of_Moscow",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q5321776",
+		"name": "Peter Frischknecht",
+		"birth": "1946-03-12",
+		"birth_precision": "day",
+		"role": "cyclo-cross cyclist, Switzerland",
+		"occupation": "cyclo-cross cyclist",
+		"occupations": [
+			"cyclo-cross cyclist"
+		],
+		"countries": [
+			"Switzerland"
+		],
+		"enwiki": "Peter_Frischknecht",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q1733539",
+		"name": "Peter V. Zima",
+		"birth": "1946-03-01",
+		"birth_precision": "day",
+		"role": "literary scholar, Czech Republic",
+		"occupation": "literary scholar",
+		"occupations": [
+			"literary scholar",
+			"social scientist",
+			"literary critic",
+			"university teacher"
+		],
+		"countries": [
+			"Czech Republic",
+			"Austria"
+		],
+		"enwiki": "Peter_V._Zima",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q4356375",
+		"name": "Pirjo Seppä",
+		"birth": "1946-02-08",
+		"birth_precision": "day",
+		"role": "orienteer, Finland",
+		"occupation": "orienteer",
+		"occupations": [
+			"orienteer"
+		],
+		"countries": [
+			"Finland"
+		],
+		"enwiki": "Pirjo_Seppä",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q468528",
+		"name": "Queen Saleha of Brunei",
+		"birth": "1946-10-07",
+		"birth_precision": "day",
+		"role": "monarch, Brunei",
+		"occupation": "monarch",
+		"occupations": [
+			"monarch"
+		],
+		"countries": [
+			"Brunei"
+		],
+		"enwiki": "Queen_Saleha_of_Brunei",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q1190688",
+		"name": "Raël",
+		"birth": "1946-09-30",
+		"birth_precision": "day",
+		"role": "pop musician, French nationality law",
+		"occupation": "pop musician",
+		"occupations": [
+			"pop musician",
+			"cult leader",
+			"religious leader",
+			"sports journalist",
+			"racing automobile driver",
+			"test driver",
+			"journalist",
+			"singer"
+		],
+		"countries": [
+			"French nationality law",
+			"Canadian nationality law"
+		],
+		"enwiki": "Raël",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q17478229",
+		"name": "Rafael Esquivel",
+		"birth": "1946-08-16",
+		"birth_precision": "day",
+		"role": "sports official, Venezuela",
+		"occupation": "sports official",
+		"occupations": [
+			"sports official",
+			"association football player",
+			"association football coach",
+			"businessperson"
+		],
+		"countries": [
+			"Venezuela",
+			"Spain"
+		],
+		"enwiki": "Rafael_Esquivel",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q1560922",
+		"name": "Rafael Salguero",
+		"birth": "1946-12-03",
+		"birth_precision": "day",
+		"role": "sports executive, Guatemala",
+		"occupation": "sports executive",
+		"occupations": [
+			"sports executive",
+			"association football player",
+			"notary",
+			"lawyer"
+		],
+		"countries": [
+			"Guatemala"
+		],
+		"enwiki": "Rafael_Salguero",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q9304189",
+		"name": "Rasma Kārkliņa",
+		"birth": "1946-06-07",
+		"birth_precision": "day",
+		"role": "political scientist, Latvia",
+		"occupation": "political scientist",
+		"occupations": [
+			"political scientist",
+			"politician"
+		],
+		"countries": [
+			"Latvia"
+		],
+		"enwiki": "Rasma_Kārkliņa",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": false
+	},
+	{
+		"qid": "Q55365636",
+		"name": "Ravindra Parekh",
+		"birth": "1946-11-21",
+		"birth_precision": "day",
+		"role": "short story writer, India",
+		"occupation": "short story writer",
+		"occupations": [
+			"short story writer",
+			"novelist",
+			"critic",
+			"literary critic",
+			"translator",
+			"poet"
+		],
+		"countries": [
+			"India"
+		],
+		"enwiki": "Ravindra_Parekh",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q1333860",
+		"name": "René Pijnen",
+		"birth": "1946-09-03",
+		"birth_precision": "day",
+		"role": "track cyclist, Kingdom of the Netherlands",
+		"occupation": "track cyclist",
+		"occupations": [
+			"track cyclist",
+			"sport cyclist"
+		],
+		"countries": [
+			"Kingdom of the Netherlands"
+		],
+		"enwiki": "René_Pijnen",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q11890928",
+		"name": "Risto Soramies",
+		"birth": "1946-12-13",
+		"birth_precision": "day",
+		"role": "Lutheran pastor, Finland",
+		"occupation": "Lutheran pastor",
+		"occupations": [
+			"Lutheran pastor"
+		],
+		"countries": [
+			"Finland"
+		],
+		"enwiki": "Risto_Soramies",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q7341277",
+		"name": "Robert A. Oden",
+		"birth": "1946-09-11",
+		"birth_precision": "day",
+		"role": "ancient Near Eastern scholar, United States",
+		"occupation": "ancient Near Eastern scholar",
+		"occupations": [
+			"ancient Near Eastern scholar",
+			"university president"
+		],
+		"countries": [
+			"United States"
+		],
+		"enwiki": "Robert_A._Oden",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q60581359",
+		"name": "Rodolfo Diaz (boxer, born 1946)",
+		"birth": "1946-03-13",
+		"birth_precision": "day",
+		"role": "boxer, Philippines",
+		"occupation": "boxer",
+		"occupations": [
+			"boxer"
+		],
+		"countries": [
+			"Philippines"
+		],
+		"enwiki": "Rodolfo_Diaz_(boxer,_born_1946)",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q2281895",
+		"name": "Rudi Hiti",
+		"birth": "1946-11-04",
+		"birth_precision": "day",
+		"role": "ice hockey player, Yugoslavia",
+		"occupation": "ice hockey player",
+		"occupations": [
+			"ice hockey player",
+			"ice hockey coach"
+		],
+		"countries": [
+			"Yugoslavia",
+			"Slovenia"
+		],
+		"enwiki": "Rudi_Hiti",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q689920",
+		"name": "Rudolf Buchbinder",
+		"birth": "1946-12-01",
+		"birth_precision": "day",
+		"role": "classical pianist, Austria",
+		"occupation": "classical pianist",
+		"occupations": [
+			"classical pianist",
+			"musician",
+			"pianist",
+			"conductor"
+		],
+		"countries": [
+			"Austria"
+		],
+		"enwiki": "Rudolf_Buchbinder",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q435197",
+		"name": "Ruth Shady",
+		"birth": "1946-12-29",
+		"birth_precision": "day",
+		"role": "anthropologist, Peru",
+		"occupation": "anthropologist",
+		"occupations": [
+			"Q54755137",
+			"anthropologist",
+			"archaeologist",
+			"university teacher",
+			"pedagogue"
+		],
+		"countries": [
+			"Peru"
+		],
+		"enwiki": "Ruth_Shady",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q526997",
+		"name": "Ruth Underwood",
+		"birth": "1946-05-23",
+		"birth_precision": "day",
+		"role": "xylophonist, United States",
+		"occupation": "xylophonist",
+		"occupations": [
+			"xylophonist",
+			"vibraphonist",
+			"marimba player",
+			"percussionist"
+		],
+		"countries": [
+			"United States"
+		],
+		"enwiki": "Ruth_Underwood",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q50347390",
+		"name": "Ružica Milosavljević",
+		"birth": "1946-04-29",
+		"birth_precision": "day",
+		"role": "chess player, Yugoslavia",
+		"occupation": "chess player",
+		"occupations": [
+			"chess player"
+		],
+		"countries": [
+			"Yugoslavia",
+			"Serbia"
+		],
+		"enwiki": "Ružica_Milosavljević",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q18217759",
+		"name": "Salim Mohammed",
+		"birth": "1946-09-09",
+		"birth_precision": "day",
+		"role": "sport cyclist, Trinidad and Tobago",
+		"occupation": "sport cyclist",
+		"occupations": [
+			"sport cyclist"
+		],
+		"countries": [
+			"Trinidad and Tobago"
+		],
+		"enwiki": "Salim_Mohammed",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q1289857",
+		"name": "Sénouvo Agbota Zinsou",
+		"birth": "1946-06-06",
+		"birth_precision": "day",
+		"role": "writer, Togo",
+		"occupation": "writer",
+		"occupations": [
+			"writer"
+		],
+		"countries": [
+			"Togo"
+		],
+		"enwiki": "Sénouvo_Agbota_Zinsou",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q16107264",
+		"name": "Simón Corral",
+		"birth": "1946-01-05",
+		"birth_precision": "day",
+		"role": "poet, Ecuador",
+		"occupation": "poet",
+		"occupations": [
+			"poet",
+			"writer"
+		],
+		"countries": [
+			"Ecuador"
+		],
+		"enwiki": "Simón_Corral",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q7597526",
+		"name": "Stan Alves",
+		"birth": "1946-05-22",
+		"birth_precision": "day",
+		"role": "Australian rules football coach, Australia",
+		"occupation": "Australian rules football coach",
+		"occupations": [
+			"Australian rules football coach",
+			"Australian rules football player"
+		],
+		"countries": [
+			"Australia"
+		],
+		"enwiki": "Stan_Alves",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q7599517",
+		"name": "Stanley Christodoulou",
+		"birth": "1946-01-31",
+		"birth_precision": "day",
+		"role": "boxer, South Africa",
+		"occupation": "boxer",
+		"occupations": [
+			"boxer",
+			"boxing referee"
+		],
+		"countries": [
+			"South Africa"
+		],
+		"enwiki": "Stanley_Christodoulou",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q7633856",
+		"name": "Sudipta Sengupta",
+		"birth": "1946-08-20",
+		"birth_precision": "day",
+		"role": "mountaineer, India",
+		"occupation": "mountaineer",
+		"occupations": [
+			"mountaineer",
+			"geologist",
+			"writer"
+		],
+		"countries": [
+			"India"
+		],
+		"enwiki": "Sudipta_Sengupta",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q3978373",
+		"name": "Suzana Ardeleanu",
+		"birth": "1946-03-08",
+		"birth_precision": "day",
+		"role": "fencer, Romania",
+		"occupation": "fencer",
+		"occupations": [
+			"fencer"
+		],
+		"countries": [
+			"Romania"
+		],
+		"enwiki": "Suzana_Ardeleanu",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q7652103",
+		"name": "Svend Bayer",
+		"birth": "1946-01-02",
+		"birth_precision": "day",
+		"role": "ceramicist, Kingdom of Denmark",
+		"occupation": "ceramicist",
+		"occupations": [
+			"ceramicist",
+			"potter"
+		],
+		"countries": [
+			"Kingdom of Denmark"
+		],
+		"enwiki": "Svend_Bayer",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q18750463",
+		"name": "T. Venkatapathi Reddiar",
+		"birth": "1946-03-29",
+		"birth_precision": "day",
+		"role": "botanist, Dominion of India",
+		"occupation": "botanist",
+		"occupations": [
+			"botanist"
+		],
+		"countries": [
+			"Dominion of India",
+			"British Raj",
+			"India"
+		],
+		"enwiki": "T._Venkatapathi_Reddiar",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q550672",
+		"name": "Tõnu Lepik",
+		"birth": "1946-05-01",
+		"birth_precision": "day",
+		"role": "sportsperson, Estonia",
+		"occupation": "sportsperson",
+		"occupations": [
+			"sportsperson",
+			"sports pedagogue",
+			"athletics competitor"
+		],
+		"countries": [
+			"Estonia"
+		],
+		"enwiki": "Tõnu_Lepik",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q87787655",
+		"name": "Tsitsino Kakhabrishvili",
+		"birth": "1946-11-14",
+		"birth_precision": "day",
+		"role": "chess player, Georgia",
+		"occupation": "chess player",
+		"occupations": [
+			"chess player"
+		],
+		"countries": [
+			"Georgia"
+		],
+		"enwiki": "Tsitsino_Kakhabrishvili",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q326594",
+		"name": "Tunç Hamarat",
+		"birth": "1946-12-01",
+		"birth_precision": "day",
+		"role": "correspondence chess player, Turkey",
+		"occupation": "correspondence chess player",
+		"occupations": [
+			"correspondence chess player",
+			"chess player"
+		],
+		"countries": [
+			"Turkey",
+			"Austria"
+		],
+		"enwiki": "Tunç_Hamarat",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q64747649",
+		"name": "Urs Brechbühl",
+		"birth": "1946-03-08",
+		"birth_precision": "day",
+		"role": "biathlete, Switzerland",
+		"occupation": "biathlete",
+		"occupations": [
+			"biathlete"
+		],
+		"countries": [
+			"Switzerland"
+		],
+		"enwiki": "Urs_Brechbühl",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q96358459",
+		"name": "Václav Brandejs",
+		"birth": "1946-05-13",
+		"birth_precision": "day",
+		"role": "sailor, Czech Republic",
+		"occupation": "sailor",
+		"occupations": [
+			"sailor"
+		],
+		"countries": [
+			"Czech Republic"
+		],
+		"enwiki": "Václav_Brandejs",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": false
+	},
+	{
+		"qid": "Q4360534",
+		"name": "Viktor Petrik",
+		"birth": "1946-06-22",
+		"birth_precision": "day",
+		"role": "con artist, Russia",
+		"occupation": "con artist",
+		"occupations": [
+			"con artist",
+			"patent inventor",
+			"peddler",
+			"businessperson"
+		],
+		"countries": [
+			"Russia"
+		],
+		"enwiki": "Viktor_Petrik",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q73763376",
+		"name": "Vinand Nantulya",
+		"birth": "1946-01-15",
+		"birth_precision": "day",
+		"role": "academic administrator, Uganda",
+		"occupation": "academic administrator",
+		"occupations": [
+			"academic administrator",
+			"researcher",
+			"physician"
+		],
+		"countries": [
+			"Uganda"
+		],
+		"enwiki": "Vinand_Nantulya",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q4669917",
+		"name": "Viorica Dumitru",
+		"birth": "1946-08-04",
+		"birth_precision": "day",
+		"role": "kayaker, Romania",
+		"occupation": "kayaker",
+		"occupations": [
+			"kayaker",
+			"canoeist"
+		],
+		"countries": [
+			"Romania"
+		],
+		"enwiki": "Viorica_Dumitru",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q47471353",
+		"name": "Vladimir Solovyov (rower)",
+		"birth": "1946-11-21",
+		"birth_precision": "day",
+		"role": "rowing administrator, Soviet Union",
+		"occupation": "rowing administrator",
+		"occupations": [
+			"rowing administrator",
+			"rower"
+		],
+		"countries": [
+			"Soviet Union",
+			"Russia"
+		],
+		"enwiki": "Vladimir_Solovyov_(rower)",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q7976579",
+		"name": "Wayne Roycroft",
+		"birth": "1946-05-21",
+		"birth_precision": "day",
+		"role": "equestrian, Australia",
+		"occupation": "equestrian",
+		"occupations": [
+			"equestrian"
+		],
+		"countries": [
+			"Australia"
+		],
+		"enwiki": "Wayne_Roycroft",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q29898764",
+		"name": "Wayne Yetman",
+		"birth": "1946-10-08",
+		"birth_precision": "day",
+		"role": "long-distance runner, Canada",
+		"occupation": "long-distance runner",
+		"occupations": [
+			"long-distance runner"
+		],
+		"countries": [
+			"Canada"
+		],
+		"enwiki": "Wayne_Yetman",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q12341541",
+		"name": "Wigmar Pedersen",
+		"birth": "1946-10-09",
+		"birth_precision": "day",
+		"role": "civil engineer, Kingdom of Denmark",
+		"occupation": "civil engineer",
+		"occupations": [
+			"civil engineer",
+			"athletics competitor"
+		],
+		"countries": [
+			"Kingdom of Denmark"
+		],
+		"enwiki": "Wigmar_Pedersen",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q8003735",
+		"name": "Willi Bock",
+		"birth": "1946-12-13",
+		"birth_precision": "day",
+		"role": "amateur wrestler, German Democratic Republic",
+		"occupation": "amateur wrestler",
+		"occupations": [
+			"amateur wrestler"
+		],
+		"countries": [
+			"German Democratic Republic",
+			"Germany"
+		],
+		"enwiki": "Willi_Bock",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q324050",
+		"name": "Wolfgang Rott",
+		"birth": "1946-11-28",
+		"birth_precision": "day",
+		"role": "field hockey player, West Germany",
+		"occupation": "field hockey player",
+		"occupations": [
+			"field hockey player"
+		],
+		"countries": [
+			"West Germany"
+		],
+		"enwiki": "Wolfgang_Rott",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q14848366",
+		"name": "Yadollah Sharifirad",
+		"birth": "1946-03-24",
+		"birth_precision": "day",
+		"role": "flying ace, Iran",
+		"occupation": "flying ace",
+		"occupations": [
+			"flying ace"
+		],
+		"countries": [
+			"Iran"
+		],
+		"enwiki": "Yadollah_Sharifirad",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q2601352",
+		"name": "Youri Vámos",
+		"birth": "1946-11-21",
+		"birth_precision": "day",
+		"role": "dancer, Germany",
+		"occupation": "dancer",
+		"occupations": [
+			"dancer",
+			"choreographer",
+			"ballet dancer"
+		],
+		"countries": [
+			"Germany",
+			"Hungary"
+		],
+		"enwiki": "Youri_Vámos",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q19544629",
+		"name": "Yvette Fontaine",
+		"birth": "1946-06-03",
+		"birth_precision": "day",
+		"role": "rally driver, Belgium",
+		"occupation": "rally driver",
+		"occupations": [
+			"rally driver"
+		],
+		"countries": [
+			"Belgium"
+		],
+		"enwiki": "Yvette_Fontaine",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": false
+	},
+	{
+		"qid": "Q8064671",
+		"name": "Zahida Hina",
+		"birth": "1946-10-05",
+		"birth_precision": "day",
+		"role": "journalist, Pakistan",
+		"occupation": "journalist",
+		"occupations": [
+			"journalist",
+			"columnist",
+			"playwright",
+			"writer"
+		],
+		"countries": [
+			"Pakistan"
+		],
+		"enwiki": "Zahida_Hina",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": true
+	},
+	{
+		"qid": "Q60942350",
+		"name": "Zdravko Simeonov",
+		"birth": "1946-07-17",
+		"birth_precision": "day",
+		"role": "volleyball player, Bulgaria",
+		"occupation": "volleyball player",
+		"occupations": [
+			"volleyball player"
+		],
+		"countries": [
+			"Bulgaria"
+		],
+		"enwiki": "Zdravko_Simeonov",
+		"origin": "wikidata:sparql-cohort-1946",
+		"alive_confirmed": false
+	}
+]
