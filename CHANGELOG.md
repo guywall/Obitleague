@@ -5,6 +5,40 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-09-28
+
+### Fixed
+- **Import no longer writes the public occupation taxonomy.** The taxonomy is
+  browsable and indexable, so every term in it is a permanent archive URL — but
+  import was writing unsourced feed role text straight into it. Because role
+  text varies by extractor, each distinct phrasing became its own archive page
+  duplicating an occupation that already existed as a clean sourced term: 70 of
+  the 71 empty terms on a demo install were verbatim copies of a stored role
+  ("American jazz guitarist" alongside the real "jazz guitarist"). The same
+  path is what turned a hardcoded `Public figure` placeholder — applied to the
+  entire 60-person living pick pool by the demo importer — into a public
+  archive page. Occupations now come from one place, Wikidata P106 via
+  `People_Sync`; the feed occupation is kept as an `obit_occupation_hint`
+  editorial hint and never becomes public. If a sync fails, a person simply has
+  no occupation tag rather than a wrong one.
+- **71 empty occupation archive pages removed.** Terms now outlive no one, so
+  the taxonomy holds 211 terms and every one has people behind it. Import no
+  longer creates the orphans, so this only had to clear what earlier versions
+  left behind.
+
+### Notes
+- The "Public figure" catch-all is gone: the term no longer exists, and no
+  person carries it. The earlier "58" figure counted the 60-person living pool
+  at import time, before the Wikidata occupation sync replaced those tags.
+- Enrichment was measured, not assumed, and is not available: of the 41 people
+  with a single occupation (40 of them deceased), every record sampled has
+  exactly one occupation claim on Wikidata. Those records are accurate rather
+  than degraded, and the only way to make them read as richer would be to
+  invent classifications. `sync_all()` still only re-checks people missing
+  portrait or occupation data, so thin records are not re-fetched; measurement
+  says that would currently find nothing.
+- No schema changes; `OBITLEAGUE_DB_VERSION` stays at 0.5.0.
+
 ## [0.10.0] — 2026-09-28
 
 ### Added

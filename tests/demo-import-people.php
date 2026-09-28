@@ -31,6 +31,8 @@ $import_row = static function ( array $row ) use ( $season, &$imported, &$approv
 				'name'       => $row['name'],
 				'birth_date' => $row['birth'],
 				'death_date' => $row['death'],
+				// Kept as an editorial hint only; it never becomes a public
+				// occupation term (see Import_Service::record_occupation_hint).
 				'occupation' => $row['role'] ?? '',
 				'role'       => $row['role'] ?? '',
 				'enwiki'     => $row['enwiki'] ?? '',
@@ -59,12 +61,16 @@ foreach ( json_decode( file_get_contents( $work . '/seed-prelock-deaths.json' ),
 echo "== importing living pool (selectable picks) ==\n";
 foreach ( json_decode( file_get_contents( $work . '/seed-living-pool.json' ), true ) as $row ) {
 	try {
+		// No occupation here on purpose. This pool used to be imported with a
+		// hardcoded "Public figure" occupation, which created a public
+		// occupation archive page for that placeholder and tagged the whole
+		// pickable pool with it. Occupations come from Wikidata via
+		// People_Sync instead; run tests/sync-portraits.php afterwards.
 		$post_id = Import_Service::import_person(
 			array(
 				'qid'        => $row['qid'],
 				'name'       => $row['name'],
 				'birth_date' => $row['birth'],
-				'occupation' => 'Public figure',
 				'enwiki'     => $row['enwiki'] ?? '',
 			)
 		);
@@ -78,3 +84,4 @@ foreach ( json_decode( file_get_contents( $work . '/seed-living-pool.json' ), tr
 }
 
 echo "\nimported={$imported} approved={$approved} skipped={$skipped}\n";
+echo "Next: wp eval-file tests/sync-portraits.php  (fills portraits + occupations from Wikidata)\n";

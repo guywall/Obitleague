@@ -59,9 +59,15 @@ Maintenance scripts run through WP-CLI and are safe to re-run:
 
 ```bash
 wp eval-file tests/build-person-content.php        # (re)compose person page bodies
-wp eval-file tests/prune-orphan-occupation-terms.php  # drop cause-contaminated terms
+wp eval-file tests/prune-orphan-occupation-terms.php  # drop empty occupation terms
+wp eval-file tests/verify-import-taxonomy.php      # assert imports create no public terms
 wp eval-file tests/sync-portraits.php              # portraits + occupations from Wikidata
 ```
+
+Occupations are sourced, never imported. The `obit_occupation` taxonomy is
+written only by `tests/sync-portraits.php` (Wikidata P106), so run it after
+importing people; feed role text is kept as the `obit_occupation_hint` postmeta
+instead of becoming a public archive page.
 
 ## Demo data
 
