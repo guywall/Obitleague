@@ -11,29 +11,18 @@ if ( ! defined( 'ABSPATH' ) || ! WP_CLI ) {
 
 $failures = array();
 
-$logged_in = is_user_logged_in();
-
 $settings = Header::settings();
 $primary = isset( $settings['primary'] ) ? (array) $settings['primary'] : array();
-
 $primary_labels = array();
 foreach ( $primary as $item ) {
 	if ( is_array( $item ) && ! empty( $item['label'] ) ) {
 		$primary_labels[] = (string) $item['label'];
 	}
 }
-
-if ( ! in_array( 'People', $primary_labels, true ) ) {
-	$failures[] = 'Header primary links should include People';
-}
-if ( ! in_array( 'Picks', $primary_labels, true ) ) {
-	$failures[] = 'Header primary links should include Picks';
-}
-if ( ! in_array( 'Standings', $primary_labels, true ) ) {
-	$failures[] = 'Header primary links should include Standings';
-}
-if ( ! in_array( 'Stats', $primary_labels, true ) ) {
-	$failures[] = 'Header primary links should include Stats';
+foreach ( array( 'People', 'Picks', 'Standings', 'Stats' ) as $label ) {
+	if ( ! in_array( $label, $primary_labels, true ) ) {
+		$failures[] = 'Header primary links should include ' . $label;
+	}
 }
 
 $search_url = Shortcodes::people_search_url();
@@ -50,6 +39,23 @@ if ( $entry_season < 2026 || $entry_season > 2040 ) {
 	$failures[] = 'Entry season should be a reasonable future/present season';
 }
 
+ob_start();
+try {
+	Header::render();
+	$html = (string) ob_get_clean();
+	if ( ! str_contains( $html, 'class="ob-header' ) ) {
+		$failures[] = 'Header rendering should produce header markup';
+	}
+	foreach ( array( 'People', 'Picks', 'Standings', 'Stats' ) as $label ) {
+		if ( ! str_contains( $html, '>' . $label . '</a>' ) ) {
+			$failures[] = 'Header navigation should include ' . $label;
+		}
+	}
+} catch ( Throwable $error ) {
+	ob_end_clean();
+	$failures[] = 'Header rendering failed: ' . $error->getMessage();
+}
+
 if ( $failures ) {
 	foreach ( $failures as $failure ) {
 		\WP_CLI::warning( $failure );
@@ -57,4 +63,4 @@ if ( $failures ) {
 	\WP_CLI::error( implode( '; ', $failures ) );
 }
 
-\WP_CLI::success( 'Header wiring verified' );
+\WP_CLI::success( 'Header wiring and rendering verified' );
