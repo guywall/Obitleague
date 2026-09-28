@@ -71,9 +71,11 @@ git rev-parse --verify HEAD >/dev/null 2>&1 || die "no HEAD commit"
 BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 [ "$BRANCH" = "main" ] || die "refusing to deploy from '$BRANCH' — check out main first (or deploy a tag deliberately)"
 
-if [ -n "$(git status --porcelain)" ]; then
-	git status --short >&2
-	die "working tree is dirty; commit or stash before deploying"
+# Only tracked modifications matter: untracked files (local tooling, the
+# worktree's own .freebuff/, AI_PLUGIN_GUIDE.md) are never in the archive.
+if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+	git status --short --untracked-files=no >&2
+	die "tracked files are modified; commit or stash before deploying"
 fi
 
 # Only ship what is already pushed, so the live site never runs code that is
