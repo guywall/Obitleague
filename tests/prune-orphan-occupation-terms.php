@@ -15,10 +15,11 @@
  *   2. Wikidata sync later replaced each person's terms with sourced labels,
  *      orphaning the old ones.
  *
- * Import no longer writes this taxonomy (see Import_Service), so this only
- * has to clear what earlier versions left behind. It is safe to re-run: only
- * terms with zero people attached are removed, and a term is never deleted
- * while anyone is still filed under it.
+ * Import no longer writes this taxonomy (see Import_Service) and deleting a
+ * person now prunes their terms (see Occupation_Taxonomy), so this only has to
+ * clear what earlier versions left behind. It is safe to re-run, and it shares
+ * `Occupation_Taxonomy::prune_term()` with that hook, so the rule for when a
+ * term may be removed is defined in exactly one place.
  *
  * Run: wp eval-file tests/prune-orphan-occupation-terms.php
  */
@@ -28,6 +29,7 @@ if ( ! defined( 'ABSPATH' ) || ! defined( 'WP_CLI' ) || ! WP_CLI ) {
 }
 
 use Obitleague\Modules\Catalogue;
+use Obitleague\Modules\Occupation_Taxonomy;
 
 // hide_empty must be false: the terms being removed are exactly the empty ones,
 // so hiding empty terms would exclude what we came to find.
@@ -48,24 +50,14 @@ foreach ( $terms as $term ) {
 	if ( ! $term instanceof WP_Term ) {
 		continue;
 	}
-	// Belt and braces: re-read the live count rather than trusting a stale
-	// term_taxonomy row, and never remove anything somebody is filed under.
-	if ( (int) $term->count > 0 ) {
+	// prune_term() re-checks the live relationship rows and refuses to remove
+	// anything somebody is still filed under, so the cached count is not
+	// trusted here either.
+	if ( Occupation_Taxonomy::prune_term( (int) $term->term_id ) ) {
+		++$pruned;
+	} else {
 		++$skipped;
-		continue;
 	}
-	$in_use = get_objects_in_term( array( (int) $term->term_id ), Catalogue::TAX_OCCUPATION );
-	if ( is_array( $in_use ) && array() !== $in_use ) {
-		++$skipped;
-		continue;
-	}
-
-	$deleted = wp_delete_term( (int) $term->term_id, Catalogue::TAX_OCCUPATION );
-	if ( is_wp_error( $deleted ) ) {
-		WP_CLI::warning( 'could not delete "' . $term->name . '": ' . $deleted->get_error_message() );
-		continue;
-	}
-	++$pruned;
 }
 
 WP_CLI::success(

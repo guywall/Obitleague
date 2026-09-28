@@ -21,13 +21,14 @@ src/Modules/Elementor_Bridge.php Typed dynamic tags + guarded widgets
 src/Modules/Seo.php            Titles, meta, Open Graph, Person schema, noindex
 src/Modules/Person_Content.php Composed body prose for person records
 src/Modules/Pick_Stats.php     How often a name was taken, and by whom
+src/Modules/Occupation_Taxonomy.php  Prunes occupation terms orphaned by a person deletion
 src/Domain/Value/Role_Label.php Cleans unsourced role text of leaked causes
 src/Support/Options.php         Key-value store (wp_options now, plugin tables later)
 src/Support/Time.php            Deadline checks, London-time helpers
 tests/run-tests.php             Standalone test runner (no WordPress)
 ```
 
-Modules: Catalogue, Jobs (feed polling + outbox tick), Rest, Elementor_Bridge, League_Service (create/join/invites), Entry_Service (drafts, submission receipts, lock races), Review_Service (editorial state machine, stale-protected decisions, event publication), Outbox_Service (award fan-out, retraction reversals), Standings_Service (published generations with competition ranking), Scoring_Service (idempotent award ledger), Seo (titles, meta, Open Graph, Person schema, crawl control), Person_Content (person page body, composed from approved fields only), Setup (migrations). Planned next: Notifications (in-app/email), Import (Wikidata seeding).
+Modules: Catalogue, Jobs (feed polling + outbox tick), Rest, Elementor_Bridge, League_Service (create/join/invites), Entry_Service (drafts, submission receipts, lock races), Review_Service (editorial state machine, stale-protected decisions, event publication), Outbox_Service (award fan-out, retraction reversals), Standings_Service (published generations with competition ranking), Scoring_Service (idempotent award ledger), Seo (titles, meta, Open Graph, Person schema, crawl control), Person_Content (person page body, composed from approved fields only), Occupation_Taxonomy (prunes occupation terms orphaned by a person deletion), Setup (migrations). Planned next: Notifications (in-app/email), Import (Wikidata seeding).
 
 ## Data model (target)
 
@@ -82,6 +83,7 @@ Editors approve a death only with two editorially independent reports (or an aut
   view, so the distribution is cached and flushed on submit and on amendment; a
   short TTL is a safety net, not the strategy.
 - One writer for the occupation taxonomy: `People_Sync`, from Wikidata P106 (CC0). `Import_Service` deliberately does not write it. The taxonomy is public and indexable, so each term is a permanent archive URL, and feed role text is free-form, unsourced and inconsistent between extractors — importing it produced duplicate archive pages for occupations that already existed as clean terms, and let a `Public figure` placeholder become a public page. Feed occupations are stored as `obit_occupation_hint` for the review queue. A person whose sync fails ends up with no occupation tag rather than a wrong one, which is the correct direction to fail.
+- One remover, and only of unreferenced terms: `Occupation_Taxonomy` hooks `before_delete_post` and `deleted_post`. Core removes a deleted post's term relationships partway through `wp_delete_post()` and never touches the terms, so the terms are captured before the record goes and pruned after, when they have lost their last reference. The liveness test is the number of rows in `wp_term_relationships`, never the cached `count` on the term taxonomy row, and a term is only removed when that count is zero — so a term any other object is still filed under is always kept. `tests/prune-orphan-occupation-terms.php` calls the same `prune_term()` for historical residue, so there is one definition of when a term may be deleted. Custom post types get no trash protection in `wp_delete_post()` (its short-circuit covers only `post` and `page`), so an `obit_person` record always takes the permanent-delete path.
 - One descriptor per person: `Role_Label::clean()` is the single gate between the stored role and anything public. Feed extraction sometimes appends a cause of death to an occupation, and that string previously reached the byline, the meta description and the JSON-LD `jobTitle`. All of them now read the cleaned value, so they cannot disagree with each other or with the reported cause.
 - Treat feed HTML and imported text as untrusted: escape on output, reject SSRF-prone fetches (scheme and host allowlists, no private addresses after DNS resolution or redirects, byte/time limits, external entities disabled).
 - Retention baseline: 30 days raw imports, 90 days security logs, 24 months score and approval evidence.

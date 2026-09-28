@@ -5,30 +5,35 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
-### Added
-- **`work/build-cohort-1946.cjs`** builds a 1946 birth-year cohort of living
-  people from Wikidata, diverse by construction: 11,157 candidates, ranked so
-  that rare nationalities and occupations are taken first and admitted only
-  while their country and occupation stay under hard caps. The 150 rows it
-  writes span 93 countries and 265 occupations.
-- **`tests/import-seed-file.php`** loads any builder-produced seed file into the
-  catalogue. `demo-import-people.php` knew three filenames; this takes a path,
-  so a new cohort needs no code change. People land as private candidates
-  unless `OBITLEAGUE_SEED_APPROVE=1` is set, and it refuses to write to a
-  production site without `OBITLEAGUE_ALLOW_SEED_IMPORT=1`.
+## [0.12.1] — 2026-09-28
 
 ### Fixed
-- The cohort builder is now correct about liveness, dates and sampling. A
-  Wikidata item with no date of death is not proof of being alive, and the
-  original candidate query filtered on exactly that absence; liveness is now
-  cross-checked against Wikipedia's death-year categories as well, with a
-  `--selftest` that proves the check can fail. Birth dates are rebuilt from
-  each statement's own precision instead of letting a month-precision date
-  masquerade as the 1st, and candidates are sampled by hashing the QID — a
-  positional sample silently took January, which holds 30% of the cohort.
-- `work/build-cohort-1946.cjs` refuses to write an empty or sub-minimum cohort,
-  and `--any-precision` is now the opt-in rather than the default, so the rows
-  it writes can be approved for publication.
+- **Deleting a person no longer strands their occupation terms.** Occupation
+  terms are public, indexable archive URLs, so a term nobody is filed under is
+  a reachable page that can only say “0 people”. WordPress removes a deleted
+  post's term relationships but leaves the terms themselves behind, so every
+  occupation that only the removed person held survived as a dead archive
+  page. This was not theoretical: a live clean-slate re-import that deleted
+  150 people left 45 orphaned terms behind, recoverable only by hand with
+  `tests/prune-orphan-occupation-terms.php`.
+  `src/Modules/Occupation_Taxonomy.php` now captures the terms before the
+  record goes and prunes any that have lost their last reference afterwards.
+  A term is only ever removed when `wp_term_relationships` holds no remaining
+  rows for it — the live relationship rows, not the cached count on the term
+  taxonomy — so a term any other object is still filed under is always kept.
+- Note that custom post types get no trash protection in `wp_delete_post()`:
+  its trash short-circuit only covers `post` and `page`, so an `obit_person`
+  record always took the permanent-delete path.
+- `tests/prune-orphan-occupation-terms.php` now shares
+  `Occupation_Taxonomy::prune_term()` with the new hook, so the rule for when a
+  term may be deleted is defined in exactly one place rather than two that can
+  drift apart.
+- `tests/verify-orphan-occupation-pruning.php` covers the case: it builds two
+  people who share one occupation and gives the other a unique one, then
+  asserts the unique term is pruned, the shared one survives *and* is still
+  attached, and that deleting the last holder prunes it too. The shared-term
+  check is the one that matters — a prune slightly too eager would pass a test
+  that only looked for the unique term.
 
 ## [0.12.0] — 2026-09-28
 
@@ -45,11 +50,32 @@ header in `obitleague.php`; each released version is tagged in git.
 - `tests/verify-pick-stats.php` builds the unique-pick situation deliberately,
   since no real person is picked by exactly one team, and checks both the
   figures and the rendered page.
+- **`work/build-cohort-1946.cjs`** builds a 1946 birth-year cohort of living
+  people from Wikidata, diverse by construction: 11,157 candidates, ranked so
+  that rare nationalities and occupations are taken first and admitted only
+  while their country and occupation stay under hard caps. The 150 rows it
+  writes span 93 countries and 265 occupations.
+- **`tests/import-seed-file.php`** loads any builder-produced seed file into the
+  catalogue. `demo-import-people.php` knew three filenames; this takes a path,
+  so a new cohort needs no code change. People land as private candidates
+  unless `OBITLEAGUE_SEED_APPROVE=1` is set, and it refuses to write to a
+  production site without `OBITLEAGUE_ALLOW_SEED_IMPORT=1`.
 
 ### Fixed
 - A share of submitted teams below half a percent displayed as “0.0%”, which
   reads as “nobody took this name” and contradicts the count beside it. It now
   reads “less than 1%”.
+- The cohort builder is now correct about liveness, dates and sampling. A
+  Wikidata item with no date of death is not proof of being alive, and the
+  original candidate query filtered on exactly that absence; liveness is now
+  cross-checked against Wikipedia's death-year categories as well, with a
+  `--selftest` that proves the check can fail. Birth dates are rebuilt from
+  each statement's own precision instead of letting a month-precision date
+  masquerade as the 1st, and candidates are sampled by hashing the QID — a
+  positional sample silently took January, which holds 30% of the cohort.
+- `work/build-cohort-1946.cjs` refuses to write an empty or sub-minimum cohort,
+  and `--any-precision` is now the opt-in rather than the default, so the rows
+  it writes can be approved for publication.
 
 ### Notes
 - Counts come from the current submitted revision of each entry only. A team
