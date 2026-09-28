@@ -5,6 +5,42 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-09-28
+
+### Added
+- **Person pages now say how popular a name is.** How often someone is actually
+  taken is the most interesting thing about a dead pool, and it was invisible.
+  Every person page now carries a “Picked by” card: the number of submitted
+  teams holding the name, its share of the field, the name's rank among picked
+  names, how that splits across leagues, and the teams that took it.
+- **Hot pick and unique pick badges.** The top 50 most-picked names on the
+  board are badged as hot picks; a name taken by exactly one team is badged as
+  a unique pick — the rarest possible outcome, and often the only way to get a
+  good score out of a name nobody else wanted.
+- `tests/verify-pick-stats.php` builds the unique-pick situation deliberately,
+  since no real person is picked by exactly one team, and checks both the
+  figures and the rendered page.
+
+### Fixed
+- A share of submitted teams below half a percent displayed as “0.0%”, which
+  reads as “nobody took this name” and contradicts the count beside it. It now
+  reads “less than 1%”.
+
+### Notes
+- Counts come from the current submitted revision of each entry only. A team
+  that amends its picks supersedes its old revision, so counting every revision
+  would inflate totals and count the same team twice.
+- Figures are scoped to the season in play. A player can hold an entry in more
+  than one season, and pooling them would count them as several teams. The
+  season is single-sourced with the page's scorecard so the two cannot
+  disagree.
+- The ranking aggregate costs a few hundred milliseconds on a large field, so
+  the distribution is cached and invalidated whenever an entry is submitted or
+  amended. A warm read is about 5ms.
+- Team names are shown, never the account holder: picks are public after lock
+  under the ruleset, but a public page naming which player picked whom is a
+  disclosure the game does not need to make.
+
 ## [0.11.0] — 2026-09-28
 
 ### Fixed

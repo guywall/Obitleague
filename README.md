@@ -61,6 +61,7 @@ Maintenance scripts run through WP-CLI and are safe to re-run:
 wp eval-file tests/build-person-content.php        # (re)compose person page bodies
 wp eval-file tests/prune-orphan-occupation-terms.php  # drop empty occupation terms
 wp eval-file tests/verify-import-taxonomy.php      # assert imports create no public terms
+wp eval-file tests/verify-pick-stats.php          # pick counts, hot/unique badges, page render
 wp eval-file tests/sync-portraits.php              # portraits + occupations from Wikidata
 ```
 
