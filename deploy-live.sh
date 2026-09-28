@@ -167,6 +167,15 @@ if [ ! -d "\$THEME_DIR" ]; then
 	exit 3
 fi
 echo "-- theme present: hello-elementor"
+# A theme copied from a Windows checkout (Local) carries the exporting UID,
+# e.g. 197609, so it lands owned by a phantom user. The files still serve, but
+# WordPress can never update or write them. Normalise while we are here.
+if find "\$THEME_DIR" ! -user "\$SITE_USER" -print -quit 2>/dev/null | grep -q .; then
+	echo "   fixing theme ownership (was not owned by \$SITE_USER)"
+	chown -R "\$SITE_USER:\$SITE_GROUP" "\$THEME_DIR"
+	find "\$THEME_DIR" -type d -exec chmod 755 {} +
+	find "\$THEME_DIR" -type f -exec chmod 644 {} +
+fi
 
 chown -R "\$SITE_USER:\$SITE_GROUP" "\$PLUGIN_DIR"
 # mktemp -d creates 0700, and mv carries that mode into the docroot: the web
