@@ -1,2 +1,12 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Keep development-only material out of `git archive` output, which is how the
+# plugin ships to obitleague.co.uk. work/ holds local tooling (LAN proxy, seed
+# notes, the deploy checklist) and the live-migration dir holds DB dumps and
+# credentials; none of it belongs in a web root.
+work/ export-ignore
+.freebuff/ export-ignore
+*.tar.gz export-ignore
+*.sql export-ignore
+*.sql.gz export-ignore
