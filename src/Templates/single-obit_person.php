@@ -256,7 +256,8 @@ get_header();
 				</section>
 			<?php endif; ?>
 
-			<?php if ( '' !== $qid || '' !== $wikipedia_url || '' !== $portrait ) : ?>
+
+			<?php if ( '' !== $qid || '' !== $portrait ) : ?>
 				<section class="ob-card ob-sources">
 					<h2 class="ob-card__title">Sources</h2>
 					<ul>
@@ -266,15 +267,19 @@ get_header();
 						<?php if ( '' !== $qid ) : ?>
 							<li><a href="<?php echo esc_url( 'https://www.wikidata.org/wiki/' . rawurlencode( $qid ) ); ?>">Wikidata <span><?php echo esc_html( $qid ); ?></span></a></li>
 						<?php endif; ?>
-						<?php if ( '' !== $wikipedia_url ) : ?>
-							<li><a href="<?php echo esc_url( $wikipedia_url ); ?>">Wikipedia biography</a></li>
-						<?php endif; ?>
 					</ul>
-					<p class="ob-sources__note">Facts sourced from Wikipedia (CC BY-SA) and Wikidata (CC0). This page reports approved facts only.</p>
+					<p class="ob-sources__note">Approved facts from public reporting and Wikidata. This page reports approved facts only.</p>
 				</section>
 			<?php endif; ?>
 
-			<a class="ob-profile__back" href="<?php echo esc_url( home_url( '/catalogue/' ) ); ?>">← Back to the catalogue</a>
+			<?php if ( '' !== $wikipedia_url ) : ?>
+				<section class="ob-card ob-pick-bio">
+					<h2 class="ob-card__title">Biography</h2>
+					<p><a href="<?php echo esc_url( $wikipedia_url ); ?>">Read the full biography on Wikipedia</a>. Obitleague only uses what our editors confirm from public reporting.</p>
+				</section>
+			<?php endif; ?>
+
+			<a class="ob-profile__back" href="<?php echo esc_url( home_url( '/people/' ) ); ?>">← Back to the people</a>
 		</aside>
 
 	</div>

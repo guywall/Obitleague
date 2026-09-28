@@ -1,19 +1,7 @@
 <?php
-/**
- * Front-end shortcodes.
- *
- * Statistics-driven render blocks used inside Elementor pages via the
- * Shortcode widget. Public data only: approved people, published standings
- * generations, confirmed deaths. Membership screens stay in REST/widgets.
- *
- * @package Obitleague
- */
-
 declare( strict_types = 1 );
 
 namespace Obitleague\Modules;
-
-use Obitleague\Domain\Value\Cause_Status;
 
 final class Shortcodes {
 
@@ -44,22 +32,32 @@ final class Shortcodes {
 		return '';
 	}
 
-	/** Public enqueue for sibling modules rendering design-system blocks. */
 	public static function enqueue(): string {
 		return self::style();
 	}
 
-	/* ---------- helpers ---------- */
-
 	public static function season(): int {
-		// Prefer the season that actually has published standings (the one in
-		// play); fall back to the season currently open for entries.
 		global $wpdb;
 		$latest = (int) $wpdb->get_var( 'SELECT MAX(season) FROM ' . $wpdb->prefix . 'obitleague_standings_generations WHERE is_current = 1' );
 		return $latest > 0 ? $latest : League_Service::current_season();
 	}
 
-	/** Submitted entry id per user in one league+season (for team links). */
+public static function people_search_url(): string {
+	$search_page_id = (int) get_option( 'obitleague_people_search_page', 0 );
+	if ( $search_page_id ) {
+		return get_permalink( $search_page_id );
+	}
+	$front_page_id = (int) get_option( 'page_on_front', 0 );
+	if ( $front_page_id ) {
+		$front_url = get_permalink( $front_page_id );
+		if ( $front_url && str_ends_with( $front_url, home_url( '/' ) ) ) {
+			return home_url( '/people/' );
+		}
+	}
+	return home_url( '/people/' );
+}
+
+
 	private static function entry_ids_for_league( int $league_id, int $season ): array {
 		global $wpdb;
 		$rows = $wpdb->get_results(
@@ -101,15 +99,13 @@ final class Shortcodes {
 		return array( $birth, $death, $age );
 	}
 
-	/* ---------- blocks ---------- */
-
 	public static function hero( $atts = array() ): string {
 		$season = self::season();
 		$out    = '<section class="ob-hero ob-anim"><span class="ob-hero__kicker">Season ' . (int) $season . ' · In play</span>';
 		$out   .= '<h1>Pick ten lives. Follow the year.</h1>';
 		$out   .= '<p>Every confirmed, editor-approved death of a picked figure scores points — younger lives score more: max(1, 100 − age).</p>';
 		$out   .= '<div class="ob-hero__cta">';
-		$out   .= '<a href="' . esc_url( '/person/' ) . '">Browse the catalogue</a>';
+		$out   .= '<a href="' . esc_url( '/people/' ) . '">Browse the people</a>';
 		$out   .= '<a class="ghost" href="' . esc_url( '/standings/' ) . '">View standings</a>';
 		$out   .= '</div></section>';
 		return self::style() . $out;
@@ -209,10 +205,10 @@ final class Shortcodes {
 				$player_cell = $entry_id
 					? '<a class="ob-team-link" href="' . esc_url( home_url( '/team/' . $entry_id . '/' ) ) . '">' . esc_html( $row['player'] ) . '</a>'
 					: esc_html( $row['player'] );
-			if ( $entry_id && ! empty( $row['team_name'] ) && ! empty( $row['owner'] ) ) {
-				$player_cell .= '<small class="ob-standing-owner">managed by ' . esc_html( $row['owner'] ) . '</small>';
-			}
-			$out .= '<tr><td class="ob-rank">' . $medal . '</td><td>' . $player_cell . '</td><td class="ob-pts' . $lead_class . '">' . esc_html( (string) $row['points'] ) . '</td><td>' . esc_html( (string) $row['scoring_picks'] ) . '</td></tr>';
+				if ( $entry_id && ! empty( $row['team_name'] ) && ! empty( $row['owner'] ) ) {
+					$player_cell .= '<small class="ob-standing-owner">managed by ' . esc_html( $row['owner'] ) . '</small>';
+				}
+				$out .= '<tr><td class="ob-rank">' . $medal . '</td><td>' . $player_cell . '</td><td class="ob-pts' . $lead_class . '">' . esc_html( (string) $row['points'] ) . '</td><td>' . esc_html( (string) $row['scoring_picks'] ) . '</td></tr>';
 			}
 			$out .= '</tbody></table></div></section>';
 		}
@@ -223,25 +219,97 @@ final class Shortcodes {
 	public static function people( $atts = array() ): string {
 		$a     = shortcode_atts( array( 'living' => '1', 'per_page' => 12 ), $atts, 'obitleague_people' );
 		$alive = '1' === (string) $a['living'];
-		$q     = new \WP_Query(
+
+		// Query-string filters advertised by the People/Picks mega menu.
+		$occupation = isset( $_GET['occupation'] ) ? sanitize_text_field( (string) $_GET['occupation'] ) : '';
+		$birth_year = isset( $_GET['birth_year'] ) ? sanitize_text_field( (string) $_GET['birth_year'] ) : '';
+		$age_band   = isset( $_GET['age'] ) ? sanitize_text_field( (string) $_GET['age'] ) : '';
+
+		$meta_query = array();
+		// Living/dead toggle is the Picks vs People split.
+		if ( $alive ) {
+			$meta_query[] = array( 'key' => 'obit_death_date', 'compare' => 'NOT EXISTS' );
+		} else {
+			$meta_query[] = array( 'key' => 'obit_death_date', 'value' => '', 'compare' => '!=' );
+		}
+
+		// Occupation filter via taxonomy term slugs passed in the query string.
+		if ( '' !== $occupation ) {
+			$term = get_term_by( 'slug', $occupation, Catalogue::TAX_OCCUPATION );
+			if ( $term && ! is_wp_error( $term ) ) {
+				$meta_query[] = array(
+					'key'     => Catalogue::TAX_OCCUPATION . '|||' . (int) $term->term_id,
+					'value'   => (string) (int) $term->term_id,
+					'compare' => '=',
+				);
+			}
+		}
+
+		// Birth-year filter.
+		if ( preg_match( '/^\d{4}$/', $birth_year ) ) {
+			$meta_query[] = array(
+				'key'     => 'obit_birth_date',
+				'value'   => $birth_year,
+				'compare' => 'LIKE',
+			);
+		}
+
+		// Age band filter: living figures only, computed from birth + now.
+		if ( $alive && preg_match( '/^(under|70|80|90|100|over)-(\d+)$|^(\d+)$/', $age_band, $m ) ) {
+			// Keep the shape simple and readable for menu links: under-<n> and
+			// over-<n> and bare numeric bands. Narrower bands are harder to hit
+			// in a demo catalogue and not worth bespoke SQL yet.
+			$age_meta = array();
+			if ( isset( $m[1] ) && 'under' === $m[1] ) {
+				$age_meta[] = array( 'key' => '_obit_calculated_age', 'value' => (int) $m[2], 'compare' => '<', 'type' => 'NUMERIC' );
+			} elseif ( isset( $m[1] ) && 'over' === $m[1] ) {
+				$age_meta[] = array( 'key' => '_obit_calculated_age', 'value' => (int) $m[2], 'compare' => '>=', 'type' => 'NUMERIC' );
+			} elseif ( isset( $m[3] ) ) {
+				$age_meta[] = array( 'key' => '_obit_calculated_age', 'value' => (int) $m[3], 'compare' => '>=', 'type' => 'NUMERIC' );
+				$age_meta[] = array( 'key' => '_obit_calculated_age', 'value' => (int) $m[3] + 9, 'compare' => '<=', 'type' => 'NUMERIC' );
+			}
+			if ( $age_meta ) {
+				$meta_query[] = $age_meta;
+			}
+		}
+
+		$q = new \WP_Query(
 			array(
 				'post_type'      => Catalogue::POST_TYPE,
 				'post_status'    => 'publish',
 				'posts_per_page' => min( 48, max( 4, (int) $a['per_page'] ) ),
-				'meta_query'     => $alive
-					? array( array( 'key' => 'obit_death_date', 'compare' => 'NOT EXISTS' ) )
-					: array( array( 'key' => 'obit_death_date', 'value' => '', 'compare' => '!=' ) ),
+				'meta_query'     => $meta_query,
 				'orderby'        => 'title',
 				'order'          => 'ASC',
 			)
 		);
-		$out = '<div class="ob-people">';
+		$active_filters = array();
+		if ( '' !== $occupation ) {
+			$active_filters[] = array( 'label' => 'occupation: ' . esc_html( $occupation ), 'remove' => remove_query_arg( array( 'occupation' ) ) );
+		}
+		if ( preg_match( '/^\d{4}$/', $birth_year ) ) {
+			$active_filters[] = array( 'label' => 'born in ' . esc_html( $birth_year ), 'remove' => remove_query_arg( array( 'birth_year' ) ) );
+		}
+		if ( '' !== $age_band ) {
+			$active_filters[] = array( 'label' => 'age ' . esc_html( $age_band ), 'remove' => remove_query_arg( array( 'age' ) ) );
+		}
+
+		$out = '';
+		if ( $active_filters ) {
+			$out .= '<div class="ob-people__filters"><span class="ob-people__filter-label">Filtering by:</span>';
+			foreach ( $active_filters as $f ) {
+				$out .= '<span class="ob-people__filter">' . esc_html( $f['label'] ) . ' <a class="ob-people__filter-remove" href="' . esc_url( $f['remove'] ) . '">&times;</a></span>';
+			}
+			$out .= ' <a class="ob-people__filter-clear" href="' . esc_url( remove_query_arg( array( 'occupation', 'birth_year', 'age', 'living' ) ) ) . '">Clear filters</a></div>';
+		}
+
+		$out .= '<div class="ob-people">';
 		foreach ( $q->posts as $post ) {
 			[ $birth, $death ] = self::person_bits( (int) $post->ID );
 			$out .= '<div class="ob-person' . ( $death ? ' ob-person--dead' : '' ) . ' ob-anim">';
 			$image = (string) get_post_meta( $post->ID, People_Sync::META_IMAGE_URL, true );
 			if ( '' !== $image ) {
-				$out .= '<img class="ob-person__avatar ob-person__avatar--img" src="' . esc_url( $image ) . '" alt="" loading="lazy" />'; 
+				$out .= '<img class="ob-person__avatar ob-person__avatar--img" src="' . esc_url( $image ) . '" alt="" loading="lazy" />';
 			} else {
 				$out .= '<span class="ob-person__avatar" aria-hidden="true">' . esc_html( mb_substr( (string) get_the_title( $post ), 0, 1 ) ) . '</span>';
 			}
@@ -308,8 +376,6 @@ final class Shortcodes {
 		return self::style() . $out;
 	}
 
-	/* ---------- rules ---------- */
-
 	public static function rules( $atts = array() ): string {
 		$season = self::season();
 		$steps  = array(
@@ -319,7 +385,7 @@ final class Shortcodes {
 			),
 			array(
 				'Pick your ten',
-				'Build a team of exactly ' . (int) \Obitleague\Domain\Value\Ruleset::TEAM_SIZE . ' living public figures from the catalogue. Everyone you pick must be at least ' . (int) \Obitleague\Domain\Value\Ruleset::MIN_AGE . ' years old when the season starts, and you cannot pick the same person twice. You can save a draft and keep editing it, but once the deadline passes — ' . \Obitleague\Domain\Value\Ruleset::DEADLINE_RULE . ' — your team is locked for the year. One second late is still late.',
+				'Build a team of exactly ' . (int) \Obitleague\Domain\Value\Ruleset::TEAM_SIZE . ' living public figures from the people list. Everyone you pick must be at least ' . (int) \Obitleague\Domain\Value\Ruleset::MIN_AGE . ' years old when the season starts, and you cannot pick the same person twice. You can save a draft and keep editing it, but once the deadline passes — ' . \Obitleague\Domain\Value\Ruleset::DEADLINE_RULE . ' — your team is locked for the year. One second late is still late.',
 			),
 			array(
 				'Then wait for the news',
@@ -355,7 +421,7 @@ final class Shortcodes {
 		$out     .= '</section>';
 
 		$out     .= '<section class="ob-card ob-rules__ethics ob-anim"><h2 class="ob-card__title">Played with respect</h2>';
-		$out     .= '<p>The figures in this catalogue are real people, and the game treats them that way. Obitleague reports only what public sources and our editors confirm, credits every fact to its source, and exists for people who read the obituaries — not for shock. If a case touches an actively grieving family, editors may hold publication; the game waits. Discussion in the forum follows the same spirit: argue about picks and points as much as you like, but keep it decent.</p>';
+		$out     .= '<p>The figures in this people list are real people, and the game treats them that way. Obitleague reports only what public sources and our editors confirm, credits every fact to its source, and exists for people who read the obituaries — not for shock. If a case touches an actively grieving family, editors may hold publication; the game waits. Discussion in the forum follows the same spirit: argue about picks and points as much as you like, but keep it decent.</p>';
 		$out     .= '</section>';
 		$out     .= '</div>';
 		return self::style() . $out;

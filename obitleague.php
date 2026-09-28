@@ -5,8 +5,7 @@
  * Description:       Fantasy dead pool league platform: people catalogue, feed discovery, editorial review, leagues, teams and reversible scoring.
  * Version:           0.12.1
  * Requires at least: 6.4
- * Requires PHP:      8.2
- * Author:            Obitleague
+ * Requires PHP:      8.2	* Author:            Obitleague Team
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       obitleague
@@ -89,11 +88,14 @@ add_action(
 		Obitleague\Modules\Catalogue::boot();
 		Obitleague\Modules\Occupation_Taxonomy::boot();
 		Obitleague\Modules\Admin_Review::boot();
+		Obitleague\Modules\Discovery_Service::boot();
+		Obitleague\Modules\Admin_Discovery::boot();
 		Obitleague\Modules\Admin_Game::boot();
 		Obitleague\Modules\Admin_Stats::boot();
 		Obitleague\Modules\Demo_Accounts_Admin::boot();
 		Obitleague\Modules\Front_Templates::boot();
 		Obitleague\Modules\Site_Chrome::boot();
+		Obitleague\Modules\Header::boot();
 		Obitleague\Modules\Forum::boot();
 		Obitleague\Modules\Seo::boot();
 		Obitleague\Modules\Shortcodes::boot();
@@ -107,3 +109,4 @@ add_action(
 // Elementor registers itself on plugins_loaded (default priority), so the
 // bridge must check for it after that point.
 add_action( 'plugins_loaded', array( Obitleague\Modules\Elementor_Bridge::class, 'boot' ), 20 );
+add_action( 'elementor/loaded', array( \Obitleague\Elementor\HeaderBridge::class, 'boot' ), 20 );
