@@ -169,6 +169,11 @@ fi
 echo "-- theme present: hello-elementor"
 
 chown -R "\$SITE_USER:\$SITE_GROUP" "\$PLUGIN_DIR"
+# mktemp -d creates 0700, and mv carries that mode into the docroot: the web
+# server then cannot traverse into the plugin and every asset 403s, which
+# looks exactly like "the site has no styling". Normalise the modes explicitly.
+find "\$PLUGIN_DIR" -type d -exec chmod 755 {} +
+find "\$PLUGIN_DIR" -type f -exec chmod 644 {} +
 
 echo "-- clearing opcache so the new code is what runs"
 pkill -USR2 -f "php-fpm" 2>/dev/null || systemctl reload php8.4-fpm 2>/dev/null || echo "   (no opcache reload available; harmless if disabled)"
@@ -249,6 +254,20 @@ probe 200 "forum/"
 probe 200 "register/"
 probe 302 "wp-admin/"
 [ -n "$LEAGUE_ID" ] && probe 200 "league/$LEAGUE_ID/"
+
+# Pages return 200 even when every stylesheet 403s, so check the assets the
+# browser actually requests. A deploy that leaves the plugin dir un-traversable
+# looks healthy here and unstyled in front of the user.
+echo "  assets:"
+for asset in obitleague.css chrome.css campaign.css; do
+	code="$(curl -sS -o /dev/null -w '%{http_code}' -m 30 "https://$DOMAIN/wp-content/plugins/obitleague/assets/$asset" 2>/dev/null || echo 000)"
+	if [ "$code" = "200" ]; then
+		printf '    ok   assets/%-24s %s\n' "$asset" "$code"
+	else
+		printf '    FAIL assets/%-24s %s (web server cannot read plugin assets)\n' "$asset" "$code"
+		FAILED=1
+	fi
+done
 
 if [ "$FAILED" -ne 0 ]; then
 	warn "route probe failed — check $HOST before announcing anything"
