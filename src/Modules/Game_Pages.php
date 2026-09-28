@@ -93,16 +93,32 @@ final class Game_Pages {
 		return $template;
 	}
 
-	/** Main-season global standings. */
+	/** Main-season global standings.
+	 *
+	 * The heading uses the published current standings season when one exists,
+	 * so the page never advertises a locked future season as if it were live.
+	 * When nothing is published yet, the entry season is shown with an honest
+	 * note rather than a misleadingly live-looking table.
+	 */
 	public static function overall_shortcode( $atts = array() ): string {
-		$a = shortcode_atts( array( 'season' => Shortcodes::season(), 'top' => 0, 'page' => 1, 'per_page' => 50 ), $atts, 'obitleague_overall_standings' );
-		$season = (int) $a['season'];
-		$page = max( 1, absint( $a['page'] ) );
-		$limit = (int) $a['top'] > 0 ? min( 100, (int) $a['top'] ) : min( 100, max( 1, (int) $a['per_page'] ) );
+		$requested = shortcode_atts( array( 'season' => Shortcodes::season(), 'top' => 0, 'page' => 1, 'per_page' => 50 ), $atts, 'obitleague_overall_standings' );
+		$season = (int) $requested['season'];
+
+		// Prefer the published current standings season when available, so the
+		// heading matches the data the reader is actually looking at.
+		$published = (int) $GLOBALS['wpdb']->get_var(
+			"SELECT season FROM {$GLOBALS['wpdb']->prefix}obitleague_standings_generations WHERE is_current = 1 AND season > 0 LIMIT 1"
+		);
+		if ( $published > 0 ) {
+			$season = $published;
+		}
+
+		$page   = max( 1, absint( $requested['page'] ) );
+		$limit  = (int) $requested['top'] > 0 ? min( 100, (int) $requested['top'] ) : min( 100, max( 1, (int) $requested['per_page'] ) );
 		$offset = ( $page - 1 ) * $limit;
-		$rows = Overall_Standings::for_season( $season, $limit, $offset );
-		$total = Overall_Standings::count_for_season( $season );
-		$out = '<section class="ob-card ob-anim"><h2 class="ob-card__title">Overall rankings &middot; season ' . esc_html( (string) $season ) . '</h2>';
+		$rows   = Overall_Standings::for_season( $season, $limit, $offset );
+		$total  = Overall_Standings::count_for_season( $season );
+		$out    = '<section class="ob-card ob-anim"><h2 class="ob-card__title">Overall rankings &middot; season ' . esc_html( (string) $season ) . '</h2>';
 		if ( null === $rows ) {
 			$out .= '<p><em>The main-season standings are not published yet.</em></p></section>';
 			return Shortcodes::enqueue() . $out;
