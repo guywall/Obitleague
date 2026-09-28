@@ -97,12 +97,15 @@ git archive --format=tar.gz --output="$ARCHIVE" HEAD
 
 # The archive is what lands in the web root, so refuse to ship dev tooling.
 # .gitattributes marks work/ export-ignore; this is the belt to that braces.
-if tar -tzf "$ARCHIVE" | grep -qE '^(work|\.freebuff)/'; then
+# Read the listing once: piping tar into `grep -q` under `set -o pipefail` fails
+# even on a match, because grep exits early and tar dies of SIGPIPE.
+ARCHIVE_LISTING="$(tar -tzf "$ARCHIVE")"
+if grep -qE '^(work|\.freebuff)/' <<<"$ARCHIVE_LISTING"; then
 	die "archive contains dev-only paths — check the export-ignore rules in .gitattributes"
 fi
-tar -tzf "$ARCHIVE" | grep -q '^obitleague.php$' || die "archive is missing obitleague.php; repo root must be the plugin"
+grep -qx 'obitleague.php' <<<"$ARCHIVE_LISTING" || die "archive is missing obitleague.php; repo root must be the plugin"
 
-FILE_COUNT="$(tar -tzf "$ARCHIVE" | grep -cv '/$' || echo 0)"
+FILE_COUNT="$(grep -cv '/$' <<<"$ARCHIVE_LISTING" || true)"
 log "archive verified: $FILE_COUNT files, no dev-only paths"
 
 [ "$DRY_RUN" -eq 1 ] && { log "dry run: stopping before any change to $DOMAIN"; exit 0; }
