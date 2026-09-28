@@ -66,7 +66,11 @@ public static function render(): void {
 	$logged_in = is_user_logged_in();
 	$entry_season = League_Service::current_season();
 
-	$picks_stats = Pick_Stats::season_in_play() > 0 ? Pick_Stats::season_picks_summary( Pick_Stats::season_in_play() ) : array();
+	// Picks analytics are optional; never let an unavailable summary break every page.
+	$picks_stats = array();
+	if ( method_exists( Pick_Stats::class, 'season_picks_summary' ) ) {
+		$picks_stats = (array) Pick_Stats::season_picks_summary( Pick_Stats::season_in_play() );
+	}
 
 	$mega_columns = self::mega_columns();
 
