@@ -13,6 +13,7 @@ declare( strict_types = 1 );
 
 namespace Obitleague\Modules;
 
+use Obitleague\Domain\Discovery_Rules;
 use Obitleague\Domain\Value\Partial_Date;
 use Obitleague\Domain\Value\Role_Label;
 
@@ -29,7 +30,7 @@ final class Import_Service {
 	/**
 	 * Import or refresh one person, idempotent by Wikidata QID.
 	 *
-	 * @param array{qid:string, name:string, birth_date:string, death_date?:string, occupation?:string, role?:string, enwiki?:string} $data
+	 * @param array{qid:string, name:string, birth_date:string, death_date?:string, occupation?:string, role?:string, enwiki?:string, discovery_candidate?:bool} $data
 	 * @return int Post id of the person record.
 	 */
 	public static function import_person( array $data ): int {
@@ -59,6 +60,9 @@ final class Import_Service {
 
 		$existing = self::post_id_by_qid( $qid );
 		if ( $existing ) {
+			if ( ! empty( $data['discovery_candidate'] ) ) {
+				throw new \RuntimeException( 'This Wikidata identity already exists; Discovery will not alter an existing person record.' );
+			}
 			update_post_meta( $existing, 'obit_birth_date', $birth );
 			if ( '' !== $role && '' === (string) get_post_meta( $existing, 'obit_role', true ) ) {
 				update_post_meta( $existing, 'obit_role', $role );
@@ -127,15 +131,33 @@ final class Import_Service {
 	}
 
 	/**
-	 * Editorial approval: the candidate becomes published and selectable
-	 * (an exact birth date is required; already-dead records stay
-	 * selectable-for-archive only — Catalogue::is_selectable refuses them).
+	 * Editorial approval. Discovery candidates additionally require the
+	 * Discovery service's fresh upstream check and recorded living evidence.
 	 */
-	public static function approve_person( int $post_id ): void {
+	public static function approve_person( int $post_id, string $eligibility_note = 'Approved from seed import (demo).' ): void {
 		$post = get_post( $post_id );
 		if ( ! $post || Catalogue::POST_TYPE !== $post->post_type ) {
 			throw new \InvalidArgumentException( 'Not a person record.' );
 		}
+
+		$is_discovery = 'wikidata-wdqs' === (string) get_post_meta( $post_id, 'obit_discovery_source', true );
+		if ( $is_discovery ) {
+			Discovery_Service::assert_approval_evidence(
+				$post_id,
+				array(
+					'url'         => (string) get_post_meta( $post_id, 'obit_alive_evidence_url', true ),
+					'date'        => (string) get_post_meta( $post_id, 'obit_alive_evidence_date', true ),
+					'reviewer_id' => (int) get_post_meta( $post_id, 'obit_alive_evidence_checked_by', true ),
+					'checked_at'  => (string) get_post_meta( $post_id, 'obit_alive_evidence_checked_at', true ),
+				)
+			);
+			if ( 'pending' !== (string) get_post_meta( $post_id, 'obit_discovery_status', true )
+				|| '' !== (string) get_post_meta( $post_id, 'obit_death_date', true )
+				|| ! Discovery_Rules::is_old_enough( (string) get_post_meta( $post_id, 'obit_birth_date', true ), League_Service::current_season() ) ) {
+				throw new \InvalidArgumentException( 'Discovery candidate no longer meets the living-pick eligibility rules.' );
+			}
+		}
+
 		$raw = (string) get_post_meta( $post_id, 'obit_birth_date', true );
 		try {
 			$birth = self::parse_partial( $raw );
@@ -147,8 +169,22 @@ final class Import_Service {
 		}
 
 		update_post_meta( $post_id, 'obit_eligibility', 'approved' );
-		update_post_meta( $post_id, 'obit_eligibility_note', 'Approved from seed import (demo).' );
-		wp_update_post( array( 'ID' => $post_id, 'post_status' => 'publish' ) );
+		update_post_meta( $post_id, 'obit_eligibility_note', $eligibility_note );
+		if ( $is_discovery ) {
+			Discovery_Service::begin_editorial_publication( $post_id );
+		}
+		try {
+			$result = wp_update_post( array( 'ID' => $post_id, 'post_status' => 'publish' ), true );
+			if ( is_wp_error( $result ) || (int) $result !== $post_id || 'publish' !== get_post_status( $post_id ) ) {
+				$message = is_wp_error( $result ) ? $result->get_error_message() : 'WordPress did not retain the published status.';
+				throw new \RuntimeException( 'Could not publish the approved person: ' . $message );
+			}
+		} finally {
+			if ( $is_discovery ) {
+				Discovery_Service::end_editorial_publication();
+			}
+		}
+
 		// Approval is what turns a candidate into a describable public record.
 		Person_Content::regenerate( $post_id );
 	}

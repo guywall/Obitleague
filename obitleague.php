@@ -89,6 +89,8 @@ add_action(
 		Obitleague\Modules\Catalogue::boot();
 		Obitleague\Modules\Occupation_Taxonomy::boot();
 		Obitleague\Modules\Admin_Review::boot();
+		Obitleague\Modules\Discovery_Service::boot();
+		Obitleague\Modules\Admin_Discovery::boot();
 		Obitleague\Modules\Admin_Game::boot();
 		Obitleague\Modules\Admin_Stats::boot();
 		Obitleague\Modules\Demo_Accounts_Admin::boot();
