@@ -13,25 +13,16 @@ $failures = array();
 
 $settings = Header::settings();
 $primary = isset( $settings['primary'] ) ? (array) $settings['primary'] : array();
-
 $primary_labels = array();
 foreach ( $primary as $item ) {
 	if ( is_array( $item ) && ! empty( $item['label'] ) ) {
 		$primary_labels[] = (string) $item['label'];
 	}
 }
-
-if ( ! in_array( 'People', $primary_labels, true ) ) {
-	$failures[] = 'Header primary links should include People';
-}
-if ( ! in_array( 'Picks', $primary_labels, true ) ) {
-	$failures[] = 'Header primary links should include Picks';
-}
-if ( ! in_array( 'Standings', $primary_labels, true ) ) {
-	$failures[] = 'Header primary links should include Standings';
-}
-if ( ! in_array( 'Stats', $primary_labels, true ) ) {
-	$failures[] = 'Header primary links should include Stats';
+foreach ( array( 'People', 'Picks', 'Standings', 'Stats' ) as $label ) {
+	if ( ! in_array( $label, $primary_labels, true ) ) {
+		$failures[] = 'Header primary links should include ' . $label;
+	}
 }
 
 $search_url = Shortcodes::people_search_url();
@@ -54,6 +45,11 @@ try {
 	$html = (string) ob_get_clean();
 	if ( ! str_contains( $html, 'class="ob-header' ) ) {
 		$failures[] = 'Header rendering should produce header markup';
+	}
+	foreach ( array( 'People', 'Picks', 'Standings', 'Stats' ) as $label ) {
+		if ( ! str_contains( $html, '>' . $label . '</a>' ) ) {
+			$failures[] = 'Header navigation should include ' . $label;
+		}
 	}
 } catch ( Throwable $error ) {
 	ob_end_clean();
