@@ -8,6 +8,7 @@
 declare( strict_types = 1 );
 
 use Obitleague\Modules\League_View_Service;
+use Obitleague\Modules\Standings_Service;
 
 $league_id = (int) get_query_var( 'ob_league_id' );
 $league    = League_View_Service::league( $league_id );
