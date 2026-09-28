@@ -55,6 +55,11 @@ php tests/run-tests.php     # domain test suite (no WordPress required)
 php -l src/...              # lint individual files
 ```
 
+Both run automatically on every push and pull request via
+`.github/workflows/tests.yml`, so they are the two checks worth running before
+you open a PR. They are deliberately the whole of CI: the scripts below need a
+live WordPress and stay manual.
+
 Maintenance scripts run through WP-CLI and are safe to re-run:
 
 ```bash

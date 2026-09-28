@@ -1,0 +1,60 @@
+# Continuous integration for the Obitleague plugin.
+#
+# Scope: the checks that need nothing but PHP. The domain suite is standalone
+# (tests/run-tests.php boots no WordPress), and every tracked file is linted,
+# so a syntax error or a broken require cannot reach main unnoticed.
+#
+# Deliberately excluded: tests/verify-*.php, tests/demo-*.php and
+# tests/sync-portraits.php. Those are the live checks — they need a running
+# WordPress with a database, and several of them reach out to Wikidata. They
+# are run by hand against a real install and are documented in README.md; they
+# are not made cheaper by pretending to run them here, and a CI that cannot
+# reproduce them would report false confidence.
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+# Read-only by default. Nothing in this workflow needs to write to the repo.
+permissions:
+  contents: read
+
+# A new push to the same branch supersedes the run already in flight.
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  domain-tests:
+    name: Domain suite and lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          # The suite has no Composer dependencies; extensions are set so an
+          # added mbstring/curl dependency fails here rather than in production.
+          extensions: mbstring, curl
+          coverage: none
+          tools: none
+
+      - name: Run the domain test suite
+        run: php tests/run-tests.php
+
+      - name: Lint every tracked PHP file
+        # Only files git knows about: work/ is git-ignored, so a local probe
+        # left on someone's machine cannot fail someone else's build.
+        run: |
+          set -euo pipefail
+          count=0
+          while IFS= read -r -d '' file; do
+            php -l "$file" > /dev/null
+            count=$(( count + 1 ))
+          done < <( git ls-files -z '*.php' )
+          echo "linted ${count} PHP file(s)"
