@@ -28,6 +28,8 @@ require_once __DIR__ . '/../src/Domain/Scoring.php';
 require_once __DIR__ . '/../src/Domain/Invalid_Team_Exception.php';
 require_once __DIR__ . '/../src/Domain/Team_Picks.php';
 require_once __DIR__ . '/../src/Domain/Feed_Classifier.php';
+require_once __DIR__ . '/../src/Domain/Deadline_Policy.php';
+require_once __DIR__ . '/../src/Domain/Discovery_Rules.php';
 
 require_once __DIR__ . '/Scenario_Scoring.php';
 require_once __DIR__ . '/Scenario_Ranking.php';
@@ -38,6 +40,7 @@ require_once __DIR__ . '/Scenario_Entries.php';
 require_once __DIR__ . '/Scenario_Review.php';
 require_once __DIR__ . '/Scenario_Campaign.php';
 require_once __DIR__ . '/Scenario_Roles.php';
+require_once __DIR__ . '/Scenario_Discovery.php';
 
 // Domain tests must never depend on WordPress; each scenario pulls only
 // pure-domain files.
@@ -98,4 +101,5 @@ $runner->run( Scenario_Entries::class );
 $runner->run( Scenario_Review::class );
 $runner->run( Scenario_Campaign::class );
 $runner->run( Scenario_Roles::class );
+$runner->run( Scenario_Discovery::class );
 exit( $runner->summary() );
