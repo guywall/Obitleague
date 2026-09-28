@@ -115,7 +115,11 @@ log "archive verified: $FILE_COUNT files, no dev-only paths"
 ssh -o BatchMode=yes -i "$KEY" "root@$HOST" true 2>/dev/null || die "cannot ssh to root@$HOST with $KEY"
 
 log "uploading to $HOST"
-scp -q -o BatchMode=yes -i "$KEY" "$ARCHIVE" "root@$HOST:/root/obitleague-deploy.tar.gz"
+# Stream over plain ssh rather than scp: modern scp (OpenSSH 9+) defaults to the
+# SFTP transport, which this Plesk host drops ("Connection closed"), and the
+# local client here is old enough to lack the -O flag that forces legacy mode.
+# `ssh ... 'cat > file'` has no such version sensitivity.
+ssh -o BatchMode=yes -i "$KEY" "root@$HOST" 'cat > /root/obitleague-deploy.tar.gz' < "$ARCHIVE"
 REMOTE_MD5="$(ssh -o BatchMode=yes -i "$KEY" "root@$HOST" 'md5sum /root/obitleague-deploy.tar.gz | cut -d" " -f1')"
 LOCAL_MD5="$(md5sum "$ARCHIVE" | cut -d' ' -f1)"
 [ "$REMOTE_MD5" = "$LOCAL_MD5" ] || die "checksum mismatch after upload (local $LOCAL_MD5, remote $REMOTE_MD5)"
