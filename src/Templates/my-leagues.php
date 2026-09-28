@@ -17,7 +17,7 @@ if ( ! $user_id ) :
 		<section class="ob-hero ob-hero--archive ob-anim">
 			<span class="ob-hero__kicker">Your game</span><h1>My leagues</h1>
 			<p>Sign in to see your leagues, your position and your team status.</p>
-			<div class="ob-hero__cta"><a href="<?php echo esc_url( wp_login_url( home_url( '/my-leagues/' ) ) ); ?>">Sign in</a><a class="ghost" href="<?php echo esc_url( home_url( '/join/' ) ); ?>">Join a side league</a></div>
+			<div class="ob-hero__cta"><a href="<?php echo esc_url( home_url( '/login/?redirect_to=' . rawurlencode( home_url( '/my-leagues/' ) ) ) ); ?>">Sign in</a><a class="ghost" href="<?php echo esc_url( home_url( '/join/' ) ); ?>">Join a side league</a></div>
 		</section>
 	</main>
 	<?php

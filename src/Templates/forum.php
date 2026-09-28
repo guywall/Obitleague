@@ -68,7 +68,7 @@ get_header();
 	<section class="ob-card ob-anim">
 		<h2 class="ob-card__title">Start a new thread</h2>
 		<?php if ( ! is_user_logged_in() ) : ?>
-			<p><a href="<?php echo esc_url( wp_login_url( home_url( '/forum/' ) ) ); ?>">Sign in</a> to start a thread or reply.</p>
+			<p><a href="<?php echo esc_url( home_url( '/login/?redirect_to=' . rawurlencode( home_url( '/forum/' ) ) ) ); ?>">Sign in</a> to start a thread or reply.</p>
 		<?php elseif ( ! $can_post ) : ?>
 			<p>Verify your email to join the conversation. Check your inbox for the verification link.</p>
 		<?php else : ?>

@@ -46,6 +46,9 @@ try {
 	if ( ! str_contains( $html, 'class="ob-header' ) ) {
 		$failures[] = 'Header rendering should produce header markup';
 	}
+	if ( str_contains( $html, 'wp-login.php' ) ) {
+		$failures[] = 'Player header must link to branded sign-in rather than the WordPress login screen';
+	}
 	foreach ( array( 'People', 'Picks', 'Standings', 'Stats' ) as $label ) {
 		if ( ! str_contains( $html, '>' . $label . '</a>' ) ) {
 			$failures[] = 'Header navigation should include ' . $label;

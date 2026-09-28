@@ -153,7 +153,7 @@ final class Site_Chrome {
 						<a class="ob-nav__link<?php echo self::is_current( $item['url'] ) ? ' is-current' : ''; ?>" href="<?php echo esc_url( $item['url'] ); ?>"><?php echo esc_html( $item['label'] ); ?></a>
 					<?php endforeach; ?>
 					<?php if ( ! $logged_in ) : ?>
-						<a class="ob-nav__link" href="<?php echo esc_url( wp_login_url( home_url( '/my-leagues/' ) ) ); ?>">Sign in</a>
+						<a class="ob-nav__link" href="<?php echo esc_url( home_url( '/login/?redirect_to=' . rawurlencode( home_url( '/my-leagues/' ) ) ) ); ?>">Sign in</a>
 					<?php endif; ?>
 					<a class="ob-nav__join" href="<?php echo esc_url( home_url( $logged_in ? '/my-leagues/' : '/register/' ) ); ?>"><?php echo $logged_in ? 'My game' : 'Choose your ' . esc_html( (string) League_Service::current_season() ) . ' team'; ?></a>
 				</nav>
