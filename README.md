@@ -60,6 +60,7 @@ Maintenance scripts run through WP-CLI and are safe to re-run:
 ```bash
 wp eval-file tests/build-person-content.php        # (re)compose person page bodies
 wp eval-file tests/prune-orphan-occupation-terms.php  # drop empty occupation terms
+wp eval-file tests/verify-orphan-occupation-pruning.php  # deleting a person prunes their terms
 wp eval-file tests/verify-import-taxonomy.php      # assert imports create no public terms
 wp eval-file tests/verify-pick-stats.php          # pick counts, hot/unique badges, page render
 wp eval-file tests/import-seed-file.php <path>     # load any builder-produced seed file
@@ -74,7 +75,9 @@ environment because WP-CLI rejects an unknown `--flag` on `eval-file`.
 Occupations are sourced, never imported. The `obit_occupation` taxonomy is
 written only by `tests/sync-portraits.php` (Wikidata P106), so run it after
 importing people; feed role text is kept as the `obit_occupation_hint` postmeta
-instead of becoming a public archive page.
+instead of becoming a public archive page. Because each term is a public archive
+URL, deleting a person prunes the occupations only they were filed under;
+a term anyone else still holds is never removed.
 
 ## Demo data
 
