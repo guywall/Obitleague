@@ -17,6 +17,8 @@ declare( strict_types = 1 );
 
 namespace Obitleague\Modules;
 
+use Obitleague\Domain\Value\Role_Label;
+
 final class People_Sync {
 
 	/** Postmeta keys written. */
@@ -334,7 +336,9 @@ final class People_Sync {
 	public static function sync_occupation_terms( int $post_id, array $labels ): void {
 		$term_ids = array();
 		foreach ( $labels as $label ) {
-			$label = trim( (string) $label );
+			// Terms are publicly browsable and indexable, so a label carrying a
+			// cause of death must never become one.
+			$label = Role_Label::clean( (string) $label );
 			if ( '' === $label || mb_strlen( $label ) > 190 ) {
 				continue;
 			}

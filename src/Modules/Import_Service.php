@@ -14,8 +14,15 @@ declare( strict_types = 1 );
 namespace Obitleague\Modules;
 
 use Obitleague\Domain\Value\Partial_Date;
+use Obitleague\Domain\Value\Role_Label;
 
 final class Import_Service {
+
+	/**
+	 * Postmeta holding the occupation an upstream extractor reported, kept as
+	 * an editorial hint only. Never public: see record_occupation_hint().
+	 */
+	public const META_OCCUPATION_HINT = 'obit_occupation_hint';
 
 	private function __construct() {}
 
@@ -64,7 +71,7 @@ final class Import_Service {
 				update_post_meta( $existing, 'obit_death_precision', $death_parsed->precision() );
 			}
 			if ( ! empty( $data['occupation'] ) ) {
-				self::attach_occupation( $existing, (string) $data['occupation'] );
+				self::record_occupation_hint( $existing, (string) $data['occupation'] );
 			}
 			return $existing;
 		}
@@ -102,7 +109,7 @@ final class Import_Service {
 		}
 
 		if ( ! empty( $data['occupation'] ) ) {
-			self::attach_occupation( $post_id, (string) $data['occupation'] );
+			self::record_occupation_hint( $post_id, (string) $data['occupation'] );
 		}
 
 		return (int) $post_id;
@@ -142,6 +149,8 @@ final class Import_Service {
 		update_post_meta( $post_id, 'obit_eligibility', 'approved' );
 		update_post_meta( $post_id, 'obit_eligibility_note', 'Approved from seed import (demo).' );
 		wp_update_post( array( 'ID' => $post_id, 'post_status' => 'publish' ) );
+		// Approval is what turns a candidate into a describable public record.
+		Person_Content::regenerate( $post_id );
 	}
 
 	/** Parse a stored/sourced date (Y, Y-m or Y-m-d) into a Partial_Date. */
@@ -167,17 +176,28 @@ final class Import_Service {
 		return (int) str_replace( '-', '', $year );
 	}
 
-	/** Attach an occupation label to the occupation taxonomy. */
-	private static function attach_occupation( int $post_id, string $occupation ): void {
-		$term = get_term_by( 'name', $occupation, Catalogue::TAX_OCCUPATION );
-		if ( ! $term ) {
-			$result = wp_insert_term( $occupation, Catalogue::TAX_OCCUPATION );
-			$term_id = is_wp_error( $result ) ? 0 : (int) $result['term_id'];
-		} else {
-			$term_id = (int) $term->term_id;
+	/**
+	 * Record the occupation an upstream extractor reported for this person.
+	 *
+	 * Deliberately *not* written to the occupation taxonomy. The taxonomy is
+	 * public, browsable and indexable, and every term in it is a permanent
+	 * archive URL. Feed role text is free-form and unsourced — it varies by
+	 * extractor ("American jazz guitarist" for one person, "jazz guitarist" for
+	 * another), sometimes carries a cause of death, and was a placeholder
+	 * ("Public figure") for a whole pool. Creating terms from it gave the site
+	 * dozens of duplicate, near-empty archive pages for occupations that
+	 * already existed as clean sourced terms, and it is why a generic
+	 * catch-all could end up as a public page at all.
+	 *
+	 * The taxonomy therefore has exactly one writer: People_Sync, which reads
+	 * Wikidata P106 (CC0) and is the sourced path. This is kept only as an
+	 * editorial hint for the review queue.
+	 */
+	private static function record_occupation_hint( int $post_id, string $occupation ): void {
+		$occupation = Role_Label::clean( $occupation );
+		if ( '' === $occupation ) {
+			return;
 		}
-		if ( $term_id ) {
-			wp_set_object_terms( $post_id, array( $term_id ), Catalogue::TAX_OCCUPATION, true );
-		}
+		update_post_meta( $post_id, self::META_OCCUPATION_HINT, $occupation );
 	}
 }

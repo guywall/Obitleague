@@ -5,6 +5,132 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-09-28
+
+### Fixed
+- **Import no longer writes the public occupation taxonomy.** The taxonomy is
+  browsable and indexable, so every term in it is a permanent archive URL — but
+  import was writing unsourced feed role text straight into it. Because role
+  text varies by extractor, each distinct phrasing became its own archive page
+  duplicating an occupation that already existed as a clean sourced term: 70 of
+  the 71 empty terms on a demo install were verbatim copies of a stored role
+  ("American jazz guitarist" alongside the real "jazz guitarist"). The same
+  path is what turned a hardcoded `Public figure` placeholder — applied to the
+  entire 60-person living pick pool by the demo importer — into a public
+  archive page. Occupations now come from one place, Wikidata P106 via
+  `People_Sync`; the feed occupation is kept as an `obit_occupation_hint`
+  editorial hint and never becomes public. If a sync fails, a person simply has
+  no occupation tag rather than a wrong one.
+- **71 empty occupation archive pages removed.** Terms now outlive no one, so
+  the taxonomy holds 211 terms and every one has people behind it. Import no
+  longer creates the orphans, so this only had to clear what earlier versions
+  left behind.
+
+### Notes
+- The "Public figure" catch-all is gone: the term no longer exists, and no
+  person carries it. The earlier "58" figure counted the 60-person living pool
+  at import time, before the Wikidata occupation sync replaced those tags.
+- Enrichment was measured, not assumed, and is not available: of the 41 people
+  with a single occupation (40 of them deceased), every record sampled has
+  exactly one occupation claim on Wikidata. Those records are accurate rather
+  than degraded, and the only way to make them read as richer would be to
+  invent classifications. `sync_all()` still only re-checks people missing
+  portrait or occupation data, so thin records are not re-fetched; measurement
+  says that would currently find nothing.
+- No schema changes; `OBITLEAGUE_DB_VERSION` stays at 0.5.0.
+
+## [0.10.0] — 2026-09-28
+
+### Added
+- **Person pages now carry a body.** Every published person record is
+  described in prose composed from the facts an editor has already approved:
+  life span, linked occupations, cause of death in the plugin's own terms,
+  what the record scores under the current ruleset, and where the facts come
+  from. Previously the page showed the same values only as a definition list
+  and no body at all. The composer is a formatter, not an author — it
+  assembles sentences from stored fields, never infers or invents anything
+  about a person's life, and keeps the sourced precision of every date.
+  Living records state the scoring rule but never a frozen points figure,
+  because age moves daily; the live figure stays on the page's own scorecard.
+  `Person_Content` regenerates on approval and on every editorial death
+  decision, and is idempotent — an unchanged record is never rewritten.
+
+### Fixed
+- **Cause-of-death text was leaking into occupations, in public.** Feed
+  extraction sometimes appends a cause to the role field ("South Korean actor
+  , blood cancer", "Pakistani footballer, colon cancer"). That string reached
+  the profile byline, the meta description, the JSON-LD `jobTitle` — a
+  structured-data assertion of a false occupation — and, in a handful of
+  cases, created a permanent taxonomy term. So the site claimed someone died of
+  a cause it elsewhere reported as undisclosed. `Role_Label::clean()` now
+  strips a trailing cause clause, and every consumer of the role field shares
+  it, so the byline, description, schema and body cannot disagree. Labels
+  that are nothing but a cause are dropped; genuine occupations, including
+  ones that borrow a cause word ("cancer researcher"), are untouched.
+- **Thin occupation archive pages are no longer indexable.** Terms outlive the
+  people filed under them, leaving 71 reachable archives whose only content
+  was "0 people". Empty occupation archives are now `noindex, follow`; the
+  populated ones stay indexable.
+- `tests/build-person-content.php` backfills bodies for existing installs and
+  `tests/prune-orphan-occupation-terms.php` removes the contaminated terms an
+  older import may already have created. Both are safe to re-run.
+
+### Notes
+- No schema changes; `OBITLEAGUE_DB_VERSION` stays at 0.5.0.
+
+## [0.9.0] — 2026-09-27
+
+### Fixed
+- **Standings rebuild no longer loses or duplicates teams.** Paging used a
+  keyset on `entries.id` while ordering by `points DESC`, so a batch of
+  scorers advanced the cursor to the highest id present and permanently
+  excluded every lower-id team outside that batch; later batches could also
+  re-select rows already inserted, violating the unique key on
+  (generation_id, user_id). Leagues over 500 teams published short, partly
+  duplicate leaderboards with nonsensical rank positions, and the failure was
+  silent — the insert error was ignored and the rebuild reported success.
+  Paging now uses a keyset over the full sort tuple
+  (points, scoring_picks, user_id) computed once into a temporary table, and a
+  failed batch aborts the rebuild instead of publishing a short generation.
+  The aggregate is no longer recomputed per batch, which also cut a
+  2,500-team rebuild from over three minutes to about 30 seconds.
+- **The join page rendered as an empty 200.** `Game_Pages` built the template
+  filename from the route slug, resolving `/join/` to a missing `join.php`
+  while the file is `join-league.php`, orphaning that template entirely.
+- **Escaped HTML shown as text on every catalogue card.** The person archive
+  rendered occupation tags twice; the duplicate escaped already-built link
+  markup, so visitors saw literal `<a class="ob-occ-tag" …>` on each card.
+- **Seven of the eight "shape of the archive" boards rendered blank labels.**
+  `Stats_Service::board()` emitted `value` while the template read `label`, so
+  birth decades, birth months, weekday born, star signs, first initials, name
+  lengths and ages at death showed bars and counts with no category name, plus
+  a PHP warning per row.
+- **Entry season copy is no longer hardcoded to 2027.** The header CTA, the
+  register page and the verification email all named a literal year and would
+  have advertised a locked season from 1 January 2027. They now follow the
+  open entry season.
+- "Season {year} is in play" on My Leagues contradicted the front page, which
+  correctly showed the season actually in play.
+- Removed a dead `page` computation and a duplicated if/else branch on the
+  team detail template.
+- The leagues admin list now selects `is_main`, so the "main league" marker
+  appears instead of never rendering.
+- `work/build-seed.cjs` now downloads the monthly Wikipedia pages it parses
+  (previously it only ever read cached files, so a clean clone silently
+  produced an empty 2026 deaths seed) and rejects a `parse.wikitext` payload
+  in the API's default object shape instead of parsing it as zero entries.
+
+### Added
+- Search metadata and crawl control via a new `Seo` module: per-person titles
+  with life span, factual descriptions, canonical URLs, Open Graph and Twitter
+  cards using the synced Wikimedia portrait, and `Person` JSON-LD built from
+  approved fields (exact dates only, with Wikipedia/Wikidata `sameAs`).
+  Occupation archives get their own titles and descriptions. Account, team,
+  league and forum routes now send `noindex, follow` so private and thin pages
+  stay out of the index, matching the architecture's sitemap policy.
+
+No schema changes: `OBITLEAGUE_DB_VERSION` remains `0.5.0`.
+
 ## [0.8.0] — 2026-09-27
 
 ### Added
@@ -34,6 +160,18 @@ header in `obitleague.php`; each released version is tagged in git.
   confirmation; audited; standings generations cleaned up) and any team
   entry can be deleted with reason, award removal and immediate standings
   rebuild. The main league cannot be deleted.
+- Per-entry team names with an additive schema migration, team-profile and
+  standings display, and administrator editing/audit support.
+- Expanded the local demo to eight themed leagues, forty clearly fictional
+  demo accounts and up to 64 named teams with sourced, themed pick mixes.
+- WordPress administrator screens for league creation and management,
+  member status/removal, team entry creation, audited pick revisions,
+  submission/withdrawal, revision history and standings rebuilds. Added a
+  database-backed administrator audit log and additive schema migration.
+- Join and team-management front end with debounced catalogue search,
+  age/occupation disambiguation and explicit human-only Wikidata add flow.
+- Players can amend submitted teams until their season begins; prior submitted
+  revisions remain preserved and new approved-event awards are applied.
 
 ### Changed
 - Rules page rewritten in plain language — five walkthrough sections,
@@ -47,24 +185,6 @@ header in `obitleague.php`; each released version is tagged in git.
 - Light mint/white links on gold hero CTA buttons (the `ob-hero a`
   override painted button text nearly invisible); CTA buttons keep their
   dark ink, other hero links stay light.
-
-### Added
-- Per-entry team names with an additive schema migration, team-profile and
-  standings display, and administrator editing/audit support.
-- Expanded the local demo to eight themed leagues, forty clearly fictional
-  demo accounts and up to 64 named teams with sourced, themed pick mixes.
-- WordPress administrator screens for league creation and management,
-  member status/removal, team entry creation, audited pick revisions,
-  submission/withdrawal, revision history and standings rebuilds. Added a
-  database-backed administrator audit log and additive schema migration.
-
-### Added
-- Join and team-management front end with debounced catalogue search,
-  age/occupation disambiguation and explicit human-only Wikidata add flow.
-- Players can amend submitted teams until their season begins; prior submitted
-  revisions remain preserved and new approved-event awards are applied.
-
-### Fixed
 - Wrapped public standings and plugin-admin data tables in local horizontal
   scroll containers, and tightened narrow-screen league roster rows so tables
   and metadata no longer widen the page.

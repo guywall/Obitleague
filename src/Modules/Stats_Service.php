@@ -365,6 +365,10 @@ final class Stats_Service {
 		$out = array();
 		foreach ( $counts as $value => $count ) {
 			$out[] = array(
+				// 'label' is the board row contract shared with the
+				// occupations board and consumed by stats.php. Emitting
+				// 'value' here left every other board's label undefined.
+				'label'  => $value,
 				'value'  => $value,
 				'count'  => $count,
 				'share'  => (int) round( 100 * $count / $total ),

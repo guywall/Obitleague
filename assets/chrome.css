@@ -2047,3 +2047,39 @@ a.ob-pick__name:hover {
 .ob-hero a:not(.ob-btn):not([class*="ob-hero__cta"]):hover {
 	color: #fff !important;
 }
+
+/* ---------- person page prose ----------
+   The composed body is a handful of factual paragraphs. It needs readable
+   measure and a clear separation, but it must not compete with the approved
+   facts panel beside it. */
+.ob-profile__prose {
+	max-width: 62ch;
+}
+.ob-profile__prose p {
+	margin: 0 0 12px;
+}
+.ob-profile__prose p:last-child {
+	margin-bottom: 0;
+}
+.ob-profile__prose strong {
+	font-weight: 800;
+	color: var(--ob-ink);
+}
+.ob-profile__prose code {
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: 0.86em;
+	padding: 1px 5px;
+	border-radius: 6px;
+	background: #eef0ea;
+	color: var(--ob-ink);
+	white-space: nowrap;
+}
+.ob-profile__prose a {
+	color: var(--ob-accent-deep);
+	text-decoration-color: rgba(10, 61, 44, 0.3);
+	text-underline-offset: 2px;
+}
+.ob-profile__prose a:hover {
+	color: var(--ob-accent);
+	text-decoration-color: currentColor;
+}

@@ -59,7 +59,7 @@ $rest_root = rest_url( 'obitleague/v1' );
 <main class="ob-page">
 	<section class="ob-hero ob-hero--archive ob-anim">
 		<span class="ob-hero__kicker">Your game</span><h1>My leagues</h1>
-		<p>Season <?php echo esc_html( (string) $season ); ?> is in play. Your main-season team determines your overall rank; side leagues are optional competitions with separate entries.</p>
+		<p>Season <?php echo esc_html( (string) $season ); ?> is open for picks until 00:00 London time on 1 January <?php echo esc_html( (string) $season ); ?>. Your main-season team determines your overall rank; side leagues are optional competitions with separate entries.</p>
 		<div class="ob-hero__cta"><a href="<?php echo esc_url( home_url( '/join/' ) ); ?>">Join a side league</a><a class="ghost" href="<?php echo esc_url( home_url( '/standings/' ) ); ?>">Overall standings</a></div>
 	</section>
 

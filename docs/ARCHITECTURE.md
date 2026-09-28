@@ -18,12 +18,15 @@ src/Modules/Catalogue.php       Person post type, taxonomies, eligibility meta
 src/Modules/Rest.php            /obitleague/v1 routes
 src/Modules/Jobs.php            Feed polling, refresh, scoring, notifications
 src/Modules/Elementor_Bridge.php Typed dynamic tags + guarded widgets
+src/Modules/Seo.php            Titles, meta, Open Graph, Person schema, noindex
+src/Modules/Person_Content.php Composed body prose for person records
+src/Domain/Value/Role_Label.php Cleans unsourced role text of leaked causes
 src/Support/Options.php         Key-value store (wp_options now, plugin tables later)
 src/Support/Time.php            Deadline checks, London-time helpers
 tests/run-tests.php             Standalone test runner (no WordPress)
 ```
 
-Modules: Catalogue, Jobs (feed polling + outbox tick), Rest, Elementor_Bridge, League_Service (create/join/invites), Entry_Service (drafts, submission receipts, lock races), Review_Service (editorial state machine, stale-protected decisions, event publication), Outbox_Service (award fan-out, retraction reversals), Standings_Service (published generations with competition ranking), Scoring_Service (idempotent award ledger), Setup (migrations). Planned next: Notifications (in-app/email), Import (Wikidata seeding).
+Modules: Catalogue, Jobs (feed polling + outbox tick), Rest, Elementor_Bridge, League_Service (create/join/invites), Entry_Service (drafts, submission receipts, lock races), Review_Service (editorial state machine, stale-protected decisions, event publication), Outbox_Service (award fan-out, retraction reversals), Standings_Service (published generations with competition ranking), Scoring_Service (idempotent award ledger), Seo (titles, meta, Open Graph, Person schema, crawl control), Person_Content (person page body, composed from approved fields only), Setup (migrations). Planned next: Notifications (in-app/email), Import (Wikidata seeding).
 
 ## Data model (target)
 
@@ -65,6 +68,10 @@ Editors approve a death only with two editorially independent reports (or an aut
 ## Privacy, security, performance
 
 - Check ownership, membership and capabilities on every request, export and background job.
+- Crawl control: `Seo` marks account, team, league and forum routes `noindex, follow`, and marks an occupation archive `noindex, follow` when nobody is filed under it — terms outlive the people assigned to them, and an empty archive can only say "0 people". The person catalogue, populated occupation archives and public standings stay indexable. Structured data uses exact stored dates only, so a partial date is never widened into a stronger claim.
+- Person page bodies: `Person_Content` composes the body of a person record from approved fields alone. It is a formatter, not an author — nothing about a person's life is inferred or invented, dates keep their sourced precision, and the wording is neutral and pronoun-free. Because the body is a pure function of the record it is safe to regenerate at any time, and it is regenerated on approval and on every editorial death decision. Stored bodies never carry a live figure that would go stale.
+- One writer for the occupation taxonomy: `People_Sync`, from Wikidata P106 (CC0). `Import_Service` deliberately does not write it. The taxonomy is public and indexable, so each term is a permanent archive URL, and feed role text is free-form, unsourced and inconsistent between extractors — importing it produced duplicate archive pages for occupations that already existed as clean terms, and let a `Public figure` placeholder become a public page. Feed occupations are stored as `obit_occupation_hint` for the review queue. A person whose sync fails ends up with no occupation tag rather than a wrong one, which is the correct direction to fail.
+- One descriptor per person: `Role_Label::clean()` is the single gate between the stored role and anything public. Feed extraction sometimes appends a cause of death to an occupation, and that string previously reached the byline, the meta description and the JSON-LD `jobTitle`. All of them now read the cleaned value, so they cannot disagree with each other or with the reported cause.
 - Treat feed HTML and imported text as untrusted: escape on output, reject SSRF-prone fetches (scheme and host allowlists, no private addresses after DNS resolution or redirects, byte/time limits, external entities disabled).
 - Retention baseline: 30 days raw imports, 90 days security logs, 24 months score and approval evidence.
 - Index only approved public pages; league, account, draft and review routes stay out of sitemaps and shared caches.
@@ -74,4 +81,5 @@ Editors approve a death only with two editorially independent reports (or an aut
 
 - Deadline: the database transaction decides; a commit that lands after `00:00` on 1 January is late regardless of request start time. Jobs run their own deadline checks; a delayed job cannot extend entry eligibility.
 - Scoring: idempotent per pick/event-revision/rules-version; a retry recomputes the desired award and writes only the signed delta — replaying yields zero.
+- Standings: a rebuild is a single transaction that publishes a new generation. The award aggregate is computed once into a temporary table, then paged with a keyset over the full sort tuple `(points, scoring_picks, user_id)` so no team is skipped or inserted twice. A failed batch aborts the rebuild rather than publishing a short generation.
 - Two editors approving concurrently: the later stale revision is rejected; the latest approved revision governs scoring.

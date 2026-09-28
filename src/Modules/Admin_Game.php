@@ -85,12 +85,11 @@ final class Admin_Game {
 	}
 
 	private static function render_overview(): void {
-		global $wpdb;
-		$leagues = $wpdb->get_results(
-			'SELECT l.id, l.name, l.season, l.state, l.owner_user_id, l.created_at,
+		global $wpdb;		$leagues = $wpdb->get_results(
+			'SELECT l.id, l.name, l.season, l.state, l.is_main, l.owner_user_id, l.created_at,
 				(SELECT COUNT(*) FROM ' . $wpdb->prefix . 'obitleague_league_members m WHERE m.league_id = l.id) AS member_count,
 				(SELECT COUNT(*) FROM ' . $wpdb->prefix . 'obitleague_entries e WHERE e.league_id = l.id) AS team_count
-			 FROM ' . $wpdb->prefix . 'obitleague_leagues l ORDER BY l.id DESC LIMIT 200'
+			FROM ' . $wpdb->prefix . 'obitleague_leagues l ORDER BY l.id DESC LIMIT 200'
 		);
 
 		echo '<h2>Leagues</h2>';

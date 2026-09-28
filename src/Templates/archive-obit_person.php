@@ -58,12 +58,9 @@ get_header();
 					<?php if ( '' !== $role ) : ?>
 						<p class="ob-person__role"><?php echo esc_html( $role ); ?></p>
 					<?php endif; ?>
-					<?php $occs = People_Sync::occupation_term_links( $post_id ); ?>
-					<?php if ( array() !== $occs ) : ?>
-						<p class="ob-person__occ"><?php echo implode( '', $occs ); // pre-escaped links. ?></p>
-					<?php endif; ?>
-					<?php if ( array() !== $occs ) : ?>
-						<p class="ob-person__occ" title="<?php echo esc_attr( implode( ', ', $occs ) ); ?>"><?php echo esc_html( implode( ', ', $occs ) ); ?></p>
+					<?php $occ_links = People_Sync::occupation_term_links( $post_id ); ?>
+					<?php if ( array() !== $occ_links ) : ?>
+						<p class="ob-person__occ"><?php echo implode( '', $occ_links ); // pre-escaped links. ?></p>
 					<?php endif; ?>
 					<p class="ob-person__dates">
 						<?php
