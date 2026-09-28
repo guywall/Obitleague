@@ -5,6 +5,45 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-09-28
+
+### Added
+- **Person pages now carry a body.** Every published person record is
+  described in prose composed from the facts an editor has already approved:
+  life span, linked occupations, cause of death in the plugin's own terms,
+  what the record scores under the current ruleset, and where the facts come
+  from. Previously the page showed the same values only as a definition list
+  and no body at all. The composer is a formatter, not an author — it
+  assembles sentences from stored fields, never infers or invents anything
+  about a person's life, and keeps the sourced precision of every date.
+  Living records state the scoring rule but never a frozen points figure,
+  because age moves daily; the live figure stays on the page's own scorecard.
+  `Person_Content` regenerates on approval and on every editorial death
+  decision, and is idempotent — an unchanged record is never rewritten.
+
+### Fixed
+- **Cause-of-death text was leaking into occupations, in public.** Feed
+  extraction sometimes appends a cause to the role field ("South Korean actor
+  , blood cancer", "Pakistani footballer, colon cancer"). That string reached
+  the profile byline, the meta description, the JSON-LD `jobTitle` — a
+  structured-data assertion of a false occupation — and, in a handful of
+  cases, created a permanent taxonomy term. So the site claimed someone died of
+  a cause it elsewhere reported as undisclosed. `Role_Label::clean()` now
+  strips a trailing cause clause, and every consumer of the role field shares
+  it, so the byline, description, schema and body cannot disagree. Labels
+  that are nothing but a cause are dropped; genuine occupations, including
+  ones that borrow a cause word ("cancer researcher"), are untouched.
+- **Thin occupation archive pages are no longer indexable.** Terms outlive the
+  people filed under them, leaving 71 reachable archives whose only content
+  was "0 people". Empty occupation archives are now `noindex, follow`; the
+  populated ones stay indexable.
+- `tests/build-person-content.php` backfills bodies for existing installs and
+  `tests/prune-orphan-occupation-terms.php` removes the contaminated terms an
+  older import may already have created. Both are safe to re-run.
+
+### Notes
+- No schema changes; `OBITLEAGUE_DB_VERSION` stays at 0.5.0.
+
 ## [0.9.0] — 2026-09-27
 
 ### Fixed

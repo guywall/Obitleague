@@ -87,12 +87,28 @@ final class Seo {
 	 * @return array<string,bool>
 	 */
 	public static function robots( array $robots ): array {
-		if ( self::is_private_route() ) {
+		if ( self::is_private_route() || self::is_empty_archive() ) {
 			$robots['noindex']  = true;
 			$robots['follow']   = true;
 			$robots['nofollow'] = false;
 		}
 		return $robots;
+	}
+
+	/**
+	 * An occupation archive with nobody in it.
+	 *
+	 * Terms outlive the people filed under them, so the catalogue accumulates
+	 * empty archives. Each one is a reachable 200 that can only say "0 people",
+	 * which is exactly the thin page a search engine should be told to skip —
+	 * while still being followed for its links.
+	 */
+	private static function is_empty_archive(): bool {
+		if ( is_user_logged_in() || ! is_tax( Catalogue::TAX_OCCUPATION ) ) {
+			return false;
+		}
+		$term = get_queried_object();
+		return $term instanceof \WP_Term && 0 === (int) ( $term->count ?? 0 );
 	}
 
 	private static function is_private_route(): bool {
@@ -236,13 +252,14 @@ final class Seo {
 	 */
 	private static function person_description( int $post_id ): string {
 		$name  = (string) get_the_title( $post_id );
-		$role  = (string) get_post_meta( $post_id, 'obit_role', true );
-		$occs  = People_Sync::occupation_labels( $post_id );
 		$birth = (string) get_post_meta( $post_id, 'obit_birth_date', true );
 		$death = (string) get_post_meta( $post_id, 'obit_death_date', true );
 		$age   = self::age_at_death( $post_id );
 
-		$descriptor = '' !== $role ? $role : ( array() !== $occs ? implode( ', ', array_slice( $occs, 0, 2 ) ) : '' );
+		// Shared with the page body so the description and the prose can never
+		// disagree — including about a cause of death that leaked into the
+		// stored role phrase.
+		$descriptor = Person_Content::descriptor( $post_id );
 		$parts      = array( $name );
 
 		if ( '' !== $descriptor ) {
@@ -336,10 +353,12 @@ final class Seo {
 
 		$post_id = (int) get_the_ID();
 		$name    = (string) get_the_title( $post_id );
-		$role    = (string) get_post_meta( $post_id, 'obit_role', true );
 		$qid     = (string) get_post_meta( $post_id, 'obit_qid', true );
 		$enwiki  = (string) get_post_meta( $post_id, 'obit_enwiki', true );
 		$occs     = People_Sync::occupation_labels( $post_id );
+		// Shared with the description and the page body. A raw role can carry a
+		// leaked cause of death, and schema.org asserts jobTitle as fact.
+		$role     = Person_Content::descriptor( $post_id );
 
 		$data = array(
 			'@context' => 'https://schema.org',

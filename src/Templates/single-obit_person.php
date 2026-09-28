@@ -14,11 +14,13 @@ use Obitleague\Domain\Age;
 use Obitleague\Domain\Value\Cause_Status;
 use Obitleague\Domain\Value\Ruleset;
 use Obitleague\Modules\Import_Service;
+use Obitleague\Modules\Person_Content;
 use Obitleague\Modules\People_Sync;
 
 $post_id    = (int) get_the_ID();
 $name       = get_the_title( $post_id );
-$role       = (string) get_post_meta( $post_id, 'obit_role', true );
+// Cleaned: a raw role can carry a leaked cause of death ("actor, cancer").
+$role       = Person_Content::descriptor( $post_id );
 $birth_raw  = (string) get_post_meta( $post_id, 'obit_birth_date', true );
 $death_raw  = (string) get_post_meta( $post_id, 'obit_death_date', true );
 $precision  = (string) get_post_meta( $post_id, 'obit_death_precision', true );
@@ -115,8 +117,8 @@ get_header();
 		<div class="ob-profile__main">
 			<?php if ( '' !== trim( $content ) ) : ?>
 				<section class="ob-card ob-profile__bio">
-					<h2 class="ob-card__title">Life and career</h2>
-					<?php echo wp_kses_post( apply_filters( 'the_content', $content ) ); ?>
+					<h2 class="ob-card__title">About <?php echo esc_html( $name ); ?></h2>
+					<div class="ob-profile__prose"><?php echo wp_kses_post( apply_filters( 'the_content', $content ) ); ?></div>
 				</section>
 			<?php endif; ?>
 

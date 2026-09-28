@@ -14,6 +14,7 @@ declare( strict_types = 1 );
 namespace Obitleague\Modules;
 
 use Obitleague\Domain\Value\Partial_Date;
+use Obitleague\Domain\Value\Role_Label;
 
 final class Import_Service {
 
@@ -142,6 +143,8 @@ final class Import_Service {
 		update_post_meta( $post_id, 'obit_eligibility', 'approved' );
 		update_post_meta( $post_id, 'obit_eligibility_note', 'Approved from seed import (demo).' );
 		wp_update_post( array( 'ID' => $post_id, 'post_status' => 'publish' ) );
+		// Approval is what turns a candidate into a describable public record.
+		Person_Content::regenerate( $post_id );
 	}
 
 	/** Parse a stored/sourced date (Y, Y-m or Y-m-d) into a Partial_Date. */
@@ -167,8 +170,19 @@ final class Import_Service {
 		return (int) str_replace( '-', '', $year );
 	}
 
-	/** Attach an occupation label to the occupation taxonomy. */
+	/**
+	 * Attach an occupation label to the occupation taxonomy.
+	 *
+	 * Feed-extracted occupations occasionally carry a trailing cause of death
+	 * ("actor, blood cancer"). The taxonomy is publicly browsable, so the
+	 * label is cleaned first: an unsanitised term becomes a permanent, indexable
+	 * archive page asserting that a cause of death is an occupation.
+	 */
 	private static function attach_occupation( int $post_id, string $occupation ): void {
+		$occupation = Role_Label::clean( $occupation );
+		if ( '' === $occupation ) {
+			return;
+		}
 		$term = get_term_by( 'name', $occupation, Catalogue::TAX_OCCUPATION );
 		if ( ! $term ) {
 			$result = wp_insert_term( $occupation, Catalogue::TAX_OCCUPATION );

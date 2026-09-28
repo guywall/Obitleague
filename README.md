@@ -55,6 +55,14 @@ php tests/run-tests.php     # domain test suite (no WordPress required)
 php -l src/...              # lint individual files
 ```
 
+Maintenance scripts run through WP-CLI and are safe to re-run:
+
+```bash
+wp eval-file tests/build-person-content.php        # (re)compose person page bodies
+wp eval-file tests/prune-orphan-occupation-terms.php  # drop cause-contaminated terms
+wp eval-file tests/sync-portraits.php              # portraits + occupations from Wikidata
+```
+
 ## Demo data
 
 The demo dataset is generated, not committed. `work/build-seed.cjs` fetches the

@@ -20,6 +20,7 @@ require_once __DIR__ . '/../src/Domain/Value/Partial_Date.php';
 require_once __DIR__ . '/../src/Domain/Value/Award.php';
 require_once __DIR__ . '/../src/Domain/Value/Awarded_Event.php';
 require_once __DIR__ . '/../src/Domain/Value/Cause_Status.php';
+require_once __DIR__ . '/../src/Domain/Value/Role_Label.php';
 require_once __DIR__ . '/../src/Domain/Value/Score_Result.php';
 require_once __DIR__ . '/../src/Domain/Age.php';
 require_once __DIR__ . '/../src/Domain/Ranking.php';
@@ -36,6 +37,7 @@ require_once __DIR__ . '/Scenario_Feeds.php';
 require_once __DIR__ . '/Scenario_Entries.php';
 require_once __DIR__ . '/Scenario_Review.php';
 require_once __DIR__ . '/Scenario_Campaign.php';
+require_once __DIR__ . '/Scenario_Roles.php';
 
 // Domain tests must never depend on WordPress; each scenario pulls only
 // pure-domain files.
@@ -95,4 +97,5 @@ $runner->run( Scenario_Feeds::class );
 $runner->run( Scenario_Entries::class );
 $runner->run( Scenario_Review::class );
 $runner->run( Scenario_Campaign::class );
+$runner->run( Scenario_Roles::class );
 exit( $runner->summary() );
