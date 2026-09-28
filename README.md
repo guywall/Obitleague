@@ -2,7 +2,7 @@
 
 Fantasy dead pool league website for WordPress. Players pick ten public figures before the season starts; verified deaths of their picks score points according to a versioned, reversible ruleset.
 
-> **AI coding task handoff:** Start with [AI_PLUGIN_GUIDE.md](AI_PLUGIN_GUIDE.md) for the current plugin scope, versions, shortcodes, REST routes, frontend markers, and safe-change workflow. Verify details against source before editing.
+> Start with [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for module layout and the REST contract, and [docs/RULES.md](docs/RULES.md) for the normative ruleset. Both are verified against source; confirm details before editing.
 
 ## Design principles
 
@@ -15,13 +15,20 @@ Fantasy dead pool league website for WordPress. Players pick ten public figures 
 
 ## Status
 
-Scaffold, v0.1.0 — architecture and rules engine are in place. See [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) for what exists and what is next.
+v0.9.0 — catalogue, feed discovery, editorial review, leagues, teams, reversible
+scoring, statistics, the community forum and public search metadata are
+implemented. The domain rules engine is covered by `tests/run-tests.php`.
+See [CHANGELOG.md](CHANGELOG.md) for what landed recently and
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the module map and REST
+contract.
 
 ## Layout
 
 ```
 obitleague.php            Plugin bootstrap (header, constants, boot)
 src/Modules/*.php         Module services (catalogue, REST, Elementor, jobs)
+src/Modules/Seo.php      Titles, meta, Open Graph, Person schema, crawl control
+src/Templates/*.php       Front-end templates (person, league, team, stats, forum)
 src/Domain/*.php          Pure rules engine: age, scoring, ranking, team validation
 src/Domain/Value/*.php    Immutable value objects (rulesets, names, reasons, provenance)
 src/Support/*.php         Internal utilities
@@ -48,8 +55,18 @@ php tests/run-tests.php     # domain test suite (no WordPress required)
 php -l src/...              # lint individual files
 ```
 
+## Demo data
+
+The demo dataset is generated, not committed. `work/build-seed.cjs` fetches the
+monthly Wikipedia "Deaths in …" pages and Wikidata facts, then
+`tests/demo-import-people.php` and the other `tests/demo-*.php` scripts load
+them. Raw seed JSON is git-ignored; run the builder first on a fresh clone.
+
 ## Requirements
 
 - WordPress 6.4+, PHP 8.2+, MySQL 8 or MariaDB 10.6+
-- Elementor and PRO Elements for the presentation layer; the plugin degrades gracefully without them
+- Elementor for the presentation layer; PRO Elements where used. The plugin's own
+  templates (person, league, team, stats, forum, campaign) render without it, but
+  pages authored as Elementor documents — including the seeded demo pages — render
+  empty until Elementor is installed and active.
 - System scheduler (cron) for feed polling and scoring jobs

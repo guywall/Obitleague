@@ -37,7 +37,15 @@ async function getJSON( url, tries = 4 ) {
 
 function parseMonth( file, month, year = 2026 ) {
 	const data = JSON.parse( fs.readFileSync( W( file ), 'utf8' ) );
-	const text = data.parse?.wikitext ?? '';
+	// The MediaWiki API returns wikitext as a plain string only with
+	// formatversion=2. With the default formatversion it is { "*": "..." },
+	// and text.slice()/regex on that object silently matches nothing — the
+	// month parsed as zero entries with no error at all.
+	const raw = data.parse?.wikitext;
+	const text = typeof raw === 'string' ? raw : ( raw?.['*'] ?? '' );
+	if ( ! text ) {
+		throw new Error( `${file}: parse.wikitext is empty or an unexpected shape (${typeof raw}); fetch it with formatversion=2.` );
+	}
 	const out = [];
 	const dayRe = /===\s*(\d{1,2})\s*===/g;
 	const days = [];
@@ -124,16 +132,44 @@ async function resolveLabels( qids ) {
 }
 
 ( async () => {
-	// 1. Parse all monthly files.
+	// 1. Fetch any missing monthly page, then parse every month.
+	//    The monthly files were previously only ever read, never downloaded,
+	//    so a clean work/ directory skipped all nine months and wrote an
+	//    empty seed-deaths-2026.json while still reporting success.
+	for ( const m of MONTHS ) {
+		const file = `wiki-${m}-2026.json`;
+		if ( fs.existsSync( W( file ) ) ) {
+			console.log( `${m}: cached` );
+			continue;
+		}
+		const title = encodeURIComponent( `Deaths in ${m} 2026` );
+		const url = `https://en.wikipedia.org/w/api.php?action=parse&page=${title}&prop=wikitext&format=json&formatversion=2`;
+		try {
+			const data = await getJSON( url );
+			fs.writeFileSync( W( file ), JSON.stringify( data ) );
+			const len = data?.parse?.wikitext?.length ?? 0;
+			console.log( `${m}: fetched (${len} chars)` );
+		} catch ( e ) {
+			console.log( `${m}: FETCH FAILED - ${e.message}` );
+		}
+		await sleep( 3000 );
+	}
+
 	const all = [];
 	for ( const m of MONTHS ) {
 		const file = `wiki-${m}-2026.json`;
-		if ( ! fs.existsSync( W( file ) ) ) continue;
+		if ( ! fs.existsSync( W( file ) ) ) {
+			console.log( `${m}: no cached file, skipping` );
+			continue;
+		}
 		const entries = parseMonth( file, m );
 		console.log( `${m}: ${entries.length} entries` );
 		all.push( ...entries.map( ( e ) => ( { ...e, month: m } ) ) );
 	}
 	console.log( `total parsed: ${all.length}` );
+	if ( ! all.length ) {
+		throw new Error( 'No 2026 death rows parsed - refusing to write an empty seed file.' );
+	}
 
 	// 2. Select a spread: up to 12 per month, evenly through each list.
 	const selected = [];

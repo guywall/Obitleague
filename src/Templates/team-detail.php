@@ -34,22 +34,19 @@ if ( ! $entry ) {
 
 $season = (int) $entry->league_season;
 $league_id = (int) $entry->league_id;
-$is_main = 1 === (int) $entry->is_main;
-$picks = League_View_Service::pick_cards( $entry_id, $season );	$rank = null;
-	$points = 0;
-	$total = 0;
-if ( $is_main ) {
-	$page = max( 1, (int) ceil( (int) $wpdb->get_var( $wpdb->prepare( 'SELECT rank_pos FROM ' . $wpdb->prefix . 'obitleague_standings_rows r JOIN ' . $wpdb->prefix . 'obitleague_standings_generations g ON g.id = r.generation_id WHERE g.league_id = %d AND g.season = %d AND g.is_current = 1 AND r.user_id = %d', $league_id, $season, (int) $entry->user_id ) ) / 50 ) );
-	$standing = Standings_Service::row_for_user( $league_id, $season, (int) $entry->user_id );
-	$rank = $standing ? (int) $standing['rank'] : null;
-	$points = $standing ? (int) $standing['points'] : 0;
-	$total = Standings_Service::count_current( $league_id, $season );
-} else {
-	$standing = Standings_Service::row_for_user( $league_id, $season, (int) $entry->user_id );
-	$rank = $standing ? (int) $standing['rank'] : null;
-	$points = $standing ? (int) $standing['points'] : 0;
-	$total = Standings_Service::count_current( $league_id, $season );
-}
+$is_main = 1 === (int) $entry->is_main;$picks = League_View_Service::pick_cards( $entry_id, $season );
+$rank = null;
+$points = 0;
+$total = 0;
+/*
+ * Main and side leagues publish standings the same way, so both read the
+ * current generation for this league and season. (The old branch computed
+ * an unused page number and repeated the identical lookups.)
+ */
+$standing = Standings_Service::row_for_user( $league_id, $season, (int) $entry->user_id );
+$rank     = $standing ? (int) $standing['rank'] : null;
+$points   = $standing ? (int) $standing['points'] : 0;
+$total    = Standings_Service::count_current( $league_id, $season );
 if ( $rank > 0 ) {
 	$rank = (int) $rank;
 } else {

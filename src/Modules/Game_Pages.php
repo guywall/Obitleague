@@ -77,8 +77,18 @@ final class Game_Pages {
 		if ( '' !== $home && str_starts_with( $path, $home ) ) {
 			$path = trim( substr( $path, strlen( $home ) ), '/' );
 		}
-		if ( in_array( $path, array( 'my-leagues', 'join', 'stats' ), true ) ) {
-			return OBITLEAGUE_DIR . 'src/Templates/' . $path . '.php';
+		/*
+		 * Route slug => template file. 'join' is served by join-league.php;
+		 * building the filename from the slug resolved to a missing
+		 * join.php and rendered the page as an empty 200 response.
+		 */
+		$routes = array(
+			'my-leagues' => 'my-leagues.php',
+			'join'       => 'join-league.php',
+			'stats'      => 'stats.php',
+		);
+		if ( isset( $routes[ $path ] ) ) {
+			return OBITLEAGUE_DIR . 'src/Templates/' . $routes[ $path ];
 		}
 		return $template;
 	}

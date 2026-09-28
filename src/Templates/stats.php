@@ -145,16 +145,16 @@ get_header();
 						<h3 class="ob-card__title"><?php echo esc_html( (string) $board['title'] ); ?></h3>
 						<p class="ob-sub"><?php echo esc_html( (string) $board['note'] ); ?></p>
 						<div class="ob-timeline">
-							<?php $board_max = max( 1, max( array_column( $board['rows'], 'count' ) ) ); ?>
-							<?php foreach ( $board['rows'] as $row ) : ?>
-								<div class="ob-timeline__row">
-									<span class="ob-timeline__label"><?php
-										if ( ! empty( $row['url'] ) ) {
-											echo '<a href="' . esc_url( (string) $row['url'] ) . '">' . esc_html( (string) $row['label'] ) . '</a>';
-										} else {
-											echo esc_html( (string) $row['label'] );
-										}
-										?></span>
+							<?php $board_max = max( 1, max( array_column( $board['rows'], 'count' ) ) ); ?>									<?php foreach ( $board['rows'] as $row ) : ?>
+										<?php $row_label = (string) ( $row['label'] ?? ( $row['value'] ?? '' ) ); ?>
+										<div class="ob-timeline__row">
+											<span class="ob-timeline__label"><?php
+												if ( ! empty( $row['url'] ) ) {
+													echo '<a href="' . esc_url( (string) $row['url'] ) . '">' . esc_html( $row_label ) . '</a>';
+												} else {
+													echo esc_html( $row_label );
+												}
+												?></span>
 									<span class="ob-timeline__bar" aria-hidden="true"><span style="width: <?php echo esc_attr( (string) max( 4, (int) round( 100 * (int) $row['count'] / $board_max ) ) ); ?>%"></span></span>
 									<span class="ob-timeline__value"><?php echo esc_html( (string) $row['count'] ); ?> · <?php echo esc_html( (string) $row['share'] ); ?>%</span>
 								</div>

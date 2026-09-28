@@ -5,6 +5,59 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-09-27
+
+### Fixed
+- **Standings rebuild no longer loses or duplicates teams.** Paging used a
+  keyset on `entries.id` while ordering by `points DESC`, so a batch of
+  scorers advanced the cursor to the highest id present and permanently
+  excluded every lower-id team outside that batch; later batches could also
+  re-select rows already inserted, violating the unique key on
+  (generation_id, user_id). Leagues over 500 teams published short, partly
+  duplicate leaderboards with nonsensical rank positions, and the failure was
+  silent — the insert error was ignored and the rebuild reported success.
+  Paging now uses a keyset over the full sort tuple
+  (points, scoring_picks, user_id) computed once into a temporary table, and a
+  failed batch aborts the rebuild instead of publishing a short generation.
+  The aggregate is no longer recomputed per batch, which also cut a
+  2,500-team rebuild from over three minutes to about 30 seconds.
+- **The join page rendered as an empty 200.** `Game_Pages` built the template
+  filename from the route slug, resolving `/join/` to a missing `join.php`
+  while the file is `join-league.php`, orphaning that template entirely.
+- **Escaped HTML shown as text on every catalogue card.** The person archive
+  rendered occupation tags twice; the duplicate escaped already-built link
+  markup, so visitors saw literal `<a class="ob-occ-tag" …>` on each card.
+- **Seven of the eight "shape of the archive" boards rendered blank labels.**
+  `Stats_Service::board()` emitted `value` while the template read `label`, so
+  birth decades, birth months, weekday born, star signs, first initials, name
+  lengths and ages at death showed bars and counts with no category name, plus
+  a PHP warning per row.
+- **Entry season copy is no longer hardcoded to 2027.** The header CTA, the
+  register page and the verification email all named a literal year and would
+  have advertised a locked season from 1 January 2027. They now follow the
+  open entry season.
+- "Season {year} is in play" on My Leagues contradicted the front page, which
+  correctly showed the season actually in play.
+- Removed a dead `page` computation and a duplicated if/else branch on the
+  team detail template.
+- The leagues admin list now selects `is_main`, so the "main league" marker
+  appears instead of never rendering.
+- `work/build-seed.cjs` now downloads the monthly Wikipedia pages it parses
+  (previously it only ever read cached files, so a clean clone silently
+  produced an empty 2026 deaths seed) and rejects a `parse.wikitext` payload
+  in the API's default object shape instead of parsing it as zero entries.
+
+### Added
+- Search metadata and crawl control via a new `Seo` module: per-person titles
+  with life span, factual descriptions, canonical URLs, Open Graph and Twitter
+  cards using the synced Wikimedia portrait, and `Person` JSON-LD built from
+  approved fields (exact dates only, with Wikipedia/Wikidata `sameAs`).
+  Occupation archives get their own titles and descriptions. Account, team,
+  league and forum routes now send `noindex, follow` so private and thin pages
+  stay out of the index, matching the architecture's sitemap policy.
+
+No schema changes: `OBITLEAGUE_DB_VERSION` remains `0.5.0`.
+
 ## [0.8.0] — 2026-09-27
 
 ### Added
@@ -34,6 +87,18 @@ header in `obitleague.php`; each released version is tagged in git.
   confirmation; audited; standings generations cleaned up) and any team
   entry can be deleted with reason, award removal and immediate standings
   rebuild. The main league cannot be deleted.
+- Per-entry team names with an additive schema migration, team-profile and
+  standings display, and administrator editing/audit support.
+- Expanded the local demo to eight themed leagues, forty clearly fictional
+  demo accounts and up to 64 named teams with sourced, themed pick mixes.
+- WordPress administrator screens for league creation and management,
+  member status/removal, team entry creation, audited pick revisions,
+  submission/withdrawal, revision history and standings rebuilds. Added a
+  database-backed administrator audit log and additive schema migration.
+- Join and team-management front end with debounced catalogue search,
+  age/occupation disambiguation and explicit human-only Wikidata add flow.
+- Players can amend submitted teams until their season begins; prior submitted
+  revisions remain preserved and new approved-event awards are applied.
 
 ### Changed
 - Rules page rewritten in plain language — five walkthrough sections,
@@ -47,24 +112,6 @@ header in `obitleague.php`; each released version is tagged in git.
 - Light mint/white links on gold hero CTA buttons (the `ob-hero a`
   override painted button text nearly invisible); CTA buttons keep their
   dark ink, other hero links stay light.
-
-### Added
-- Per-entry team names with an additive schema migration, team-profile and
-  standings display, and administrator editing/audit support.
-- Expanded the local demo to eight themed leagues, forty clearly fictional
-  demo accounts and up to 64 named teams with sourced, themed pick mixes.
-- WordPress administrator screens for league creation and management,
-  member status/removal, team entry creation, audited pick revisions,
-  submission/withdrawal, revision history and standings rebuilds. Added a
-  database-backed administrator audit log and additive schema migration.
-
-### Added
-- Join and team-management front end with debounced catalogue search,
-  age/occupation disambiguation and explicit human-only Wikidata add flow.
-- Players can amend submitted teams until their season begins; prior submitted
-  revisions remain preserved and new approved-event awards are applied.
-
-### Fixed
 - Wrapped public standings and plugin-admin data tables in local horizontal
   scroll containers, and tightened narrow-screen league roster rows so tables
   and metadata no longer widen the page.

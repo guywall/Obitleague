@@ -65,16 +65,18 @@ final class Site_Chrome {
 					);
 				}
 			}
-		}
+		}		// Entry-season calls to action follow the open entry season rather
+		// than a hardcoded year, so the nav never advertises a locked season.
+		$entry_season = League_Service::current_season();
 		if ( ! $items ) {
 			$items = array(
 				array( 'label' => 'Home', 'url' => home_url( '/' ) ),
 				array( 'label' => 'Standings', 'url' => home_url( '/standings/' ) ),
 				array( 'label' => 'People', 'url' => home_url( '/catalogue/' ) ),
 				array( 'label' => 'Death Archive', 'url' => home_url( '/archive/' ) ),
-		array( 'label' => 'Rules', 'url' => home_url( '/rules/' ) ),
-		array( 'label' => 'Forum', 'url' => home_url( '/forum/' ) ),
-	);
+			array( 'label' => 'Rules', 'url' => home_url( '/rules/' ) ),
+			array( 'label' => 'Forum', 'url' => home_url( '/forum/' ) ),
+		);
 		}
 		// Statistics sit beside Standings in every menu source.
 		$insert_at = 0;
@@ -99,7 +101,7 @@ final class Site_Chrome {
 		if ( is_user_logged_in() ) {
 			$items[] = array( 'label' => 'Log out', 'url' => wp_logout_url( home_url( '/' ) ) );
 		} else {
-			$items[] = array( 'label' => 'Choose your 2027 team', 'url' => home_url( '/register/' ) );
+			$items[] = array( 'label' => 'Choose your ' . $entry_season . ' team', 'url' => home_url( '/register/' ) );
 		}
 		return $items;
 	}
@@ -152,7 +154,7 @@ final class Site_Chrome {
 					<?php if ( ! $logged_in ) : ?>
 						<a class="ob-nav__link" href="<?php echo esc_url( wp_login_url( home_url( '/my-leagues/' ) ) ); ?>">Sign in</a>
 					<?php endif; ?>
-					<a class="ob-nav__join" href="<?php echo esc_url( home_url( $logged_in ? '/my-leagues/' : '/register/' ) ); ?>"><?php echo $logged_in ? 'My game' : 'Choose your 2027 team'; ?></a>
+					<a class="ob-nav__join" href="<?php echo esc_url( home_url( $logged_in ? '/my-leagues/' : '/register/' ) ); ?>"><?php echo $logged_in ? 'My game' : 'Choose your ' . esc_html( (string) League_Service::current_season() ) . ' team'; ?></a>
 				</nav>
 			</div>
 		</header>

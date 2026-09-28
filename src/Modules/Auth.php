@@ -25,7 +25,7 @@ final class Auth {
 	public static function register_shortcode(): string {
 		wp_enqueue_style( 'obitleague-campaign', OBITLEAGUE_DIR_URL . 'assets/campaign.css', array( 'obitleague' ), OBITLEAGUE_VERSION );
 		if ( is_user_logged_in() ) {
-			return Shortcodes::enqueue() . '<section class="ob-card ob-auth-card"><h2>You’re already in.</h2><p>Your 2027 team is waiting.</p><a class="ob-btn" href="' . esc_url( home_url( '/my-leagues/#build-team' ) ) . '">Build your team</a></section>';
+			return Shortcodes::enqueue() . '<section class="ob-card ob-auth-card"><h2>You’re already in.</h2><p>Your ' . esc_html( (string) League_Service::current_season() ) . ' team is waiting.</p><a class="ob-btn" href="' . esc_url( home_url( '/my-leagues/#build-team' ) ) . '">Build your team</a></section>';
 		}
 		$message = '';
 		$success = false;
@@ -45,7 +45,7 @@ final class Auth {
 				$message = is_string( $result ) ? $result : '';
 			}
 		}
-		$out = Shortcodes::enqueue() . '<section class="ob-card ob-auth-card"><span class="ob-hero__kicker">2027 season · join the game</span><h1>Create your Obitleague account</h1><p>We’ll email you a verification link. Verify your address to open your team builder.</p>';
+		$out = Shortcodes::enqueue() . '<section class="ob-card ob-auth-card"><span class="ob-hero__kicker">' . esc_html( (string) League_Service::current_season() ) . ' season · join the game</span><h1>Create your Obitleague account</h1><p>We’ll email you a verification link. Verify your address to open your team builder.</p>';
 		if ( isset( $_GET['verification'] ) && 'invalid' === sanitize_key( (string) $_GET['verification'] ) ) {
 			$out .= '<p class="ob-auth-message ob-auth-message--error" role="alert">That verification link is invalid or expired. Request a fresh link below.</p>';
 		}
@@ -108,7 +108,7 @@ final class Auth {
 		update_user_meta( $user->ID, self::EXPIRES_META, (string) ( time() + self::TOKEN_TTL ) );
 		$url = add_query_arg( array( 'uid' => $user->ID, 'token' => $token ), home_url( '/verify-email/' ) );
 		$subject = 'Verify your Obitleague email';
-		$body = "Welcome to Obitleague’s 2027 season.\n\nVerify your email and open your team builder:\n{$url}\n\nThis link expires in 24 hours. If you did not request an account, ignore this email.";
+		$body = "Welcome to Obitleague’s " . League_Service::current_season() . " season.\n\nVerify your email and open your team builder:\n{$url}\n\nThis link expires in 24 hours. If you did not request an account, ignore this email.";
 		return (bool) wp_mail( $user->user_email, $subject, $body );
 	}
 
