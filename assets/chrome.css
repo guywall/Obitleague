@@ -2083,3 +2083,137 @@ a.ob-pick__name:hover {
 	color: var(--ob-accent);
 	text-decoration-color: currentColor;
 }
+
+/* ---------- person page pick stats ---------- */
+/* Badges sit under the hero rather than inside it: the hero row is a flex
+   line with the status pill pinned right, and a second pill there crowds the
+   name on narrow screens. */
+.ob-profile__badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 12px 0 0;
+}
+.ob-pick-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 11px;
+	border-radius: 999px;
+	font-size: 0.68rem;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 0.09em;
+	border: 1px solid transparent;
+}
+/* Warm brass for "everyone took them", the same accent the season scorecard
+   already uses, so the two read as one system. */
+.ob-pick-badge--hot {
+	color: #7a5c12;
+	background: var(--ob-brass-soft);
+	border-color: #e4d3a4;
+}
+/* Cool green for the opposite result, matching the "Living" pill. */
+.ob-pick-badge--unique {
+	color: var(--ob-green-deep, #0a3d2c);
+	background: var(--ob-accent-soft);
+	border-color: #bfe0d1;
+}
+.ob-pickstats__figure {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	margin: 10px 0 2px;
+}
+.ob-pickstats__num {
+	font-family: 'Fraunces', Georgia, serif;
+	font-size: 2.1rem;
+	font-weight: 900;
+	color: var(--ob-accent-deep);
+	line-height: 1;
+	font-variant-numeric: tabular-nums;
+}
+.ob-pickstats__unit {
+	font-size: 0.78rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--ob-muted);
+}
+.ob-pickstats__share,
+.ob-pickstats__rank,
+.ob-pickstats__more {
+	margin: 6px 0 0;
+	font-size: 0.82rem;
+	color: var(--ob-muted);
+}
+.ob-pickstats__rank em {
+	display: block;
+	margin-top: 2px;
+	font-style: normal;
+	font-weight: 700;
+	color: #7a5c12;
+}
+.ob-pickstats__subhead {
+	margin: 16px 0 6px;
+	font-size: 0.64rem;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 0.1em;
+	color: var(--ob-muted);
+}
+.ob-pickstats__leagues,
+.ob-pickstats__teams {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+.ob-pickstats__leagues {
+	margin-top: 12px;
+	border-top: 1px solid var(--ob-line);
+	padding-top: 10px;
+}
+.ob-pickstats__leagues li,
+.ob-pickstats__teams li {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 5px 0;
+	border-bottom: 1px solid var(--ob-line);
+}
+.ob-pickstats__leagues li:last-child,
+.ob-pickstats__teams li:last-child {
+	border-bottom: 0;
+}
+.ob-pickstats__leagues a,
+.ob-pickstats__teams a {
+	font-size: 0.86rem;
+	font-weight: 700;
+	color: var(--ob-ink);
+	text-decoration: none;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.ob-pickstats__leagues a:hover,
+.ob-pickstats__teams a:hover {
+	color: var(--ob-accent);
+}
+.ob-pickstats__leagues span {
+	flex: 0 0 auto;
+	font-size: 0.78rem;
+	font-weight: 800;
+	color: var(--ob-accent-deep);
+	font-variant-numeric: tabular-nums;
+}
+.ob-pickstats__teams span {
+	flex: 0 0 auto;
+	font-size: 0.7rem;
+	font-weight: 700;
+	color: var(--ob-muted);
+	max-width: 45%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}

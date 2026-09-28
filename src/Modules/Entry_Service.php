@@ -218,6 +218,9 @@ final class Entry_Service {
 			}
 			Jobs::schedule_standings_rebuild( (int) $entry->league_id, (int) $entry->season );
 		}
+		// An amendment rewrites the team's picks, so the cached distribution
+		// behind person-page pick counts is now stale.
+		Pick_Stats::flush();
 
 		return array(
 			'revision_id'      => $revision_id,
@@ -324,6 +327,10 @@ final class Entry_Service {
 
 			$wpdb->query( 'COMMIT' );
 			$transaction_started = false;
+
+			// The pick distribution behind person-page pick counts is cached;
+			// a new submitted team changes them.
+			Pick_Stats::flush();
 
 			return new Submission_Receipt(
 				$receipt_id,

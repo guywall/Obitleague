@@ -61,8 +61,15 @@ Maintenance scripts run through WP-CLI and are safe to re-run:
 wp eval-file tests/build-person-content.php        # (re)compose person page bodies
 wp eval-file tests/prune-orphan-occupation-terms.php  # drop empty occupation terms
 wp eval-file tests/verify-import-taxonomy.php      # assert imports create no public terms
+wp eval-file tests/verify-pick-stats.php          # pick counts, hot/unique badges, page render
+wp eval-file tests/import-seed-file.php <path>     # load any builder-produced seed file
 wp eval-file tests/sync-portraits.php              # portraits + occupations from Wikidata
 ```
+
+`tests/import-seed-file.php` imports people as private candidates and publishes
+them only with `OBITLEAGUE_SEED_APPROVE=1`; it refuses to write to a production
+site without `OBITLEAGUE_ALLOW_SEED_IMPORT=1`. Its switches come from the
+environment because WP-CLI rejects an unknown `--flag` on `eval-file`.
 
 Occupations are sourced, never imported. The `obit_occupation` taxonomy is
 written only by `tests/sync-portraits.php` (Wikidata P106), so run it after
@@ -75,6 +82,14 @@ The demo dataset is generated, not committed. `work/build-seed.cjs` fetches the
 monthly Wikipedia "Deaths in …" pages and Wikidata facts, then
 `tests/demo-import-people.php` and the other `tests/demo-*.php` scripts load
 them. Raw seed JSON is git-ignored; run the builder first on a fresh clone.
+
+`work/build-cohort-1946.cjs` builds a deeper *living* pool instead: 150 people
+born in 1946, selected so the catalogue stays spread across nationalities and
+occupations (93 countries, 265 occupations). Its output
+`work/seed-cohort-1946.json` is committed, so the cohort does not need
+rebuilding; load it with `tests/import-seed-file.php`. Liveness is checked
+against both Wikidata and Wikipedia's death-year categories, because an absent
+date of death is not proof of life. See `work/seed-manifest.md` for the method.
 
 ## Requirements
 

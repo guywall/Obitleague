@@ -20,6 +20,7 @@ src/Modules/Jobs.php            Feed polling, refresh, scoring, notifications
 src/Modules/Elementor_Bridge.php Typed dynamic tags + guarded widgets
 src/Modules/Seo.php            Titles, meta, Open Graph, Person schema, noindex
 src/Modules/Person_Content.php Composed body prose for person records
+src/Modules/Pick_Stats.php     How often a name was taken, and by whom
 src/Domain/Value/Role_Label.php Cleans unsourced role text of leaked causes
 src/Support/Options.php         Key-value store (wp_options now, plugin tables later)
 src/Support/Time.php            Deadline checks, London-time helpers
@@ -70,6 +71,16 @@ Editors approve a death only with two editorially independent reports (or an aut
 - Check ownership, membership and capabilities on every request, export and background job.
 - Crawl control: `Seo` marks account, team, league and forum routes `noindex, follow`, and marks an occupation archive `noindex, follow` when nobody is filed under it — terms outlive the people assigned to them, and an empty archive can only say "0 people". The person catalogue, populated occupation archives and public standings stay indexable. Structured data uses exact stored dates only, so a partial date is never widened into a stronger claim.
 - Person page bodies: `Person_Content` composes the body of a person record from approved fields alone. It is a formatter, not an author — nothing about a person's life is inferred or invented, dates keep their sourced precision, and the wording is neutral and pronoun-free. Because the body is a pure function of the record it is safe to regenerate at any time, and it is regenerated on approval and on every editorial death decision. Stored bodies never carry a live figure that would go stale.
+- Pick counts: `Pick_Stats` answers how many submitted teams hold a name, its
+  share of the field, its rank, and who took it. Three rules make the figures
+  trustworthy. Only the current `kind='submitted'` revision of each entry is
+  counted, so an amended team is never counted twice. Figures are scoped to the
+  season in play, because a player holding entries in two seasons would
+  otherwise count as several teams. And the season is single-sourced with the
+  page's own scorecard, so a page cannot label its figures with one season and
+  its points with another. The ranking aggregate is far too slow to run per page
+  view, so the distribution is cached and flushed on submit and on amendment; a
+  short TTL is a safety net, not the strategy.
 - One writer for the occupation taxonomy: `People_Sync`, from Wikidata P106 (CC0). `Import_Service` deliberately does not write it. The taxonomy is public and indexable, so each term is a permanent archive URL, and feed role text is free-form, unsourced and inconsistent between extractors — importing it produced duplicate archive pages for occupations that already existed as clean terms, and let a `Public figure` placeholder become a public page. Feed occupations are stored as `obit_occupation_hint` for the review queue. A person whose sync fails ends up with no occupation tag rather than a wrong one, which is the correct direction to fail.
 - One descriptor per person: `Role_Label::clean()` is the single gate between the stored role and anything public. Feed extraction sometimes appends a cause of death to an occupation, and that string previously reached the byline, the meta description and the JSON-LD `jobTitle`. All of them now read the cleaned value, so they cannot disagree with each other or with the reported cause.
 - Treat feed HTML and imported text as untrusted: escape on output, reject SSRF-prone fetches (scheme and host allowlists, no private addresses after DNS resolution or redirects, byte/time limits, external entities disabled).

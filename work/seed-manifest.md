@@ -24,6 +24,48 @@ Full row data: `work/seed-deaths-2026.json`, `work/seed-living-pool.json`,
 - Demo users join side-leagues through the real invite-token flow. Re-running the seeder reuses the named accounts/leagues/entries, adds any missing demo memberships/submissions, updates demo team names and does not replace submitted revisions. The overall standings are global-facing; the product still needs a separately defined all-user main-season entry policy rather than treating side-league membership as the only route onto the global board.
 - 91 review cases are approved through the real `Review_Service` (source basis recorded per case: Wikipedia 2026 death lists + matching Wikidata dates). Awards, ledger, outbox and standings are produced by the real services.
 
+## 1946 living cohort (built 28 September 2026)
+
+A second, deeper pool of *living* people to pick, restricted to the 1946 birth
+year, built by `work/build-cohort-1946.cjs` and loaded with
+`tests/import-seed-file.php`. The main seed's living pool is 60 rows; this adds
+150 with far wider nationality and occupation spread.
+
+| Dataset | Source | Licence / basis | Rows |
+| --- | --- | --- | --- |
+| 1946 cohort | Wikidata Query Service (Q5, P569 in 1946, no P570, English Wikipedia article) + Wikidata entity API (P569 precision, P570, P106/P27 labels) + en.wikipedia categories | Wikidata structured data CC0; Wikipedia category names are facts, not text | 150 |
+
+Full row data: `work/seed-cohort-1946.json` (committed, so the cohort is
+reproducible without re-running the builder).
+
+### How the cohort was built
+
+- **Candidates**: 11,157 living humans born in 1946 with an English Wikipedia
+  article. Coverage is very uneven across birth months — January alone holds
+  3,327 of them, March 712 — so a positional sample of the candidate list is
+  not a random sample. The builder orders candidates by a hash of the QID.
+- **Diversity**: candidates are ranked by how much each one widens the pool,
+  and admitted only while their country (cap 4) and occupations (cap 3, relaxed
+  to 6 in a second pass) are under their ceilings. Result: 93 countries and
+  265 distinct occupations, largest single country 7, largest single
+  occupation 10, birth months 9–19 each.
+- **Liveness** is cross-checked twice, because a dead-pool pick has to be
+  alive. A Wikidata item with no date of death is not proof of life — a person
+  who died in 2022 can sit there with no P570, and the candidate query filters
+  on exactly that absence. The builder therefore also reads the article's
+  categories and drops anyone carrying a "⟨year⟩ deaths" category.
+  `node work/build-cohort-1946.cjs --selftest` proves that check can fail, by
+  running it against David Bowie (born 1946, dead since 2016) and a living
+  control. 141 of the 150 additionally carry a positive "Living people"
+  category; the other 9 are recorded as `alive_confirmed: false` because both
+  sources are simply silent about them.
+- **Dates keep their sourced precision.** The SPARQL projection renders a
+  month-precision Wikidata date as `1946-01-01`, and a quarter of the
+  candidates land on the 1st, which no real distribution does. Birth dates
+  are rebuilt from each statement's own precision. The plugin also refuses to
+  approve a person whose birth date lacks a day, so exact dates are the
+  default; pass `--any-precision` to keep partial ones for manual review.
+
 ## Integrity expectations
 
 - events: 91 — exactly one approved death event per sourced in-season death.

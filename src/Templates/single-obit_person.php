@@ -16,6 +16,7 @@ use Obitleague\Domain\Value\Ruleset;
 use Obitleague\Modules\Import_Service;
 use Obitleague\Modules\Person_Content;
 use Obitleague\Modules\People_Sync;
+use Obitleague\Modules\Pick_Stats;
 
 $post_id    = (int) get_the_ID();
 $name       = get_the_title( $post_id );
@@ -53,7 +54,10 @@ try {
 
 $points           = null !== $age_at_death ? Ruleset::points_for_age( (int) $age_at_death ) : null;
 $potential_points = null !== $age_now ? Ruleset::points_for_age( (int) $age_now ) : null;
-$season           = (int) date_i18n( 'Y' );
+// Single-sourced with the pick figures below, so the scorecard and the pick
+// stats can never be labelled with different seasons.
+$season           = Pick_Stats::season_in_play();
+$pick_stats       = Pick_Stats::for_person( $post_id );
 $wikipedia_url = '' !== $enwiki
 	? 'https://en.wikipedia.org/wiki/' . rawurlencode( $enwiki )
 	: ( '' !== $qid ? 'https://www.wikidata.org/wiki/Special:GoToLinkedPage/enwiki/' . rawurlencode( $qid ) : '' );
@@ -91,6 +95,17 @@ get_header();
 			</div>
 			<span class="ob-profile__status"><?php echo $is_dead ? esc_html( 'Confirmed' ) : esc_html( 'Living' ); ?></span>
 		</div>
+
+		<?php if ( $pick_stats['is_hot'] || $pick_stats['is_unique'] ) : ?>
+			<p class="ob-profile__badges">
+				<?php if ( $pick_stats['is_hot'] ) : ?>
+					<span class="ob-pick-badge ob-pick-badge--hot"><?php esc_html_e( 'Hot pick', 'obitleague' ); ?></span>
+				<?php endif; ?>
+				<?php if ( $pick_stats['is_unique'] ) : ?>
+					<span class="ob-pick-badge ob-pick-badge--unique"><?php esc_html_e( 'Unique pick', 'obitleague' ); ?></span>
+				<?php endif; ?>
+			</p>
+		<?php endif; ?>
 
 		<div class="ob-profile__timeline" role="img" aria-label="<?php echo esc_attr( ( $birth ? 'Born ' . $birth->label() . '. ' : '' ) . ( $is_dead && $death ? 'Died ' . $death->label() . '.' : 'Living.' ) ); ?>">
 			<div class="ob-profile__moment">
@@ -160,6 +175,84 @@ get_header();
 					<span class="ob-scorecard__kicker">Season <?php echo esc_html( (string) $season ); ?> pick</span>
 					<span class="ob-scorecard__points ob-scorecard__points--living" role="img" tabindex="0" title="<?php echo esc_attr( $potential_tip ); ?>" aria-label="<?php echo esc_attr( null !== $potential_points ? $potential_points . ' potential points. ' . $potential_tip : $potential_tip ); ?>"><?php echo null !== $potential_points ? esc_html( (string) $potential_points ) : esc_html( '—' ); ?></span>
 					<span class="ob-scorecard__unit">potential</span>
+				</section>
+			<?php endif; ?>
+
+			<?php if ( $pick_stats['picks'] > 0 ) : ?>
+				<section class="ob-card ob-pickstats">
+					<h2 class="ob-card__title"><?php esc_html_e( 'Picked by', 'obitleague' ); ?></h2>
+					<p class="ob-pickstats__figure">
+						<span class="ob-pickstats__num"><?php echo esc_html( number_format_i18n( $pick_stats['picks'] ) ); ?></span>
+						<span class="ob-pickstats__unit"><?php echo 1 === $pick_stats['picks'] ? esc_html__( 'team', 'obitleague' ) : esc_html__( 'teams', 'obitleague' ); ?></span>
+					</p>
+					<p class="ob-pickstats__share">
+						<?php
+						$share = esc_html( Pick_Stats::percent_label( (float) $pick_stats['percent'] ) );
+						if ( 0 === strcmp( $share, '&lt;1%' ) ) {
+							$share = esc_html__( 'less than 1%', 'obitleague' );
+						}
+						echo esc_html(
+							sprintf(
+								/* translators: 1: share of submitted teams, 2: total submitted teams, 3: the season. */
+								__( '%1$s of the %2$s submitted teams in season %3$d.', 'obitleague' ),
+								$share,
+								number_format_i18n( $pick_stats['teams_total'] ),
+								(int) $pick_stats['season']
+							)
+						);
+						?>
+					</p>
+					<?php if ( null !== $pick_stats['rank'] ) : ?>
+						<p class="ob-pickstats__rank">
+							<?php
+							echo esc_html(
+								sprintf(
+									/* translators: %s: rank among picked names, e.g. "3rd". */
+									__( '%s most picked on the board.', 'obitleague' ),
+									Pick_Stats::ordinal( (int) $pick_stats['rank'] )
+								)
+							);
+							?>
+							<?php if ( $pick_stats['is_hot'] ) : ?>
+								<em><?php echo esc_html( sprintf( __( 'Top %d of every name in play.', 'obitleague' ), Pick_Stats::HOT_LIMIT ) ); ?></em>
+							<?php endif; ?>
+						</p>
+					<?php endif; ?>
+
+					<?php if ( array() !== $pick_stats['leagues'] ) : ?>
+						<ul class="ob-pickstats__leagues">
+							<?php foreach ( $pick_stats['leagues'] as $league ) : ?>
+								<li>
+									<a href="<?php echo esc_url( home_url( '/league/' . (int) $league['league_id'] . '/' ) ); ?>"><?php echo esc_html( $league['league_name'] ); ?></a>
+									<span><?php echo esc_html( number_format_i18n( (int) $league['picks'] ) ); ?></span>
+								</li>
+							<?php endforeach; ?>
+						</ul>
+					<?php endif; ?>
+
+					<?php if ( array() !== $pick_stats['teams'] ) : ?>
+						<h3 class="ob-pickstats__subhead"><?php esc_html_e( 'Teams that took them', 'obitleague' ); ?></h3>
+						<ul class="ob-pickstats__teams">
+							<?php foreach ( $pick_stats['teams'] as $team ) : ?>
+								<li>
+									<a href="<?php echo esc_url( home_url( '/team/' . (int) $team['entry_id'] . '/' ) ); ?>"><?php echo esc_html( '' !== $team['team_name'] ? $team['team_name'] : __( 'Untitled team', 'obitleague' ) ); ?></a>
+									<?php if ( ! $team['is_main'] ) : ?>
+										<span><?php echo esc_html( $team['league_name'] ); ?></span>
+									<?php endif; ?>
+								</li>
+							<?php endforeach; ?>
+						</ul>
+						<?php if ( $pick_stats['teams_remaining'] > 0 ) : ?>
+							<p class="ob-pickstats__more">
+								<?php echo esc_html( sprintf( __( '+ %s more teams', 'obitleague' ), number_format_i18n( $pick_stats['teams_remaining'] ) ) ); ?>
+							</p>
+						<?php endif; ?>
+					<?php endif; ?>
+				</section>
+			<?php elseif ( 0 !== $pick_stats['teams_total'] ) : ?>
+				<section class="ob-card ob-pickstats ob-pickstats--unpicked">
+					<h2 class="ob-card__title"><?php esc_html_e( 'Picked by', 'obitleague' ); ?></h2>
+					<p class="ob-pickstats__share"><?php esc_html_e( 'Nobody has taken this name yet.', 'obitleague' ); ?></p>
 				</section>
 			<?php endif; ?>
 

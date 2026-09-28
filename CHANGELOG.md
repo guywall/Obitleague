@@ -5,6 +5,67 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Added
+- **`work/build-cohort-1946.cjs`** builds a 1946 birth-year cohort of living
+  people from Wikidata, diverse by construction: 11,157 candidates, ranked so
+  that rare nationalities and occupations are taken first and admitted only
+  while their country and occupation stay under hard caps. The 150 rows it
+  writes span 93 countries and 265 occupations.
+- **`tests/import-seed-file.php`** loads any builder-produced seed file into the
+  catalogue. `demo-import-people.php` knew three filenames; this takes a path,
+  so a new cohort needs no code change. People land as private candidates
+  unless `OBITLEAGUE_SEED_APPROVE=1` is set, and it refuses to write to a
+  production site without `OBITLEAGUE_ALLOW_SEED_IMPORT=1`.
+
+### Fixed
+- The cohort builder is now correct about liveness, dates and sampling. A
+  Wikidata item with no date of death is not proof of being alive, and the
+  original candidate query filtered on exactly that absence; liveness is now
+  cross-checked against Wikipedia's death-year categories as well, with a
+  `--selftest` that proves the check can fail. Birth dates are rebuilt from
+  each statement's own precision instead of letting a month-precision date
+  masquerade as the 1st, and candidates are sampled by hashing the QID — a
+  positional sample silently took January, which holds 30% of the cohort.
+- `work/build-cohort-1946.cjs` refuses to write an empty or sub-minimum cohort,
+  and `--any-precision` is now the opt-in rather than the default, so the rows
+  it writes can be approved for publication.
+
+## [0.12.0] — 2026-09-28
+
+### Added
+- **Person pages now say how popular a name is.** How often someone is actually
+  taken is the most interesting thing about a dead pool, and it was invisible.
+  Every person page now carries a “Picked by” card: the number of submitted
+  teams holding the name, its share of the field, the name's rank among picked
+  names, how that splits across leagues, and the teams that took it.
+- **Hot pick and unique pick badges.** The top 50 most-picked names on the
+  board are badged as hot picks; a name taken by exactly one team is badged as
+  a unique pick — the rarest possible outcome, and often the only way to get a
+  good score out of a name nobody else wanted.
+- `tests/verify-pick-stats.php` builds the unique-pick situation deliberately,
+  since no real person is picked by exactly one team, and checks both the
+  figures and the rendered page.
+
+### Fixed
+- A share of submitted teams below half a percent displayed as “0.0%”, which
+  reads as “nobody took this name” and contradicts the count beside it. It now
+  reads “less than 1%”.
+
+### Notes
+- Counts come from the current submitted revision of each entry only. A team
+  that amends its picks supersedes its old revision, so counting every revision
+  would inflate totals and count the same team twice.
+- Figures are scoped to the season in play. A player can hold an entry in more
+  than one season, and pooling them would count them as several teams. The
+  season is single-sourced with the page's scorecard so the two cannot
+  disagree.
+- The ranking aggregate costs a few hundred milliseconds on a large field, so
+  the distribution is cached and invalidated whenever an entry is submitted or
+  amended. A warm read is about 5ms.
+- Team names are shown, never the account holder: picks are public after lock
+  under the ruleset, but a public page naming which player picked whom is a
+  disclosure the game does not need to make.
+
 ## [0.11.0] — 2026-09-28
 
 ### Fixed
