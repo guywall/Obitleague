@@ -71,9 +71,9 @@ final class Site_Chrome {
 		if ( ! $items ) {
 			$items = array(
 				array( 'label' => 'Home', 'url' => home_url( '/' ) ),
-				array( 'label' => 'Standings', 'url' => home_url( '/standings/' ) ),
-				array( 'label' => 'People', 'url' => home_url( '/catalogue/' ) ),
-				array( 'label' => 'Death Archive', 'url' => home_url( '/archive/' ) ),
+		array( 'label' => 'Standings', 'url' => home_url( '/standings/' ) ),array( 'label' => 'People',         'url' => home_url( '/people/' ) ),
+		array( 'label' => 'Picks',          'url' => home_url( '/people/?living=0' ) ),
+		array( 'label' => 'Death archive',  'url' => home_url( '/archive/' ) ),
 			array( 'label' => 'Rules', 'url' => home_url( '/rules/' ) ),
 			array( 'label' => 'Forum', 'url' => home_url( '/forum/' ) ),
 		);
@@ -117,7 +117,8 @@ final class Site_Chrome {
 		// pages highlight Standings; person profiles highlight People.
 		$families = array(
 			'/standings' => '~^/(standings|league|team)(/|$)~',
-			'/catalogue' => '~^/(catalogue|person)(/|$)~',
+			'/people'     => '~^/(people|person)(/|$)~',
+		'/picks'     => '~^/people/\?living=0(/|$)~',
 			'/forum'     => '~^/forum(/|$)~',
 		);
 		foreach ( $families as $base => $re ) {
@@ -165,8 +166,9 @@ final class Site_Chrome {
 	public static function render_footer(): void {
 		$year  = date_i18n( 'Y' );				$links = array(
 				'Standings'     => home_url( '/standings/' ),
-				'People'        => home_url( '/catalogue/' ),
-				'Death Archive' => home_url( '/archive/' ),
+			'People'        => home_url( '/people/' ),
+			'Picks'         => home_url( '/people/?living=0' ),
+			'Death Archive' => home_url( '/archive/' ),
 				'Rules'         => home_url( '/rules/' ),
 				'My Leagues'    => home_url( '/my-leagues/' ),
 				'Join a league' => home_url( '/join/' ),
@@ -196,7 +198,7 @@ final class Site_Chrome {
 			<div class="ob-foot__legal">
 				<span>&copy; <?php echo esc_html( $year ); ?> Obitleague</span>
 				<span>Season <?php echo esc_html( $year ); ?> in play</span>
-				<span>Sources: Wikipedia &middot; Wikidata (CC BY-SA / CC0)</span>
+			<span>Facts: public reporting &middot; Wikidata (CC0)</span>
 			</div>
 		</footer>
 		<script>

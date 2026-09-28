@@ -1,0 +1,60 @@
+(function(){
+'use strict';
+
+function onHeader(){
+	var header = document.querySelector('[data-ob-header]');
+	if(!header){ return; }
+
+	var toggle = header.querySelector('.ob-header__toggle');
+	if(toggle){
+		toggle.addEventListener('click', function(){
+			var open = header.classList.toggle('is-open');
+			toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+		});
+	}
+
+	var items = header.querySelectorAll('.ob-header__item');
+	for(var i=0;i<items.length;i++){
+		(function(item){
+			var chev = item.querySelector('.ob-header__chev');
+			var sub  = item.querySelector('[data-ob-mega]');
+			if(!sub){ return; }
+
+			function open(){
+				if(window.innerWidth < 1024){
+					item.classList.add('is-open');
+				}
+			}
+			function close(){
+				if(window.innerWidth < 1024){
+					item.classList.remove('is-open');
+				}
+			}
+
+			item.addEventListener('mouseenter', open);
+			item.addEventListener('focusin', open);
+			item.addEventListener('mouseleave', close);
+			item.addEventListener('focusout', close);
+
+			sub.addEventListener('mouseenter', open);
+			sub.addEventListener('focusin', open);
+			sub.addEventListener('mouseleave', close);
+			sub.addEventListener('focusout', close);
+
+		})(items[i]);
+	}
+
+	window.addEventListener('resize', function(){
+		if(window.innerWidth >= 1024){
+			header.classList.remove('is-open');
+			if(toggle){ toggle.setAttribute('aria-expanded','false'); }
+		}
+	});
+}
+
+if(document.readyState === 'loading'){
+	document.addEventListener('DOMContentLoaded', onHeader);
+}else{
+	onHeader();
+}
+})();
