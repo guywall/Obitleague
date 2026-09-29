@@ -42,6 +42,11 @@ $team_names = array(
 	'Pick of the Mortals', 'The Eulogizers',
 );
 
+// Generated team names for accounts beyond the curated list (always
+// distinct: the user index is appended).
+$team_prefixes = array( 'The Grim', 'Final', 'Silent', 'Ivory', 'Crimson', 'Velvet', 'Marble', 'Hollow', 'Gilded', 'Midnight', 'Paper', 'Winter', 'Amber', 'Iron', 'Quiet' );
+$team_suffixes = array( 'Society', 'Collective', 'Register', 'Enthusiasts', 'Committee', 'Brigade', 'Chorus', 'Archive', 'Circle', 'Union' );
+
 $display_names = array(
 	'Penny Dreadful', 'Max Power', 'Cory Ander', 'Pat Myback', 'Robin Banks',
 	'Terry Cloth', 'Al B. Back', 'Manny Festation', 'Drew Carey-on', 'Carrie Okey',
@@ -326,8 +331,6 @@ foreach ( $league_ids as $league ) {
 		} else {
 			// Beyond the curated list, generate distinct names so no two
 			// teams on a leaderboard share a label.
-			$team_prefixes = $team_prefixes ?? array( 'The Grim', 'Final', 'Silent', 'Ivory', 'Crimson', 'Velvet', 'Marble', 'Hollow', 'Gilded', 'Midnight', 'Paper', 'Winter', 'Amber', 'Iron', 'Quiet' );
-			$team_suffixes = $team_suffixes ?? array( 'Society', 'Collective', 'Register', 'Enthusiasts', 'Committee', 'Brigade', 'Chorus', 'Archive', 'Circle', 'Union' );
 			$team_name = $team_prefixes[ $user_index % count( $team_prefixes ) ] . ' ' . $team_suffixes[ ( $user_index * 3 ) % count( $team_suffixes ) ] . ' ' . ( $user_index + 1 );
 		}
 		$wpdb->update(
