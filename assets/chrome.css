@@ -446,10 +446,6 @@ body.ob-on {
 		padding: 8px 0 12px;
 	}
 
-	.ob-header.is-open .ob-header__actions .ob-header__sub {
-		display: block;
-	}
-
 	.ob-header.ob-header .ob-header__toggle {
 		display: inline-flex;
 	}
