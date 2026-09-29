@@ -200,8 +200,8 @@ public static function people_search_url(): string {
 			if ( null !== $age ) {
 				$out .= '<span class="ob-badge ob-badge--brass">age ' . esc_html( (string) $age ) . ' · ' . esc_html( (string) \Obitleague\Domain\Value\Ruleset::points_for_age( (int) $age ) ) . ' pts</span>';
 			}
-			if ( Cause_Status::NOT_DISCLOSED !== $cause && '' !== $cause ) {
-				$out .= '<span class="ob-badge ob-badge--warn">' . esc_html( Cause_Status::label( $cause ) ) . '</span>';
+			if ( '' !== $cause && \Obitleague\Domain\Value\Cause_Status::NOT_DISCLOSED !== $cause ) {
+				$out .= '<span class="ob-badge ob-badge--warn">' . esc_html( \Obitleague\Domain\Value\Cause_Status::label( $cause ) ) . '</span>';
 			}
 			$out .= '<div class="ob-death__meta">' . esc_html( (string) get_post_meta( $post->ID, 'obit_role', true ) ) . '</div></span>';
 			$out .= '</div>';
