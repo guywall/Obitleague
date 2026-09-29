@@ -5,12 +5,11 @@
  *
  * Checks that the displayed season defaults to the in-play year, that an
  * invalid ?season= falls back rather than rendering empty views, and that
- * both header renderers emit the selector markup.
+ * the selector markup is rendered. No strict_types here: wp eval-file
+ * wraps this file in an eval context where the declaration is illegal.
  *
  * @package Obitleague
  */
-
-declare( strict_types = 1 );
 
 use Obitleague\Modules\Season_Switcher;
 use Obitleague\Modules\Shortcodes;
