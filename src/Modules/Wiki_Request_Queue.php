@@ -26,6 +26,7 @@ final class Wiki_Request_Queue {
 	private const CRON_HOOK      = 'obitleague_wiki_queue_tick';
 	private const CRON_BATCH     = 3;
 	private const WALL_BUDGET_S  = 20.0;
+	private const CLAIM_TTL_S    = 900; // 15 min: beyond any handler budget.
 
 	/** @var array<string, callable> request_kind => handler( array $payload ): array|\WP_Error */
 	private static array $handlers = array();
@@ -100,6 +101,19 @@ final class Wiki_Request_Queue {
 		}
 
 		$table    = $wpdb->prefix . 'obitleague_wiki_queue';
+		// Reclaim rows stuck in 'processing' - a fatal or timeout between the
+		// claim and the handler finishing would otherwise strand them forever.
+		$wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$wpdb->prefix}obitleague_wiki_queue
+				 SET status = %s, claimed_at = NULL
+				 WHERE status = %s AND claimed_at IS NOT NULL AND claimed_at < %s",
+				self::STATUS_PENDING,
+				self::STATUS_PROCESSING,
+				gmdate( 'Y-m-d H:i:s', time() - self::CLAIM_TTL_S )
+			)
+		);
+
 		$done     = 0;
 		$deadline = microtime( true ) + self::WALL_BUDGET_S;
 
@@ -118,8 +132,9 @@ final class Wiki_Request_Queue {
 			// Claim: pending → processing, bumping the attempt counter.
 			$claimed = $wpdb->query(
 				$wpdb->prepare(
-					"UPDATE {$table} SET status = %s, attempts = attempts + 1 WHERE id = %d AND status = %s",
+					"UPDATE {$table} SET status = %s, attempts = attempts + 1, claimed_at = %s WHERE id = %d AND status = %s",
 					self::STATUS_PROCESSING,
+					current_time( 'mysql', true ),
 					(int) $row->id,
 					self::STATUS_PENDING
 				)
