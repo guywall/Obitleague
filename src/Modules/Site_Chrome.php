@@ -49,116 +49,12 @@ final class Site_Chrome {
 		echo "<link href='https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Public+Sans:wght@400;500;600;700;800&display=swap' rel='stylesheet' />\n";
 	}
 
-	/* ---------- navigation ---------- */
-
-	/** Nav items from the Primary menu, with a sane fallback list. */
-	private static function nav_items(): array {
-		$items = array();
-		$locations = get_theme_mod( 'nav_menu_locations', array() );
-		if ( ! empty( $locations['primary'] ) ) {
-			$menu_items = wp_get_nav_menu_items( (int) $locations['primary'] );
-			if ( $menu_items ) {
-				foreach ( $menu_items as $mi ) {
-					$items[] = array(
-						'label' => (string) $mi->title,
-						'url'   => (string) $mi->url,
-					);
-				}
-			}
-		}		// Entry-season calls to action follow the open entry season rather
-		// than a hardcoded year, so the nav never advertises a locked season.
-		$entry_season = League_Service::current_season();
-		if ( ! $items ) {
-			$items = array(
-				array( 'label' => 'Home', 'url' => home_url( '/' ) ),
-		array( 'label' => 'Standings', 'url' => home_url( '/standings/' ) ),array( 'label' => 'People',         'url' => home_url( '/people/' ) ),
-		array( 'label' => 'Picks',          'url' => home_url( '/people/?living=0' ) ),
-		array( 'label' => 'Death archive',  'url' => home_url( '/archive/' ) ),
-			array( 'label' => 'Rules', 'url' => home_url( '/rules/' ) ),
-			array( 'label' => 'Forum', 'url' => home_url( '/forum/' ) ),
-		);
-		}
-		// Statistics sit beside Standings in every menu source.
-		$insert_at = 0;
-		foreach ( $items as $i => $item ) {
-			if ( str_ends_with( (string) wp_parse_url( (string) $item['url'], PHP_URL_PATH ), '/standings/' ) ) {
-				$insert_at = $i + 1;
-				break;
-			}
-		}
-		array_splice( $items, $insert_at, 0, array( array( 'label' => 'Stats', 'url' => home_url( '/stats/' ) ) ) );
-		// Hide the primary-menu duplicate of account pages (rendered below
-		// from the auth-aware fallback list instead).
-		$items = array_values( array_filter(
-			$items,
-			static function ( array $item ): bool {
-				$path = (string) wp_parse_url( (string) $item['url'], PHP_URL_PATH );
-				return ! preg_match( '~/(my-leagues|join)/?$~', $path );
-			}
-		) );
-		// Auth-aware account entries (plan §5: My leagues + join paths).
-		$items[] = array( 'label' => 'My Leagues', 'url' => home_url( '/my-leagues/' ) );
-		if ( is_user_logged_in() ) {
-			$items[] = array( 'label' => 'Log out', 'url' => wp_logout_url( home_url( '/' ) ) );
-		} else {
-			$items[] = array( 'label' => 'Choose your ' . $entry_season . ' team', 'url' => home_url( '/register/' ) );
-		}
-		return $items;
-	}
-
-	private static function is_current( string $url ): bool {
-		$req    = isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '';
-		$path   = rtrim( (string) wp_parse_url( $req, PHP_URL_PATH ), '/' );
-		$target = rtrim( (string) wp_parse_url( $url, PHP_URL_PATH ), '/' );
-		if ( '' === $target ) {
-			return '' === $path;
-		}
-		// Route families roll up to their parent nav item: league and team
-		// pages highlight Standings; person profiles highlight People.
-		$families = array(
-			'/standings' => '~^/(standings|league|team)(/|$)~',
-			'/people'     => '~^/(people|person)(/|$)~',
-		'/picks'     => '~^/people/\?living=0(/|$)~',
-			'/forum'     => '~^/forum(/|$)~',
-		);
-		foreach ( $families as $base => $re ) {
-			if ( $target === $base ) {
-				return (bool) preg_match( $re, $path . '/' );
-			}
-		}
-		return str_starts_with( $path . '/', $target . '/' );
-	}
-
 	public static function render_header(): void {
-		if ( ! is_front_page() && ! is_singular() && ! is_archive() && ! is_post_type_archive() && ! is_tax() && ! is_page() && ! is_search() && ! is_home() ) {
-			// Unknown templates: still render; chrome is site-wide.
-		}
-		$season = date_i18n( 'Y' );
+		// The navigation bar itself is rendered by the Header module
+		// (.ob-header via wp_body_open); this legacy hook only opens the
+		// content wrapper that render_footer() closes.
 		?>
 		<a class="ob-skip" href="#ob-main">Skip to content</a>
-		<header class="ob-nav" data-ob-nav>
-			<div class="ob-nav__inner">
-				<a class="ob-nav__brand" href="<?php echo esc_url( home_url( '/' ) ); ?>" aria-label="Obitleague home">
-					<span class="ob-mark" aria-hidden="true">O</span>
-					<span class="ob-nav__name">Obitleague</span>
-					<span class="ob-nav__season"><?php echo esc_html( $season ); ?></span>
-				</a>
-				<button class="ob-nav__toggle" type="button" aria-expanded="false" aria-controls="ob-nav-menu" aria-label="Menu">
-					<span></span><span></span><span></span>
-				</button>
-				<nav class="ob-nav__menu" id="ob-nav-menu" aria-label="Primary">
-					<?php $logged_in = is_user_logged_in(); ?>
-					<?php foreach ( self::nav_items() as $item ) : ?>
-						<?php if ( 'Log out' === $item['label'] && ! $logged_in ) { continue; } ?>
-						<a class="ob-nav__link<?php echo self::is_current( $item['url'] ) ? ' is-current' : ''; ?>" href="<?php echo esc_url( $item['url'] ); ?>"><?php echo esc_html( $item['label'] ); ?></a>
-					<?php endforeach; ?>
-					<?php if ( ! $logged_in ) : ?>
-						<a class="ob-nav__link" href="<?php echo esc_url( home_url( '/login/?redirect_to=' . rawurlencode( home_url( '/my-leagues/' ) ) ) ); ?>">Sign in</a>
-					<?php endif; ?>
-					<a class="ob-nav__join" href="<?php echo esc_url( home_url( $logged_in ? '/my-leagues/' : '/register/' ) ); ?>"><?php echo $logged_in ? 'My game' : 'Choose your ' . esc_html( (string) League_Service::current_season() ) . ' team'; ?></a>
-				</nav>
-			</div>
-		</header>
 		<main id="ob-main" class="ob-main">
 		<?php
 	}

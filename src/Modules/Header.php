@@ -113,7 +113,6 @@ public static function render(): void {
 	}
 
 	?>
-	?>
 <header class="ob-header ob-js" data-ob-header>
 	<div class="ob-header__inner">
 		<a class="ob-header__brand" href="<?php echo esc_url( home_url( '/' ) ); ?>" aria-label="Obitleague home">
