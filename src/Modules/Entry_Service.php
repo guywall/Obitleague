@@ -243,6 +243,7 @@ final class Entry_Service {
 		// An amendment rewrites the team's picks, so the cached distribution
 		// behind person-page pick counts is now stale.
 		Pick_Stats::flush();
+		Vs_Stats::flush( (int) $entry->season );
 
 		return array(
 			'revision_id'      => $revision_id,
@@ -353,6 +354,7 @@ final class Entry_Service {
 			// The pick distribution behind person-page pick counts is cached;
 			// a new submitted team changes them.
 			Pick_Stats::flush();
+			Vs_Stats::flush( (int) $entry->season );
 
 			return new Submission_Receipt(
 				$receipt_id,

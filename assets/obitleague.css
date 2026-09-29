@@ -782,3 +782,104 @@
 		max-width: none;
 	}
 }
+
+/* --- Humans vs AI: agent cards, profiles, VS tiles --- */
+
+.ob-ai-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+	gap: var(--ob-space-sm, 1rem);
+}
+
+.ob-ai-card {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+	padding: 1rem 1.1rem;
+	border: 1px solid var(--ob-line);
+	border-radius: var(--ob-radius-sm, 8px);
+	background: var(--ob-card);
+	color: var(--ob-ink);
+	text-decoration: none;
+	box-shadow: var(--ob-shadow);
+	transition: transform 120ms ease;
+}
+
+.ob-ai-card:hover { transform: translateY(-2px); }
+
+.ob-ai-card__category {
+	font-size: 0.72rem;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--ob-muted, #5a6b5d);
+}
+
+.ob-ai-card__category--official { color: var(--ob-accent, #8a6d1f); }
+
+.ob-ai-card__name { font-weight: 700; font-size: 1.05rem; }
+
+.ob-ai-card__desc {
+	font-size: 0.86rem;
+	color: var(--ob-muted, #5a6b5d);
+	line-height: 1.45;
+}
+
+.ob-ai-card__model { font-size: 0.78rem; color: var(--ob-muted, #5a6b5d); }
+
+.ob-ai-meta {
+	display: grid;
+	grid-template-columns: max-content 1fr;
+	gap: 0.4rem 1.2rem;
+	margin: 0;
+}
+
+.ob-ai-meta dt { font-weight: 700; color: var(--ob-muted, #5a6b5d); }
+.ob-ai-meta dd { margin: 0; }
+
+.ob-ai-badge {
+	display: inline-block;
+	padding: 0.05rem 0.5rem;
+	border: 1px solid var(--ob-line);
+	border-radius: 999px;
+	font-size: 0.7rem;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+.ob-ai-badge--verified {
+	border-color: var(--ob-accent, #8a6d1f);
+	color: var(--ob-accent, #8a6d1f);
+}
+
+.ob-ai-pick {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	padding: 0.45rem 0;
+	border-bottom: 1px solid var(--ob-line);
+}
+
+.ob-ai-pick img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+
+.ob-ai-pick__points { margin-left: auto; font-weight: 700; color: var(--ob-accent, #8a6d1f); }
+
+.ob-vs-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+	gap: var(--ob-space-sm, 1rem);
+}
+
+.ob-vs-caveat {
+	font-size: 0.84rem;
+	color: var(--ob-muted, #5a6b5d);
+	border-left: 3px solid var(--ob-line);
+	padding-left: 0.8rem;
+}
+
+@media (max-width: 600px) {
+	.ob-ai-grid, .ob-vs-grid { grid-template-columns: 1fr 1fr; }
+	.ob-ai-meta { grid-template-columns: 1fr; }
+	.ob-ai-meta dt { margin-top: 0.4rem; }
+}

@@ -64,8 +64,9 @@ final class Elementor_Bridge {
 	public static function register_tags( $tags_manager ): void {
 		$tag_dir = OBITLEAGUE_DIR . 'src/Elementor/';
 		require_once $tag_dir . 'Tag_Person_Field.php';
+		require_once $tag_dir . 'Tag_Vs_Stat.php';
 
-		foreach ( array( 'Tag_Person_Field' ) as $class ) {
+		foreach ( array( 'Tag_Person_Field', 'Tag_Vs_Stat' ) as $class ) {
 			$tags_manager->register( new ( "Obitleague\\Elementor\\{$class}" )() );
 		}
 	}
