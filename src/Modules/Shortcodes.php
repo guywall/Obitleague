@@ -224,7 +224,10 @@ public static function people_search_url(): string {
 
 	public static function people( $atts = array() ): string {
 		$a     = shortcode_atts( array( 'living' => '1', 'per_page' => 12 ), $atts, 'obitleague_people' );
-		$alive = '1' === (string) $a['living'];
+		// The living/deceased toggle also comes from the query string — the
+		// People mega-menu links advertise /people/?living=0 for the archive.
+		$qs_living = isset( $_GET['living'] ) ? sanitize_text_field( (string) $_GET['living'] ) : '';
+		$alive     = in_array( $qs_living, array( '0', '1' ), true ) ? ( '1' === $qs_living ) : ( '1' === (string) $a['living'] );
 
 		// Query-string filters advertised by the People/Picks mega menu.
 		$occupation = isset( $_GET['occupation'] ) ? sanitize_text_field( (string) $_GET['occupation'] ) : '';
