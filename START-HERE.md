@@ -53,7 +53,7 @@ exist. If it IS on `main`, it is saved forever.
 - `main` contains ALL work through plugin version 0.12.1 — every feature
   branch was merged in and then removed.
 - The live site obitleague.co.uk only changes when you run `deploy-live.sh`.
-- Known live-site issues are being fixed on the branch `fix/live-site-issues`:
-  duplicate header, stray `?>` output, missing `header.min.js`, and the
-  `/people/` 404. Once that branch is merged to `main` and deployed, they
-  are done — re-run `bash tests/smoke-live.sh` to confirm.
+- The four live-site issues (duplicate header, stray `?>` output, missing
+  `header.min.js`, `/people/` 404) are fixed on `main` as of 2026-09-29.
+  If obitleague.co.uk still shows any of them, the site just needs a
+  deploy: run `bash deploy-live.sh`, then `bash tests/smoke-live.sh`.
