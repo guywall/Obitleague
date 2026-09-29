@@ -36,6 +36,7 @@ final class Discovery_Service {
 	private const REVIEW_LOCK_TTL    = 900;
 
 	private static ?int $editorial_publication_post_id = null;
+	private static ?int $system_publication_post_id   = null;
 
 	private function __construct() {}
 
@@ -54,6 +55,63 @@ final class Discovery_Service {
 				return is_wp_error( $result )
 					? $result
 					: new \WP_Error( 'obitleague_discovery_batch', (string) ( $result['note'] ?? 'Batch did not complete.' ) );
+			}
+		);
+		Wiki_Request_Queue::register_handler(
+			'discovery_auto_approve',
+			static function ( array $payload ) {
+				$post_id = (int) ( $payload['post_id'] ?? 0 );
+				if ( self::auto_approve_candidate( $post_id ) ) {
+					return array( 'ok' => true );
+				}
+				$pause = self::rate_limit_pause_until();
+				if ( $pause > time() ) {
+					return new \WP_Error( 'obitleague_discovery_paused', sprintf( 'Wikimedia pause until %s UTC; approval stays queued.', gmdate( 'Y-m-d H:i:s', $pause ) ) );
+				}
+				$status = (string) get_post_meta( $post_id, 'obit_discovery_status', true );
+				if ( 'approved' === $status ) {
+					return array( 'ok' => true ); // Already done by another worker.
+				}
+				return new \WP_Error( 'obitleague_discovery_auto_approve', 'Candidate did not pass the automatic approval checks.' );
+			}
+		);
+		Wiki_Request_Queue::register_handler(
+			'discovery_recheck',
+			static function ( array $payload ) {
+				$post_id = (int) ( $payload['post_id'] ?? 0 );
+				$post    = get_post( $post_id );
+				if ( ! $post || Catalogue::POST_TYPE !== $post->post_type ) {
+					return array( 'ok' => true ); // Record gone: nothing to verify.
+				}
+				$checked = self::verify_current_candidate( $post_id );
+				if ( true === $checked ) {
+					self::audit( $post_id, 'candidate_recheck_passed', array( 'qid' => (string) get_post_meta( $post_id, 'obit_qid', true ) ) );
+					return array( 'ok' => true );
+				}
+				$code      = is_wp_error( $checked ) ? (string) $checked->get_error_code() : '';
+				$message   = is_wp_error( $checked ) ? $checked->get_error_message() : 'Unknown recheck failure.';
+				$transient = array(
+					'obitleague_discovery_paused',
+					'obitleague_discovery_busy',
+					'obitleague_discovery_http_busy',
+					'obitleague_discovery_network',
+					'obitleague_discovery_categories_incomplete',
+					'obitleague_discovery_living_category',
+				);
+				if ( in_array( $code, $transient, true ) ) {
+					return is_wp_error( $checked ) ? $checked : new \WP_Error( 'obitleague_discovery_recheck', $message );
+				}
+				if ( in_array( $code, array( 'obitleague_discovery_not_living', 'obitleague_discovery_death_category' ), true ) ) {
+					// A death signal arrived after publication: demote the record.
+					wp_update_post( array( 'ID' => $post_id, 'post_status' => 'draft' ) );
+					update_post_meta( $post_id, 'obit_eligibility', 'ineligible' );
+					update_post_meta( $post_id, 'obit_eligibility_note', 'Demoted after a queued liveness recheck: ' . $message );
+					self::audit( $post_id, 'candidate_recheck_demoted', array( 'qid' => (string) get_post_meta( $post_id, 'obit_qid', true ), 'reason' => $message ) );
+					return array( 'ok' => true );
+				}
+				// Identity drift and similar: keep published, flag for review.
+				self::audit( $post_id, 'candidate_recheck_review', array( 'qid' => (string) get_post_meta( $post_id, 'obit_qid', true ), 'reason' => $message ) );
+				return array( 'ok' => true );
 			}
 		);
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
@@ -77,6 +135,7 @@ final class Discovery_Service {
 			&& 'publish' !== get_post_status( $post_id )
 			&& 'wikidata-wdqs' === (string) get_post_meta( $post_id, 'obit_discovery_source', true )
 			&& self::$editorial_publication_post_id !== $post_id
+			&& self::$system_publication_post_id !== $post_id
 		) {
 			$data['post_status'] = 'draft';
 		}
@@ -95,9 +154,30 @@ final class Discovery_Service {
 		self::$editorial_publication_post_id = null;
 	}
 
+	/**
+	 * System publication scope: the automatic path (reviewer 0) publishing
+	 * from a stored record that carries no death date. Never opens for a
+	 * logged-in editor flow; the evidence assertion still applies.
+	 */
+	public static function begin_system_publication( int $post_id ): void {
+		if ( $post_id < 1 ) {
+			throw new \RuntimeException( 'A valid candidate id is required for system publication.' );
+		}
+		self::$system_publication_post_id = $post_id;
+	}
+
+	public static function end_system_publication(): void {
+		self::$system_publication_post_id = null;
+	}
+
 	/** Validate saved evidence and reviewer identity immediately before publishing. */
 	public static function assert_approval_evidence( int $post_id, ?array $evidence ): void {
-		if ( self::$editorial_publication_post_id !== $post_id || ! is_user_logged_in() || ! current_user_can( self::EDITOR_CAPABILITY ) || ! is_array( $evidence ) ) {
+		$is_system    = self::$system_publication_post_id === $post_id;
+		$is_editorial = self::$editorial_publication_post_id === $post_id;
+		if ( ! $is_system && ( ! $is_editorial || ! is_user_logged_in() || ! current_user_can( self::EDITOR_CAPABILITY ) || ! is_array( $evidence ) ) ) {
+			throw new \InvalidArgumentException( 'Discovery candidates require approval through the editorial review queue.' );
+		}
+		if ( ! is_array( $evidence ) ) {
 			throw new \InvalidArgumentException( 'Discovery candidates require approval through the editorial review queue.' );
 		}
 		$url                  = trim( (string) ( $evidence['url'] ?? '' ) );
@@ -108,8 +188,7 @@ final class Discovery_Service {
 		if ( ! Discovery_Rules::is_approved_living_evidence( $url, $date, true )
 			|| false === $checked_at_timestamp			|| $checked_at_timestamp < time() - 60
 			|| $checked_at_timestamp > time() + 30
-			|| $reviewer < 1
-			|| $reviewer !== get_current_user_id()
+			|| ( $is_system ? 0 !== $reviewer : ( $reviewer < 1 || $reviewer !== get_current_user_id() ) )
 			|| '1' !== (string) get_post_meta( $post_id, 'obit_alive_evidence_checked', true )
 			|| esc_url_raw( $url ) !== (string) get_post_meta( $post_id, 'obit_alive_evidence_url', true )
 			|| $date !== (string) get_post_meta( $post_id, 'obit_alive_evidence_date', true )
@@ -364,8 +443,10 @@ final class Discovery_Service {
 		}
 		$qid = (string) get_post_meta( $post_id, 'obit_qid', true );
 
-		// The user's rule: a missing death date on the record is the
-		// self-check. A death date present at approval time is a hard stop.
+		// The user's rule: a missing death date on the stored record is the
+		// self-check, and publication never blocks on Wikimedia. A death date
+		// present at approval time is a hard stop; the live cross-check runs
+		// afterwards from the global request queue, not inline.
 		if ( '' !== (string) get_post_meta( $post_id, 'obit_death_date', true ) ) {
 			update_post_meta( $post_id, 'obit_discovery_status', 'rejected' );
 			update_post_meta( $post_id, 'obit_discovery_rejected_at', current_time( 'mysql', true ) );
@@ -385,23 +466,22 @@ final class Discovery_Service {
 		try {
 			self::acquire_review_lock( $post_id );
 			try {
-				// Records the fresh-check evidence itself, then publishes
+				// Publishes from the stored record only — no network call —
 				// through the guarded editorial path.
-				self::approve_candidate_locked( $post_id, $source_url, $evidence_date, 0 );
+				self::publish_candidate_from_stored_record(
+					$post_id,
+					$source_url,
+					$evidence_date,
+					0,
+					'Auto-approved by Discovery: the stored record carries no death date.',
+					'candidate_auto_approved'
+				);
 			} finally {
 				delete_option( self::REVIEW_LOCK_PREFIX . $post_id );
 			}
-			self::audit(
-				$post_id,
-				'candidate_auto_approved',
-				array(
-					'qid'          => $qid,
-					'evidence_url' => esc_url_raw( $source_url ),
-					'evidence_date' => $evidence_date,
-					'reviewer_id'  => 0,
-					'mode'         => 'automatic',
-				)
-			);
+			// Fresh liveness cross-check is a queued request, never inline:
+			// it waits out any Wikimedia cooldown and re-verifies the record.
+			Wiki_Request_Queue::enqueue( 'discovery_recheck', array( 'post_id' => $post_id ), 'discovery-recheck-' . $post_id );
 			return true;
 		} catch ( \Throwable $error ) {
 			self::audit( $post_id, 'candidate_auto_approve_failed', array( 'qid' => $qid, 'reason' => $error->getMessage() ) );
@@ -442,16 +522,17 @@ final class Discovery_Service {
 		}
 	}
 
-	private static function approve_candidate_locked( int $post_id, string $source_url, string $evidence_date, int $reviewer_id ): int {
+	/**
+	 * Publish a candidate from the stored record only — no network calls —
+	 * so approvals never block on (or get dropped by) a Wikimedia cooldown.
+	 * Shared by the editor path and the automatic path.
+	 */
+	private static function publish_candidate_from_stored_record( int $post_id, string $source_url, string $evidence_date, int $reviewer_id, string $eligibility_note, string $audit_event ): int {
 		if ( 'draft' !== get_post_status( $post_id ) || 'pending' !== (string) get_post_meta( $post_id, 'obit_discovery_status', true ) ) {
 			throw new \InvalidArgumentException( 'This Discovery candidate is no longer pending.' );
 		}
 		foreach ( array( 'obit_alive_evidence_url', 'obit_alive_evidence_date', 'obit_alive_evidence_checked', 'obit_alive_evidence_checked_by', 'obit_alive_evidence_checked_at' ) as $evidence_key ) {
 			delete_post_meta( $post_id, $evidence_key );
-		}
-		$checked = self::verify_current_candidate( $post_id );
-		if ( is_wp_error( $checked ) ) {
-			throw new \RuntimeException( $checked->get_error_message() );
 		}
 		update_post_meta( $post_id, 'obit_alive_evidence_url', esc_url_raw( $source_url ) );
 		update_post_meta( $post_id, 'obit_alive_evidence_date', $evidence_date );
@@ -460,9 +541,13 @@ final class Discovery_Service {
 		$checked_at = current_time( 'mysql', true );
 		update_post_meta( $post_id, 'obit_alive_evidence_checked_at', $checked_at );
 
-		self::begin_editorial_publication( $post_id );
+		if ( $reviewer_id > 0 ) {
+			self::begin_editorial_publication( $post_id );
+		} else {
+			self::begin_system_publication( $post_id );
+		}
 		try {
-			Import_Service::approve_person( $post_id, 'Approved by an editor after a recent living-status source was checked.' );
+			Import_Service::approve_person( $post_id, $eligibility_note );
 		} catch ( \Throwable $error ) {
 			wp_update_post( array( 'ID' => $post_id, 'post_status' => 'draft' ) );
 			update_post_meta( $post_id, 'obit_eligibility', 'candidate' );
@@ -472,11 +557,34 @@ final class Discovery_Service {
 			}
 			throw $error;
 		} finally {
-			self::end_editorial_publication();
+			if ( $reviewer_id > 0 ) {
+				self::end_editorial_publication();
+			} else {
+				self::end_system_publication();
+			}
 		}
 		update_post_meta( $post_id, 'obit_discovery_status', 'approved' );
-		self::audit( $post_id, 'candidate_approved', array( 'qid' => (string) get_post_meta( $post_id, 'obit_qid', true ), 'evidence_url' => esc_url_raw( $source_url ), 'evidence_date' => $evidence_date, 'reviewer_id' => $reviewer_id, 'rechecked_at' => current_time( 'mysql', true ) ) );
+		self::audit( $post_id, $audit_event, array( 'qid' => (string) get_post_meta( $post_id, 'obit_qid', true ), 'evidence_url' => esc_url_raw( $source_url ), 'evidence_date' => $evidence_date, 'reviewer_id' => $reviewer_id, 'rechecked_at' => current_time( 'mysql', true ) ) );
 		return $post_id;
+	}
+
+	/** Editor path: fresh structured screening first, then publish from the stored record. */
+	private static function approve_candidate_locked( int $post_id, string $source_url, string $evidence_date, int $reviewer_id ): int {
+		if ( 'draft' !== get_post_status( $post_id ) || 'pending' !== (string) get_post_meta( $post_id, 'obit_discovery_status', true ) ) {
+			throw new \InvalidArgumentException( 'This Discovery candidate is no longer pending.' );
+		}
+		$checked = self::verify_current_candidate( $post_id );
+		if ( is_wp_error( $checked ) ) {
+			throw new \RuntimeException( $checked->get_error_message() );
+		}
+		return self::publish_candidate_from_stored_record(
+			$post_id,
+			$source_url,
+			$evidence_date,
+			$reviewer_id,
+			'Approved by an editor after a recent living-status source was checked.',
+			'candidate_approved'
+		);
 	}
 
 	/** Reject without deleting the private draft or audit trail. */
