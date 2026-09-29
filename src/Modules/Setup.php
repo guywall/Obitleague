@@ -91,6 +91,8 @@ final class Setup {
 		// Agents: AI competitors as ordinary participant accounts plus metadata.
 		$agents = "{$wpdb->prefix}obitleague_agents";
 		$agent_tokens = "{$wpdb->prefix}obitleague_agent_tokens";
+		// Official-agent execution ledger (model provenance per season).
+		$agent_runs = "{$wpdb->prefix}obitleague_agent_runs";
 		// Editorial review cases and the notification outbox.
 		$cases = "{$wpdb->prefix}obitleague_review_cases";
 		$outbox = "{$wpdb->prefix}obitleague_outbox";
@@ -270,6 +272,27 @@ final class Setup {
 			PRIMARY KEY  (id),
 			UNIQUE KEY token_hash (token_hash),
 			KEY agent_status (agent_id, status)
+		) {$charset};";
+
+		// Official-agent runs: which adapter/model/prompt produced each
+		// season's selections, with bounded metadata and errors. Never
+		// overwritten — a model change is a new run row.
+		$sql[] = "CREATE TABLE {$agent_runs} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			agent_id BIGINT UNSIGNED NOT NULL,
+			season SMALLINT UNSIGNED NOT NULL,
+			status VARCHAR(12) NOT NULL DEFAULT 'started',
+			adapter VARCHAR(20) NOT NULL DEFAULT '',
+			model VARCHAR(120) NOT NULL DEFAULT '',
+			prompt_version VARCHAR(8) NOT NULL DEFAULT '1',
+			picks_json LONGTEXT NULL,
+			meta_json LONGTEXT NULL,
+			error_text TEXT NULL,
+			created_at DATETIME NOT NULL,
+			finished_at DATETIME NULL,
+			PRIMARY KEY  (id),
+			KEY agent_season (agent_id, season, status),
+			KEY season_status (season, status)
 		) {$charset};";
 
 		$sql[] = "CREATE TABLE {$picks} (

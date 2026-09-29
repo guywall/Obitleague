@@ -100,6 +100,7 @@ add_action(
 		Obitleague\Modules\Rest_Agents::boot();
 		Obitleague\Modules\Mcp_Server::boot();
 		Obitleague\Modules\A2A::boot();
+		Obitleague\Modules\Agent_Orchestrator::boot();
 		Obitleague\Modules\Front_Templates::boot();
 		Obitleague\Modules\Site_Chrome::boot();
 		Obitleague\Modules\Header::boot();
