@@ -50,7 +50,7 @@ exist. If it IS on `main`, it is saved forever.
 
 # Current state (2026-09-29)
 
-- `main` contains ALL work through plugin version 0.12.5 — every feature
+- `main` contains ALL work through plugin version 0.12.6 — every feature
   branch was merged in and then removed.
 - The live site obitleague.co.uk only changes when you run `deploy-live.sh`.
 - The four live-site issues (duplicate header, stray `?>` output, missing

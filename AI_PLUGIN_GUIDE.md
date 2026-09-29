@@ -1,6 +1,6 @@
 # Obitleague plugin guide for AI coding tasks
 
-> **Use this file as the task handoff map, not as an independent specification.** Before changing behavior, inspect the current source and tests named below. This guide describes the checkout when written; it is not a release declaration. Do not assume that every working-tree change is committed or deployed. Refreshed against plugin version 0.12.5 (see `git log --oneline -5` to confirm how recent this is).
+> **Use this file as the task handoff map, not as an independent specification.** Before changing behavior, inspect the current source and tests named below. This guide describes the checkout when written; it is not a release declaration. Do not assume that every working-tree change is committed or deployed. Refreshed against plugin version 0.12.6 (see `git log --oneline -5` to confirm how recent this is).
 
 ## Start here on every task
 
@@ -30,7 +30,7 @@ Safety invariants:
 
 Current source values (verify before relying on these):
 
-- WordPress plugin header / `OBITLEAGUE_VERSION`: `0.12.5` (`obitleague.php`)
+- WordPress plugin header / `OBITLEAGUE_VERSION`: `0.12.6` (`obitleague.php`)
 - `OBITLEAGUE_DB_VERSION`: `0.5.0` (`obitleague.php`; additive migrations in `src/Modules/Setup.php`)
 - Ruleset: `Ruleset::VERSION = '1'` (`src/Domain/Value/Ruleset.php`)
 - Requirements: WordPress 6.4+, PHP 8.2+ (activation blocks older PHP), MySQL 8 / MariaDB 10.6+.
@@ -127,7 +127,7 @@ These are JavaScript contracts between templates and assets. If changing a marke
 ### Site chrome and headers
 
 - `[data-ob-nav]`: removed — the legacy `Site_Chrome` navigation bar is gone; the inline script in `render_footer()` now only drives the `.ob-anim` reveal with a 1.2-second failsafe and the `.ob-stat__num[data-count]` count-up (reduced-motion aware).
-- `[data-ob-header]`: `Header`/`Widget_ObHeader` mega-menu header; `assets/header.js` handles the mobile toggle and the `.ob-header__item` mega menus via `[data-ob-mega]` (open on hover/focus, click-to-open under 1024px).
+- `[data-ob-header]`: `Header`/`Widget_ObHeader` mega-menu header; `assets/header.js` handles the mobile toggle and the `.ob-header__item` mega menus via `[data-ob-mega]` (open on hover/focus, click-to-open under 1024px). The brand badge is a season selector (`[data-ob-season]`, rendered by `Season_Switcher`): competitive views (standings, stats, archive, hero, overall) follow the chosen `?season=`; defaults to the in-play year, unknown values fall back. Register CTA still pitches the entry season.
 
 ### Campaign (`src/Modules/Campaign.php`, `assets/campaign.js`)
 
