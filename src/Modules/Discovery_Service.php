@@ -195,7 +195,7 @@ final class Discovery_Service {
 			|| $checked_at_timestamp > time() + 30
 			|| ( $is_system ? 0 !== $reviewer : ( $reviewer < 1 || $reviewer !== get_current_user_id() ) )
 			|| '1' !== (string) get_post_meta( $post_id, 'obit_alive_evidence_checked', true )
-			|| esc_url_raw( rawurldecode( $url ) ) !== (string) get_post_meta( $post_id, 'obit_alive_evidence_url', true )
+			|| esc_url_raw( $url ) !== (string) get_post_meta( $post_id, 'obit_alive_evidence_url', true )
 			|| $date !== (string) get_post_meta( $post_id, 'obit_alive_evidence_date', true )
 			|| $reviewer !== (int) get_post_meta( $post_id, 'obit_alive_evidence_checked_by', true )
 			|| $checked_at !== (string) get_post_meta( $post_id, 'obit_alive_evidence_checked_at', true )
