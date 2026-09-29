@@ -1,14 +1,14 @@
-# START HERE — how this project's Git works (read this first)
+ START HERE — how this project's Git works (read this first)
 
 Last updated: 2026-09-29
 
-## The one rule
+# The one rule
 
 Everything that matters lives in the branch called **`main`**. That is now the
 **only branch** — on your PC and on GitHub. If it is not on `main`, it does not
 exist. If it IS on `main`, it is saved forever.
 
-## What is what
+# What is what
 
 - **Your project folder** `C:\Users\guy\Documents\Obitz\Obitleague` — this IS
   the website code, sitting on `main`. Deploys to obitleague.co.uk run from
@@ -20,7 +20,7 @@ exist. If it IS on `main`, it is saved forever.
   finishes, its work is merged into `main` and the sandbox is deleted. A pile
   of them is leftover clutter, NOT missing work.
 
-## If you ever feel lost, do exactly this
+# If you ever feel lost, do exactly this
 
 1. Open a terminal in the project folder.
 2. `git status` — if it says "nothing to commit, working tree clean", all is well.
@@ -28,7 +28,7 @@ exist. If it IS on `main`, it is saved forever.
 4. If your other PC looks different, run `git pull origin main` there.
    Both PCs now match. That's the whole trick.
 
-## The only 4 commands you need day-to-day
+# The only 4 commands you need day-to-day
 
 | I want to...            | Command                                                        |
 | ----------------------- | -------------------------------------------------------------- |
@@ -37,7 +37,7 @@ exist. If it IS on `main`, it is saved forever.
 | Save my edit            | `git add -A` then `git commit -m "what I did"` then `git push origin main` |
 | Put it on the live site | `bash deploy-live.sh` (refuses to run unless main is pushed and tests pass) |
 
-## Words that were confusing you
+# Words that were confusing you
 
 - **branch** — a parallel copy of the code. We keep exactly one: `main`.
 - **worktree** — a second folder sharing the same history; Freebuff makes
@@ -48,9 +48,9 @@ exist. If it IS on `main`, it is saved forever.
   As of today there are **none**: every branch was verified contained in
   `main`, then deleted.
 
-## Current state (2026-09-29)
+# Current state (2026-09-29)
 
-- `main` contains ALL work through plugin version 0.12.1 — every feature
+- `main` contains ALL work through plugin version 0.12.2 — every feature
   branch was merged in and then removed.
 - The live site obitleague.co.uk only changes when you run `deploy-live.sh`.
 - The four live-site issues (duplicate header, stray `?>` output, missing

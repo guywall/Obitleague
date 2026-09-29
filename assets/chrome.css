@@ -76,22 +76,27 @@ body.ob-on {
 
 
 /* ---------- ob-header (Elementor widget + plugin fallback) ---------- */
-.ob-header {
+/* Doubled-class selectors (0,2,0) so the Elementor kit's element rules
+   (printed later) cannot restyle header internals. */
+.ob-header.ob-header {
 	position: sticky;
 	top: 0;
 	z-index: 120;
+	background: linear-gradient(140deg, #0a3d2c, #07281c 70%);
+	box-shadow: 0 2px 12px rgba(4, 22, 15, 0.35);
 }
 
-.ob-header__inner {
+.ob-header__inner.ob-header__inner {
 	max-width: 1180px;
 	margin: 0 auto;
 	padding: 0 18px;
 	min-height: 66px;
 	display: flex;
 	align-items: center;
+	gap: 14px;
 }
 
-.ob-header__brand {
+.ob-header__brand.ob-header__brand {
 	display: inline-flex;
 	align-items: center;
 	gap: 10px;
@@ -114,7 +119,7 @@ body.ob-on {
 	box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25), 0 3px 10px rgba(4, 22, 15, 0.45);
 }
 
-.ob-header__name {
+.ob-header__name.ob-header__name {
 	color: #fff;
 	font-family: 'Fraunces', Georgia, serif;
 	font-weight: 700;
@@ -122,7 +127,7 @@ body.ob-on {
 	letter-spacing: 0.01em;
 }
 
-.ob-header__season {
+.ob-header__season.ob-header__season {
 	color: #8fd3b6;
 	font-size: 0.76rem;
 	font-weight: 700;
@@ -132,14 +137,21 @@ body.ob-on {
 	margin-left: 6px;
 }
 
-.ob-header__search {
+.ob-header__search.ob-header__search {
 	margin-left: auto;
 	display: flex;
 	align-items: center;
 	gap: 8px;
 }
 
-.ob-header__search input {
+.ob-header__search .ob-header__search-form.ob-header__search-form {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.ob-header__search input.ob-header__search-input,
+.ob-header__search input[type="search"].ob-header__search-input {
 	width: 200px;
 	padding: 8px 10px;
 	border: 1px solid rgba(255, 255, 255, 0.12);
@@ -147,26 +159,44 @@ body.ob-on {
 	background: rgba(255, 255, 255, 0.06);
 	color: #fff;
 	font-size: 0.9rem;
+	font-family: inherit;
 }
 
-.ob-header__search input::placeholder {
+.ob-header__search input.ob-header__search-input::placeholder {
 	color: rgba(255, 255, 255, 0.55);
 }
 
-.ob-header__search input:focus {
+.ob-header__search input.ob-header__search-input:focus {
 	outline: 0;
 	border-color: #12a06f;
 	background: rgba(255, 255, 255, 0.1);
 }
 
-.ob-header__actions {
+.ob-header__search .ob-btn.ob-btn {
+	min-height: 38px;
+	padding: 8px 14px;
+	border-radius: 9px;
+	font-size: 0.85rem;
+	background: rgba(255, 255, 255, 0.1);
+	color: #fff;
+	box-shadow: none;
+}
+
+.ob-header__search .ob-btn.ob-btn:hover {
+	background: rgba(255, 255, 255, 0.18);
+	color: #fff;
+	transform: none;
+	box-shadow: none;
+}
+
+.ob-header__actions.ob-header__actions {
 	display: flex;
 	align-items: center;
-	gap: 8px;
+	gap: 6px;
 	margin-left: 14px;
 }
 
-.ob-header__link {
+.ob-header__link.ob-header__link {
 	color: rgba(255, 255, 255, 0.86);
 	text-decoration: none;
 	font-weight: 600;
@@ -174,19 +204,21 @@ body.ob-on {
 	padding: 8px 12px;
 	border-radius: 9px;
 	transition: color 0.2s, background 0.2s;
+	display: inline-flex;
+	align-items: center;
 }
 
-.ob-header__link:hover {
+.ob-header__link.ob-header__link:hover {
 	color: #fff;
 	background: rgba(255, 255, 255, 0.08);
 }
 
-.ob-header__link.is-current {
+.ob-header__link.ob-header__link.is-current {
 	color: #fff;
 	background: rgba(255, 255, 255, 0.14);
 }
 
-.ob-header__cta {
+.ob-header__cta.ob-header__cta {
 	color: var(--ob-green-ink);
 	background: #f0c75e;
 	text-decoration: none;
@@ -196,9 +228,12 @@ body.ob-on {
 	border-radius: 999px;
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 	transition: transform 0.15s var(--ob-ease), box-shadow 0.15s;
+	display: inline-flex;
+	align-items: center;
+	white-space: nowrap;
 }
 
-.ob-header__cta:hover {
+.ob-header__cta.ob-header__cta:hover {
 	transform: translateY(-1px);
 	box-shadow: 0 6px 14px rgba(0, 0, 0, 0.3);
 	color: var(--ob-green-ink);
@@ -207,6 +242,20 @@ body.ob-on {
 /* ---------- mega menu ---------- */
 .ob-header__menu {
 	position: relative;
+}
+
+.ob-header__item.ob-header__item {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+}
+
+/* Desktop: open the mega panel on hover/focus of the item. */
+.ob-header__item.ob-header__item:hover > .ob-header__sub,
+.ob-header__item.ob-header__item:focus-within > .ob-header__sub {
+	opacity: 1;
+	visibility: visible;
+	transform: translateY(0);
 }
 
 .ob-header__chev {
@@ -345,6 +394,24 @@ body.ob-on {
 
 .ob-header__toggle span {
 	display: block;
+	width: 100%;
+	height: 2px;
+	border-radius: 2px;
+	background: #fff;
+	transition: transform 0.2s, opacity 0.2s;
+}
+
+.ob-header__toggle span + span {
+	margin-top: 5px;
+}
+
+/* Mobile join CTA lives on its own row inside the dark bar. */
+.ob-header__mobile-join.ob-header__mobile-join {
+	display: none;
+}
+
+.ob-header__toggle span {
+	display: block;
 	height: 2px;
 	width: 100%;
 	background: #fff;
@@ -372,17 +439,34 @@ body.ob-on {
 	}
 
 	.ob-header__actions {
-		order: 2;
-		width: 100%;
-		justify-content: flex-end;
+		display: none;
 	}
 
-	.ob-header__menu {
-		width: 100%;
+	.ob-header.is-open .ob-header__actions {
+		display: flex;
+		flex-direction: column;
+		align-items: stretch;
+		gap: 4px;
+		padding: 8px 0 12px;
+	}
+
+	.ob-header.is-open .ob-header__actions .ob-header__sub {
+		display: block;
 	}
 
 	.ob-header__toggle {
 		display: inline-flex;
+	}
+
+	.ob-header__mobile-join {
+		display: block;
+		padding: 10px 0 14px;
+	}
+
+	.ob-header__mobile-join .ob-header__cta {
+		display: flex;
+		justify-content: center;
+		width: 100%;
 	}
 
 	.ob-header__sub {
@@ -527,6 +611,15 @@ body.ob-on {
 /* The kit targets `.elementor-kit-6 h2` and `.elementor-kit-6 button` with
    (0,1,1)+ specificity and prints after plugin CSS; doubled-class selectors
    win regardless of order. */
+.ob-header.ob-header .ob-header__link.ob-header__link {
+	color: rgba(255, 255, 255, 0.86);
+	text-decoration: none;
+}
+
+.ob-header.ob-header .ob-header__cta.ob-header__cta {
+	color: var(--ob-green-ink);
+	background: #f0c75e;
+}
 .ob-main .elementor-heading-title.elementor-heading-title {
 	font-family: 'Fraunces', Georgia, serif;
 	font-weight: 700;
