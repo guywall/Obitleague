@@ -40,6 +40,12 @@ final class Jobs {
 		add_action( self::HOOK_STANDINGS_REBUILD, array( self::class, 'rebuild_standings' ), 10, 2 );
 		add_action( self::HOOK_WIKI_QUEUE, array( self::class, 'run_wiki_queue' ) );
 		add_action( 'obitleague_main_user_backfill', array( Main_League_Service::class, 'run_user_backfill' ), 10, 2 );
+
+		// Self-healing schedule: upgrades on existing installs never run
+		// activate(), so the tick is (re)armed here on every request.
+		if ( ! \wp_next_scheduled( self::HOOK_WIKI_QUEUE ) ) {
+			\wp_schedule_event( time() + 120, 'obitleague_1min', self::HOOK_WIKI_QUEUE );
+		}
 	}
 
 	/** @param array<string, array{interval:int, display:string}> $schedules */
