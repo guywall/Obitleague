@@ -59,15 +59,40 @@ $rest_root = rest_url( 'obitleague/v1' );
 <main class="ob-page">
 	<section class="ob-hero ob-hero--archive ob-anim">
 		<span class="ob-hero__kicker">Your game</span><h1>My leagues</h1>
-		<p>Season <?php echo esc_html( (string) $season ); ?> is open for picks until 00:00 London time on 1 January <?php echo esc_html( (string) $season ); ?>. Your main-season team determines your overall rank; side leagues are optional competitions with separate entries.</p>
+		<p><?php echo esc_html( Season_Switcher::season_story() ); ?>. Your 2026 team is live on the leaderboard while the 2027 season is open for picks until 00:00 London time on 1 January <?php echo esc_html( (string) $season ); ?>.</p>
 		<div class="ob-hero__cta"><a href="<?php echo esc_url( home_url( '/join/' ) ); ?>">Join a side league</a><a class="ghost" href="<?php echo esc_url( home_url( '/standings/' ) ); ?>">Overall standings</a></div>
 	</section>
 
+	<?php
+	// The in-play season: the player's live 2026 team and position, if any.
+	$live_season = Pick_Stats::season_in_play();
+	$live_league_id = Overall_Standings::main_league_id( $live_season );
+	$live_entry_id = $live_league_id ? (int) $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$wpdb->prefix}obitleague_entries WHERE league_id = %d AND season = %d AND user_id = %d", $live_league_id, $live_season, $user_id ) ) : 0;
+	$live_row = $live_league_id ? Standings_Service::row_for_user( $live_league_id, $live_season, $user_id ) : null;
+	$live_total = $live_league_id ? Standings_Service::count_current( $live_league_id, $live_season ) : 0;
+	if ( $live_league_id && $live_total > 0 ) :
+		?>
+		<section class="ob-card ob-my-league ob-my-league--main<?php echo $live_row ? ' ob-my-league--ranked' : ''; ?>" data-live-season>
+			<div class="ob-my-league__head"><strong class="ob-my-league__name">Season <?php echo esc_html( (string) $live_season ); ?> · in play</strong><span class="ob-my-league__season">Overall leaderboard</span></div>
+			<div class="ob-my-league__stats">
+				<?php if ( $live_row ) : ?>
+					<div class="ob-my-league__stat"><span class="ob-my-league__num"><?php echo esc_html( (string) $live_row['rank'] ); ?></span><span>rank of <?php echo esc_html( (string) $live_total ); ?></span></div>
+					<div class="ob-my-league__stat"><span class="ob-my-league__num"><?php echo esc_html( (string) $live_row['points'] ); ?></span><span>points</span></div>
+					<div class="ob-my-league__stat"><span class="ob-my-league__num"><?php echo esc_html( (string) $live_row['scoring_picks'] ); ?></span><span>scoring picks</span></div>
+				<?php else : ?>
+					<div class="ob-my-league__stat"><span class="ob-my-league__num"><?php echo esc_html( (string) $live_total ); ?></span><span>teams on the leaderboard</span></div>
+					<div class="ob-my-league__stat"><span class="ob-my-league__num">—</span><span>no 2026 team — the season ran before you joined</span></div>
+				<?php endif; ?>
+			</div>
+			<div class="ob-my-league__actions"><a class="ob-btn ob-btn--secondary" href="<?php echo esc_url( home_url( '/standings/' ) ); ?>">Follow the <?php echo esc_html( (string) $live_season ); ?> standings</a><?php if ( $live_entry_id ) : ?><a class="ob-btn ob-btn--secondary" href="<?php echo esc_url( home_url( '/team/' . $live_entry_id . '/' ) ); ?>">View my <?php echo esc_html( (string) $live_season ); ?> team</a><?php endif; ?></div>
+		</section>
+	<?php endif; ?>
+
 	<section id="build-team" class="ob-card ob-my-league ob-my-league--main" data-ob-main-team data-rest="<?php echo esc_url( $rest_root ); ?>" data-nonce="<?php echo esc_attr( $nonce ); ?>" data-verified="<?php echo $is_verified ? '1' : '0'; ?>">
-		<div class="ob-my-league__head"><strong class="ob-my-league__name">Main season · <?php echo esc_html( (string) $season ); ?></strong><span class="ob-my-league__season">Overall leaderboard</span></div>
+		<div class="ob-my-league__head"><strong class="ob-my-league__name">Season <?php echo esc_html( (string) $season ); ?> · picks open</strong><span class="ob-my-league__season">For next year's game</span></div>
 		<div class="ob-my-league__stats">
 			<div class="ob-my-league__stat"><span class="ob-my-league__num"><?php echo $main_row ? esc_html( (string) $main_row['rank'] ) : '—'; ?></span><span><?php echo $main_row ? 'overall rank' : 'not ranked yet'; ?></span></div>
-			<div class="ob-my-league__stat"><span class="ob-my-league__num" data-main-status><?php echo esc_html( (string) ( $main_entry->state ?? 'draft' ) ); ?></span><span>main team status</span></div>
+			<div class="ob-my-league__stat"><span class="ob-my-league__num ob-my-league__state" data-main-status><?php echo esc_html( (string) ( $main_entry->state ?? 'draft' ) ); ?></span><span>2027 team status</span></div>
 		</div>
 		<?php if ( ! $is_verified ) : ?><p class="ob-auth-message ob-auth-message--error" role="alert">Verify your email to choose, save, and submit your team. Check your inbox for the link.</p><?php endif; ?>
 		<div class="ob-main-editor" data-main-editor<?php echo $main_can_edit ? '' : ' hidden'; ?>>

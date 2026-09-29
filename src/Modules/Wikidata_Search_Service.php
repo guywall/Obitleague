@@ -335,7 +335,18 @@ final class Wikidata_Search_Service {
 
 	private static function entity_label( ?array $entity, string $fallback ): string {
 		$label = trim( (string) ( $entity['labels']['en']['value'] ?? '' ) );
-		return '' !== $label ? $label : $fallback;
+		if ( '' !== $label ) {
+			return $label;
+		}
+		// Some Wikidata items carry no English label at all (the label graph
+		// is incomplete); the English Wikipedia sitelink title is the next-
+		// best human-readable name. Never fall straight through to the QID
+		// when a real name is reachable.
+		$enwiki = trim( (string) ( $entity['sitelinks']['enwiki']['title'] ?? '' ) );
+		if ( '' !== $enwiki ) {
+			return str_replace( '_', ' ', $enwiki );
+		}
+		return $fallback;
 	}
 
 	private static function entity_description( ?array $entity ): string {

@@ -26,9 +26,21 @@ final class Game_Pages {
 		Campaign::boot();
 	}
 
-	/** Render campaign at the front page, keeping Elementor data intact. */
+	/**
+	 * Front page: the campaign template is for a pre-launch site with nothing
+	 * to show. Once the in-play season has published standings, the Elementor
+	 * home page (stats, live leaderboard, recent deaths) is the busier front
+	 * door, so it wins. ?campaign=1 still previews the campaign page.
+	 */
 	public static function campaign_template( string $template ): string {
 		if ( is_front_page() ) {
+			$has_live_season = (int) $GLOBALS['wpdb']->get_var(
+				"SELECT COUNT(*) FROM {$GLOBALS['wpdb']->prefix}obitleague_standings_generations WHERE is_current = 1 AND season = " . Pick_Stats::season_in_play()
+			) > 0;
+			$wants_campaign = isset( $_GET['campaign'] );
+			if ( ! $wants_campaign && $has_live_season ) {
+				return $template;
+			}
 			return OBITLEAGUE_DIR . 'src/Templates/campaign-page.php';
 		}
 		$path = trim( (string) wp_parse_url( (string) ( $_SERVER['REQUEST_URI'] ?? '/' ), PHP_URL_PATH ), '/' );

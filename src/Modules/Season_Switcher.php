@@ -61,6 +61,19 @@ final class Season_Switcher {
 		return Pick_Stats::season_in_play();
 	}
 
+	/**
+	 * One short label for the two-season story, e.g.
+	 * "2026 in play · picking for 2027". Every page that mentions a year
+	 * should lean on this so the game never reads as two unrelated games.
+	 */
+	public static function season_story(): string {
+		$in_play = Pick_Stats::season_in_play();
+		$entry   = League_Service::current_season();
+		return $entry !== $in_play
+			? sprintf( '%d in play · picking for %d', $in_play, $entry )
+			: sprintf( '%d in play', $in_play );
+	}
+
 	/** Query args that keep the current selection across links. */
 	public static function season_arg( int $season ): string {
 		return 'season=' . (int) $season;

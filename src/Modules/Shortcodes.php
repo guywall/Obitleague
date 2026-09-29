@@ -129,7 +129,9 @@ public static function people_search_url(): string {
 
 	public static function hero( $atts = array() ): string {
 		$season = self::season();
-		$kicker = Season_Switcher::is_active_selection() ? 'Season ' . (int) $season . ' · archive view' : 'Season ' . (int) $season . ' · In play';
+		$kicker = Season_Switcher::is_active_selection()
+			? 'Season ' . (int) $season . ' · archive view'
+			: Season_Switcher::season_story();
 		$out    = '<section class="ob-hero ob-anim"><span class="ob-hero__kicker">' . esc_html( $kicker ) . '</span>';
 		$out   .= '<h1>Pick ten lives. Follow the year.</h1>';
 		$out   .= '<p>Every confirmed, editor-approved death of a picked figure scores points — younger lives score more: max(1, 100 − age).</p>';

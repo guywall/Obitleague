@@ -883,3 +883,16 @@
 	.ob-ai-meta { grid-template-columns: 1fr; }
 	.ob-ai-meta dt { margin-top: 0.4rem; }
 }
+
+/* Status words render as badges, not giant display numerals (#5 in UX report). */
+.ob-my-league__state.ob-my-league__state {
+	font-family: var(--ob-font-body, 'Public Sans', sans-serif);
+	font-size: 0.9rem;
+	font-weight: 700;
+	text-transform: lowercase;
+	letter-spacing: 0.01em;
+	background: var(--ob-accent-soft);
+	color: var(--ob-accent-deep);
+	border-radius: 999px;
+	padding: 4px 12px;
+}
