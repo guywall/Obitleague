@@ -66,7 +66,8 @@ probe 200 "join/"
 # Account surfaces. The branded /login/ page belongs to the header/login
 # workstream: pre-merge it 404s, post-merge it must render.
 probe 302 "wp-admin/"
-probe 200 "wp-login.php"
+# /wp-login.php intentionally 302-redirects to the branded /login/ page.
+probe 302 "wp-login.php"
 probe 200 "login/"
 
 # REST layer.
