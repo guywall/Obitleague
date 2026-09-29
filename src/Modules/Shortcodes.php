@@ -277,7 +277,7 @@ final class Shortcodes {
 	 * belong to them, not the other way round.
 	 */
 	public static function teams( $atts = array() ): string {
-		$a = shortcode_atts( array( 'season' => self::season(), 'per_page' => 24 ), $atts, 'obitleague_teams' );
+		$a = shortcode_atts( array( 'season' => Season_Switcher::displayed_season(), 'per_page' => 24 ), $atts, 'obitleague_teams' );
 		$season   = (int) $a['season'];
 		$search   = isset( $_GET['q'] ) ? sanitize_text_field( (string) $_GET['q'] ) : '';
 		$paged    = max( 1, (int) ( $_GET['paged'] ?? ( get_query_var( 'paged' ) ?: 1 ) ) );
