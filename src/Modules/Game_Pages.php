@@ -42,6 +42,9 @@ final class Game_Pages {
 	/** Create dedicated authentication pages without enabling global registration. */
 	public static function ensure_campaign_pages(): void {
 		$pages = array(
+			// The people catalogue page backs the /people/ links in the nav,
+			// footer and header search; without it those links 404.
+			'people'       => array( 'title' => 'People', 'content' => '[obitleague_people per_page="24"]' ),
 			'login'        => array( 'title' => 'Sign in to Obitleague', 'content' => '[obitleague_login]' ),
 			'register'     => array( 'title' => 'Create your Obitleague account', 'content' => '[obitleague_register]' ),
 			'verify-email' => array( 'title' => 'Verify your Obitleague email', 'content' => '' ),

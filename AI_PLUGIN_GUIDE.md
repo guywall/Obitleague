@@ -56,15 +56,15 @@ Key modules:
 
 - Game core: `League_Service` (create/join/invites), `Entry_Service` (drafts, submission receipts, stale/lock races), `Review_Service` (editorial state machine), `Outbox_Service` (award fan-out and reversals), `Scoring_Service` (award ledger), `Standings_Service` + `Overall_Standings` (published generations, keyset-paged rebuilds), `Jobs` (feed polling, outbox tick, scheduled standings rebuilds).
 - Catalogue: `Catalogue` (`obit_person` post type, `obit_occupation` taxonomy, eligibility meta, `is_selectable()`), `People_Sync` (portraits P18 + occupations P106 from Wikidata; the only writer of the occupation taxonomy), `Import_Service` (feed/people imports; keeps role text as `obit_occupation_hint`), `Wikidata_Search_Service` (player-initiated lookup/import), `Person_Content` (composed body prose), `Occupation_Taxonomy` (orphan-term pruning), `Pick_Stats` (how often a name was taken).
-- Front end: `Game_Pages` (routes/shortcodes/page provisioning), `Front_Templates` (person/archive templates), `Site_Chrome` (legacy `ob-nav` chrome, footer, fonts, motion), `Header` + `HeaderIntegration` (second header system, see below), `Forum`, `Auth` (registration/email verification), `Campaign` (2027 landing demo), `Seo` (titles, meta, JSON-LD, crawl control).
+- Front end: `Game_Pages` (routes/shortcodes/page provisioning), `Front_Templates` (person/archive templates), `Site_Chrome` (footer, fonts, motion — the navigation bar comes from `Header`), `Header` + `HeaderIntegration` (site header, see below), `Forum`, `Auth` (registration/email verification), `Campaign` (2027 landing demo), `Seo` (titles, meta, JSON-LD, crawl control).
 - Admin: `Admin_Review`, `Admin_Discovery`, `Admin_Game`, `Admin_Stats`, `Admin_Theme`, `Demo_Accounts_Admin`.
 - Discovery: `Discovery_Service` (living-person candidate queue for editorial confirmation).
 
 Primary data concepts are normalized plugin tables (`obitleague_leagues`, league members, entries, entry revisions/picks, events, review cases, awards, standings generations, forum topics/posts, audit log, and supporting tables) plus public WordPress `obit_person` posts/meta. Read `Setup.php` for the exact current schema; do not assume every old architecture diagram matches it.
 
-## Site headers — two systems exist
+## Site headers
 
-`Site_Chrome` renders the original `ob-nav` header and footer (injected at `wp_body_open` / `wp_footer`), and `Header` renders a second `ob-header` mega-menu header at `wp_body_open` as well. Both are currently booting; this duplication is a known issue with a separate workstream in flight on the header files — check before touching them. The `Header` system also registers the `obitleague-header` script with a `.min` suffix when `SCRIPT_DEBUG` is off, and **no `assets/header.min.js` is committed**, so the header script 404s in production-like environments unless `SCRIPT_DEBUG` is defined or a minified asset is added.
+`Header` renders the single site navigation (`ob-header` mega menu) at `wp_body_open`. The old `ob-nav` bar from `Site_Chrome` has been removed: `Site_Chrome::render_header()` now only prints the skip link and opens the `#ob-main` content wrapper, which `render_footer()` closes around the footer. `Game_Pages::ensure_campaign_pages()` auto-provisions the `/people/` page plus `/login/`, `/register/` and `/verify-email/` on `init`, so nav links to them resolve. The `obitleague-header` script registers with a `.min` suffix when `SCRIPT_DEBUG` is off; `assets/header.min.js` is committed and is hand-minified — keep it in sync whenever `assets/header.js` changes.
 
 ## Routes, shortcodes, and page integration
 
@@ -126,7 +126,7 @@ These are JavaScript contracts between templates and assets. If changing a marke
 
 ### Site chrome and headers
 
-- `[data-ob-nav]`: legacy `Site_Chrome` navigation root; toggle/scrolled-state handled by inline script in `render_footer()`, which also drives `.ob-anim` reveal with a 1.2-second failsafe and `.ob-stat__num[data-count]` count-up (reduced-motion aware).
+- `[data-ob-nav]`: removed — the legacy `Site_Chrome` navigation bar is gone; the inline script in `render_footer()` now only drives the `.ob-anim` reveal with a 1.2-second failsafe and the `.ob-stat__num[data-count]` count-up (reduced-motion aware).
 - `[data-ob-header]`: `Header`/`Widget_ObHeader` mega-menu header; `assets/header.js` handles the mobile toggle and the `.ob-header__item` mega menus via `[data-ob-mega]` (open on hover/focus, click-to-open under 1024px).
 
 ### Campaign (`src/Modules/Campaign.php`, `assets/campaign.js`)
@@ -159,7 +159,7 @@ Find the authoritative consumer with a repository search before renaming any mar
 - `Setup::maybe_upgrade()` applies schema changes in admin; database migrations must be additive and carefully reviewed.
 - Page provisioning and demo/seed/migration scripts may change WordPress data. `tests/demo-*.php`, `tests/import-seed-file.php`, `tests/migrate-main-entries.php`, `tests/sync-portraits.php`, `tests/build-person-content.php`, and the `verify-*` scripts are wp-cli/eval-file operations — do not run them against production or a shared database without explicit approval. `tests/e2e-*.php` exercise live flows on a real install.
 - Do not deploy or edit the LocalWP/live copy as part of a source-only task unless specifically requested. Deployment is guarded by `deploy-live.sh` and requires explicit user direction.
-- The two header systems (see "Site headers") and the missing `header.min.js` asset are known issues; coordinate before editing `Header.php`, `Site_Chrome.php`, `HeaderIntegration.php`, `HeaderBridge.php`, `Widget_ObHeader.php`, or `assets/header.js`.
+- The legacy `ob-nav` header was removed in favour of the single `ob-header` system. Keep `assets/header.min.js` in sync with `assets/header.js`.
 - Keep unrelated user/agent changes untouched. Prefer narrowly scoped diffs, tests, and commits; do not assume multiple Freebuff threads automatically coordinate.
 
 ## Useful checks

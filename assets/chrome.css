@@ -412,9 +412,6 @@ body.ob-on {
 }
 
 /* ---------- existing chrome tweaks ---------- */
-.ob-main .ob-header + main {
-	top: 66px;
-}
 
 /* ---------- footer ---------- */
 .ob-foot {
