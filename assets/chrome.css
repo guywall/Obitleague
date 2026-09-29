@@ -138,6 +138,11 @@ body.ob-on {
 }
 
 /* Header season selector: a <select> styled like the old season badge. */
+.ob-season-select.ob-season-select {
+	flex: 0 0 auto;
+	display: inline-flex;
+}
+
 .ob-season-select.ob-season-select select {
 	color: #8fd3b6;
 	font-family: 'Public Sans', ui-sans-serif, system-ui, sans-serif;
@@ -151,6 +156,9 @@ body.ob-on {
 	margin-left: 6px;
 	cursor: pointer;
 	appearance: none;
+	flex: 0 0 auto;
+	min-width: 86px;
+	width: auto;
 	background-image: linear-gradient(45deg, transparent 50%, #8fd3b6 50%), linear-gradient(135deg, #8fd3b6 50%, transparent 50%);
 	background-position: calc(100% - 12px) 55%, calc(100% - 8px) 55%;
 	background-size: 4px 4px;
