@@ -34,15 +34,17 @@ final class Shortcodes {
 	 * into the catalogue's ?q= browse instead.
 	 */
 	public static function redirect_catalogue_search(): void {
-		if ( ! is_page() || is_search() ) {
-			return;
-		}
 		$s = isset( $_GET['s'] ) ? sanitize_text_field( (string) $_GET['s'] ) : '';
 		if ( '' === $s ) {
 			return;
 		}
+		// Match on the request path: with ?s= present WordPress has already
+		// resolved the request into the search/404 template by the time
+		// template_redirect fires, so conditional tags cannot be trusted.
 		$search_url = self::people_search_url();
-		if ( $search_url && untrailingslashit( (string) get_permalink() ) === untrailingslashit( $search_url ) ) {
+		$search_path = (string) parse_url( (string) $search_url, PHP_URL_PATH );
+		$request_path = (string) parse_url( (string) ( $_SERVER['REQUEST_URI'] ?? '' ), PHP_URL_PATH );
+		if ( '' !== $search_path && rtrim( $request_path, '/' ) === rtrim( $search_path, '/' ) ) {
 			wp_safe_redirect( add_query_arg( array( 'q' => $s ), $search_url ), 302 );
 			exit;
 		}
@@ -254,7 +256,8 @@ public static function people_search_url(): string {
 		$search = isset( $_GET['q'] ) ? sanitize_text_field( (string) $_GET['q'] ) : '';
 		$sort   = isset( $_GET['sort'] ) ? sanitize_key( (string) $_GET['sort'] ) : '';
 		$letter = isset( $_GET['letter'] ) ? strtoupper( sanitize_text_field( (string) $_GET['letter'] ) ) : '';
-		$paged  = max( 1, (int) ( $_GET['paged'] ?? 1 ) );
+		// Canonical /page/N/ URLs carry the number in the query vars, not $_GET.
+		$paged  = max( 1, (int) ( $_GET['paged'] ?? ( get_query_var( 'paged' ) ?: 1 ) ) );
 		if ( ! in_array( $sort, array( 'name', 'newest', 'oldest', 'most_picked' ), true ) ) {
 			$sort = 'name';
 		}
@@ -361,17 +364,42 @@ public static function people_search_url(): string {
 		}
 		$q = new \WP_Query( $query_args );
 
-		// Most-picked sorts on the seasonal pick distribution after the query.
+		// Most-picked sorts the whole matching set by seasonal pick count —
+		// not just the loaded page — then slices the requested page.
 		if ( 'most_picked' === $sort ) {
+			$set_args             = $query_args;
+			$set_args['posts_per_page'] = 2000;
+			$set_args['fields']   = 'ids';
+			unset( $set_args['paged'], $set_args['orderby'], $set_args['order'], $set_args['meta_key'] );
+			$set_query = new \WP_Query( $set_args );
+			$all_ids   = array_map( 'intval', (array) $set_query->posts );
 			$pick_counts = Pick_Stats::pick_counts_by_uuid( (int) self::season() );
 			usort(
-				$q->posts,
-				static function ( $a_post, $b_post ) use ( $pick_counts ): int {
-					$a_uuid = (string) get_post_meta( $a_post->ID, 'obit_uuid', true );
-					$b_uuid = (string) get_post_meta( $b_post->ID, 'obit_uuid', true );
-					return ( $pick_counts[ $b_uuid ] ?? 0 ) <=> ( $pick_counts[ $a_uuid ] ?? 0 );
+				$all_ids,
+				static function ( int $a_id, int $b_id ) use ( $pick_counts ): int {
+					$a_uuid = (string) get_post_meta( $a_id, 'obit_uuid', true );
+					$b_uuid = (string) get_post_meta( $b_id, 'obit_uuid', true );
+					return ( $pick_counts[ $b_uuid ] ?? 0 ) <=> ( $pick_counts[ $a_uuid ] ?? 0 ) || ( $a_id <=> $b_id );
 				}
 			);
+			$page_ids = array_slice( $all_ids, ( $paged - 1 ) * $per_page, $per_page );
+			if ( $page_ids ) {
+				$page_query = new \WP_Query(
+					array(
+						'post_type'      => Catalogue::POST_TYPE,
+						'post_status'    => 'publish',
+						'post__in'       => $page_ids,
+						'orderby'        => 'post__in',
+						'posts_per_page' => count( $page_ids ),
+					)
+				);
+				$set_query->posts = $page_query->posts;
+			} else {
+				$set_query->posts = array();
+			}
+			$set_query->found_posts   = count( $all_ids );
+			$set_query->max_num_pages = (int) max( 1, ceil( count( $all_ids ) / $per_page ) );
+			$q = $set_query;
 		}
 		$active_filters = array();
 		if ( '' !== $occupation ) {
