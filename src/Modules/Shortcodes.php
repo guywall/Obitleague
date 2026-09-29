@@ -379,7 +379,8 @@ public static function people_search_url(): string {
 				static function ( int $a_id, int $b_id ) use ( $pick_counts ): int {
 					$a_uuid = (string) get_post_meta( $a_id, 'obit_uuid', true );
 					$b_uuid = (string) get_post_meta( $b_id, 'obit_uuid', true );
-					return ( $pick_counts[ $b_uuid ] ?? 0 ) <=> ( $pick_counts[ $a_uuid ] ?? 0 ) || ( $a_id <=> $b_id );
+					$primary = ( $pick_counts[ $b_uuid ] ?? 0 ) <=> ( $pick_counts[ $a_uuid ] ?? 0 );
+					return 0 !== $primary ? $primary : ( $a_id <=> $b_id );
 				}
 			);
 			$page_ids = array_slice( $all_ids, ( $paged - 1 ) * $per_page, $per_page );
