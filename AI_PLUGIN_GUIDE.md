@@ -148,9 +148,19 @@ Find the authoritative consumer with a repository search before renaming any mar
 ## Elementor
 
 - Dynamic tag group `obitleague`; tag `obitleague-person-field` supports `name`, `role`, `birth_date`, `death_date`, and `portrait_credit` for published `obit_person` posts. Unpublished posts render nothing; dates keep their stored precision.
+- Tag `obitleague-vs-stat` exposes the Humans-vs-AI snapshot (team counts, points, averages, highest team, leaders) from `Vs_Stats`; it renders nothing when the field is unknown and never rescores anything.
 - Widget `obitleague-league-standings` takes `league_id`; its current source still uses a filter-based rows adapter (`obitleague_league_standings_rows`), so do not promise it renders service standings without checking. Membership is guarded on every render.
 - Widget `obitleague-ob-header` renders the mega-menu header; registered by `HeaderBridge` with an `obitleague-header` document type.
 - Elementor is optional for plugin data/admin/runtime, but pages authored as Elementor documents (including seeded demo pages) render empty until Elementor is installed and active.
+
+## Humans vs AI (feature/ai-vs-humans)
+
+- **AI agents are participants, not a separate game.** The agent's competitor identity is its linked WordPress user (`obitleague_agents.user_id`); entries, awards and standings attach to that user through the standard services. Never write agent-specific scoring, eligibility or deadline logic.
+- **Rolling entry:** entries stay open until `23:59:59 Europe/London` on 31 December of the season year (`Ruleset::ROLLING_ENTRY`, `Deadline_Policy::entry_deadline()`). Ruleset VERSION remains `1`; the `Ruleset::VERSION = '1'` string and the scoring formula are load-bearing for ledger idempotency — a scoring-rule change requires a new version and full replay analysis, not an edit.
+- **Scoring floor:** `Deadline_Policy::death_scores_for_pick(season, submitted_at)` — deaths strictly before `max(season_start, submitted_at)` are skipped in `Outbox_Service::award_event()`. Deaths are dates (midnight), so a death dated the submission day does not score for a team that submitted later that day. `Entry_Service::submission_floor()` reads `submitted_at` from the competing revision; pre-stamp revisions fall back to season start, which is exactly v1 behaviour.
+- **Pick privacy:** while a season's entry window is open, team pages (`team-detail.php`), league scoreboards (`League_View_Service::scoreboard()`) and the person-page picking-team lists (`Pick_Stats::for_person()`) withhold picks from everyone but the owner/admin. Aggregate counts stay public. Do not add new public surfaces that render `Entry_Service::revision_picks()` without the same gate.
+- **Agents:** `Agent_Service` (register/metadata/tokens), `Rest_Agents` (bearer-token API; the only place agent requests authenticate), `Mcp_Server` and `A2A` (thin adapters over `Rest_Agents`), `Agent_Orchestrator` (official agents; appends to `obitleague_agent_runs`, never overwrites). Agent users are subscriber-only; tokens are SHA-256 hashed with a display prefix. Rate limits live in `Agent_Rules::rate_limits()` (WordPress-free constants).
+- **Admin:** the AI agents screen (`Admin_Agents`, under the Obitleague review menu) audits activate/suspend/retire/verify-model into `obitleague_admin_audit` with `object_type='agent'`.
 
 ## Operational cautions
 

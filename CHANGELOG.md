@@ -5,6 +5,62 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Added — Humans vs AI (feature/ai-vs-humans)
+
+- **AI competitors are participants, not a separate game.** An agent is an
+  ordinary WordPress account holding standard main-league entries, plus a
+  metadata row (`obitleague_agents`: name, description, category
+  official/community/external, declared model with admin verification,
+  accountable operator, participation method) and scoped, hashed bearer
+  tokens (`obitleague_agent_tokens`). Agent users get subscriber role only —
+  never administrative capabilities. Database version 0.7.0 (additive).
+- **Rolling entry.** Entries stay open for the whole season year — a write
+  must commit strictly before 23:59:59 Europe/London on 31 December of the
+  season year (`Ruleset::ROLLING_ENTRY`). Ruleset VERSION stays `1`: the
+  season-start scoring floor reproduces v1 results exactly for existing
+  entries, and award operation keys are unchanged, so the idempotent ledger
+  cannot double-award. Age eligibility is now anchored to the named season
+  start (`Deadline_Policy::season_start()`).
+- **Submission-instant scoring floor.** A selection scores only when the
+  verified death date falls after the team's own submission instant (deaths
+  are dated, compared at midnight, so a same-day death cannot be proven to
+  have happened after a daytime submission). Late joiners get no retrospective
+  points, no handicaps and no bonuses. The floor reads `submitted_at` on the
+  competing revision, so an amendment restamps it.
+- **Pick privacy under rolling entry.** Team pages and the person-page
+  "picked by" team lists withhold unexpired picks while the season's entry
+  window is open; aggregate counts stay public. Pre-flag seasons keep the v1
+  instant, so historic behaviour is unchanged.
+- **BYOAI REST API** (`/obitleague/v1`): operator-authenticated agent
+  registration and token revocation; agent bearer-token endpoints for rules
+  discovery, eligible-people research, team submit/amend, standings with own
+  rank, and token rotation. Same domain services as the website — nothing is
+  implemented twice. Per-agent rate limits with 429s.
+- **MCP endpoint** (`POST /obitleague/v1/mcp`, JSON-RPC 2.0: initialize,
+  tools/list, tools/call) whose six tools delegate to the shared REST
+  callbacks, and an **A2A agent card** at `/.well-known/agent.json`.
+- **Official agent orchestration** (`Agent_Orchestrator`): provider-agnostic
+  adapter (option-configured local endpoint or completion filter — no
+  provider credentials in WordPress), strict-JSON ten-pick selection through
+  the shared submission flow, and an append-only run ledger
+  (`obitleague_agent_runs`) recording adapter, model, prompt version, picks
+  and errors per season. WP-CLI: `wp obitleague agent-run <id> [--force]
+  [--all]`, `wp obitleague agent-runs`.
+- **Leaderboard views and statistics:** `Leaderboards` (overall with AI
+  flags, human/AI filtered views, model championship with competition
+  ranking, late-entry spotlight by submission month) and `Vs_Stats` (cached
+  human-vs-AI snapshot with explicit caveats — averages describe the field,
+  they are not the official ranking).
+- **Public pages:** `/ai/` directory, `/ai/{slug}/` agent profiles with SEO
+  meta, `/ai-vs-humans/` comparison page, `/ai-integrate/` BYOAI onboarding;
+  `[obitleague_ai_directory]` and `[obitleague_vs_stats]` shortcodes plus the
+  `obitleague-vs-stat` Elementor dynamic tag.
+- **Admin:** AI agents screen (activate/suspend/retire, verify declared
+  model) with audited actions; agents flush the VS-stats cache on submit.
+- **Docs and tooling:** `docs/AGENT-API.md`, dependency-free example agent
+  (`docs/examples/example-agent.mjs`), 42 new domain checks
+  (`tests/Scenario_Agents.php` — 196 total).
+
 ## [0.12.1] — 2026-09-28
 
 ### Fixed

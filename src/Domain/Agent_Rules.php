@@ -86,6 +86,10 @@ final class Agent_Rules {
 		return $is_admin;
 	}
 
+	/** Seconds in an hour/day, declared locally: this class stays WordPress-free. */
+	public const HOUR_SECONDS = 3600;
+	public const DAY_SECONDS  = 86400;
+
 	/**
 	 * Rate-limit windows for external agent operations. Each key is a
 	 * named operation; values are [max operations, window seconds].
@@ -94,13 +98,13 @@ final class Agent_Rules {
 	 */
 	public static function rate_limits(): array {
 		return array(
-			'agent_register'  => array( 3, DAY_IN_SECONDS ),
-			'agent_token'     => array( 5, HOUR_IN_SECONDS ),
-			'agent_save'      => array( 60, HOUR_IN_SECONDS ),
-			'agent_submit'    => array( 10, HOUR_IN_SECONDS ),
-			'agent_people'    => array( 240, HOUR_IN_SECONDS ),
-			'agent_standings' => array( 240, HOUR_IN_SECONDS ),
-			'agent_read'      => array( 600, HOUR_IN_SECONDS ),
+			'agent_register'  => array( 3, self::DAY_SECONDS ),
+			'agent_token'     => array( 5, self::HOUR_SECONDS ),
+			'agent_save'      => array( 60, self::HOUR_SECONDS ),
+			'agent_submit'    => array( 10, self::HOUR_SECONDS ),
+			'agent_people'    => array( 240, self::HOUR_SECONDS ),
+			'agent_standings' => array( 240, self::HOUR_SECONDS ),
+			'agent_read'      => array( 600, self::HOUR_SECONDS ),
 		);
 	}
 

@@ -78,22 +78,20 @@ final class Deadline_Policy {
 
 	/**
 	 * Scoring floor for one pick: the earliest death instant a submission
-	 * may score.
+	 * may score. Callers skip a pick when the verified death instant is
+	 * strictly before this floor.
 	 *
-	 * A selection qualifies for scoring only when the verified death happens
-	 * strictly after the team's submission instant (equal never scores).
 	 * The floor is season start (1 January London) no matter when the team
 	 * joined; a submission instant later in the season raises it. Season
-	 * start therefore equals the instant every pre-flag (v1) entry was
-	 * submitted by, so the floor can never move a historic award — v1
-	 * scoring is reproduced exactly.
+	 * start equals the instant every pre-flag (v1) entry was submitted by,
+	 * so the floor can never move a historic award — deaths dated the
+	 * season-start instant itself score exactly as they did under v1.
+	 * Verified deaths are recorded as dates (compared at midnight), so a
+	 * death dated the same calendar day as a daytime submission cannot be
+	 * proven to have happened after it and does not score.
 	 */
 	public static function death_scores_for_pick( int $season, \DateTimeImmutable $submitted_at ): \DateTimeImmutable {
-		// The season-start floor sits one second inside the season, so a death
-		// dated exactly 1 January 00:00:00 scores nobody — matching the v1
-		// "death before the lock instant scores zero" rule.
-		$start_floor = self::season_start( $season )->modify( '+1 second' );
-		return max( $start_floor, $submitted_at );
+		return max( self::season_start( $season ), $submitted_at );
 	}
 
 	/** True when a death approved at $at may still create a NEW award. */

@@ -78,14 +78,19 @@ final class Scenario_Entries {
 	}
 
 	public function test_submission_floor_scores_only_after_the_teams_own_submission( Runner $t ): void {
-		// A season-start team (v1 behaviour): floor is 1 January 00:00:01.
+		// A season-start team (v1 behaviour): floor is 1 January 00:00:00, so
+		// deaths dated the season-start instant score exactly as under v1.
 		$floor = Entry_Rules::death_scores_for_pick( 2027, new \DateTimeImmutable( '2027-01-01T00:00:00+00:00' ) );
-		$t->check( '2027-01-01 00:00:01' === $floor->format( 'Y-m-d H:i:s' ), __METHOD__, 'season-start floor is 1 January plus one second' );
+		$t->check( '2027-01-01 00:00:00' === $floor->format( 'Y-m-d H:i:s' ), __METHOD__, 'season-start floor is 1 January midnight' );
 
-		// A November joiner scores only deaths from their submission instant.
-		$late = Entry_Rules::death_scores_for_pick( 2027, new \DateTimeImmutable( '2027-11-15T10:30:00+00:00' ) );
+		// A November joiner scores only deaths from their submission instant:
+		// a death dated their submission day (midnight) is before the floor.
+		$submitted = new \DateTimeImmutable( '2027-11-15T10:30:00+00:00' );
+		$late = Entry_Rules::death_scores_for_pick( 2027, $submitted );
 		$t->check( '2027-11-15 10:30:00' === $late->format( 'Y-m-d H:i:s' ), __METHOD__, 'late floor is the submission instant' );
 		$t->check( $late > Entry_Rules::death_scores_for_pick( 2027, new \DateTimeImmutable( '2027-01-01T00:00:00+00:00' ) ), __METHOD__, 'late joiners get no retrospective points' );
+		$t->check( new \DateTimeImmutable( '2027-11-14T00:00:00+00:00' ) < $late, __METHOD__, 'death before submission scores zero' );
+		$t->check( new \DateTimeImmutable( '2027-11-16T00:00:00+00:00' ) >= $late, __METHOD__, 'death after submission scores' );
 	}
 
 	public function test_receipt_requires_ten_picks_and_current_ruleset( Runner $t ): void {
