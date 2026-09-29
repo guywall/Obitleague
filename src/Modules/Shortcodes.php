@@ -62,6 +62,14 @@ final class Shortcodes {
 	}
 
 	/** Submitted entry id per user in one league+season (for team links). */
+	public static function people_search_url(): string {
+		$search_page_id = (int) get_option( 'obitleague_people_search_page', 0 );
+		if ( $search_page_id ) {
+			return get_permalink( $search_page_id );
+		}
+		return home_url( '/people/' );
+	}
+
 	private static function entry_ids_for_league( int $league_id, int $season ): array {
 		global $wpdb;
 		$rows = $wpdb->get_results(
