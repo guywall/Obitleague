@@ -238,6 +238,32 @@ final class Pick_Stats {
 	}
 
 	/** Submitted teams in this season holding this person. */
+	/** Picks per uuid for one season; '' => not counted. Used by browse sorting. */
+	public static function pick_counts_by_uuid( int $season, int $cap = 5000 ): array {
+		global $wpdb;
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT p.person_uuid AS uuid, COUNT(DISTINCT r.entry_id) AS picks
+				 FROM ' . $wpdb->prefix . 'obitleague_entry_picks p
+				 JOIN ' . $wpdb->prefix . 'obitleague_entry_revisions r ON r.id = p.revision_id AND r.kind = %s
+				 JOIN ' . $wpdb->prefix . 'obitleague_entries e ON e.id = r.entry_id AND e.state = %s AND e.season = %d
+				 GROUP BY p.person_uuid
+				 HAVING picks > 0
+				 ORDER BY picks DESC, p.person_uuid ASC
+				 LIMIT %d',
+				'submitted',
+				'submitted',
+				$season,
+				$cap
+			)
+		);
+		$counts = array();
+		foreach ( (array) $rows as $row ) {
+			$counts[ (string) $row->uuid ] = (int) $row->picks;
+		}
+		return $counts;
+	}
+
 	private static function count_picks( string $uuid, int $season ): int {
 		global $wpdb;
 		return (int) $wpdb->get_var(

@@ -634,3 +634,151 @@
 	color: var(--ob-muted);
 	max-width: 60ch;
 }
+
+/* ---------- people browse toolbar: search, sorts, letters, pagination ---------- */
+.ob-people__toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	align-items: center;
+	justify-content: space-between;
+	margin: 0 0 14px;
+}
+.ob-people__search {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 0;
+	flex: 1 1 260px;
+	max-width: 420px;
+}
+.ob-people__search input[type="search"] {
+	flex: 1 1 150px;
+	padding: 10px 12px;
+	border: 1px solid var(--ob-line);
+	border-radius: var(--ob-radius-sm);
+	background: var(--ob-card);
+	font-size: 0.92rem;
+	min-height: 44px;
+	font-family: inherit;
+	color: var(--ob-ink);
+	box-shadow: var(--ob-shadow);
+}
+.ob-people__search button {
+	padding: 10px 18px;
+	min-height: 44px;
+	border: 0;
+	border-radius: var(--ob-radius-sm);
+	background: var(--ob-accent-deep);
+	color: #fff;
+	font-weight: 700;
+	font-size: 0.88rem;
+	cursor: pointer;
+	font-family: inherit;
+	transition: background 0.15s;
+}
+.ob-people__search button:hover {
+	background: #0d4633;
+}
+.ob-people__sorts {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+.ob-people__sort {
+	padding: 8px 14px;
+	border: 1px solid var(--ob-line);
+	border-radius: 999px;
+	background: var(--ob-card);
+	color: var(--ob-ink);
+	font-size: 0.84rem;
+	font-weight: 600;
+	text-decoration: none;
+	box-shadow: var(--ob-shadow);
+	transition: background 0.15s, color 0.15s;
+}
+.ob-people__sort:hover {
+	border-color: var(--ob-accent);
+}
+.ob-people__sort.is-active {
+	background: var(--ob-accent-deep);
+	border-color: var(--ob-accent-deep);
+	color: #fff;
+}
+.ob-people__letters {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 3px;
+	margin: 0 0 16px;
+}
+.ob-people__letter {
+	min-width: 26px;
+	padding: 4px 5px;
+	text-align: center;
+	font-size: 0.8rem;
+	font-weight: 700;
+	color: var(--ob-accent-deep);
+	text-decoration: none;
+	border-radius: 6px;
+}
+.ob-people__letter:hover {
+	background: var(--ob-accent-soft);
+}
+.ob-people__letter.is-active {
+	background: var(--ob-accent-deep);
+	color: #fff;
+}
+.ob-people__letter.is-empty {
+	color: var(--ob-line);
+	cursor: default;
+}
+.ob-people__pagination {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	align-items: center;
+	justify-content: space-between;
+	margin: 22px 0 6px;
+}
+.ob-people__count {
+	font-size: 0.85rem;
+	color: var(--ob-muted);
+}
+.ob-people__links {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 5px;
+	align-items: center;
+}
+.ob-page-link {
+	padding: 7px 12px;
+	border: 1px solid var(--ob-line);
+	border-radius: var(--ob-radius-sm);
+	background: var(--ob-card);
+	color: var(--ob-ink);
+	font-size: 0.86rem;
+	font-weight: 600;
+	text-decoration: none;
+	box-shadow: var(--ob-shadow);
+}
+.ob-page-link:hover {
+	border-color: var(--ob-accent);
+}
+.ob-page-link.is-current {
+	background: var(--ob-accent-deep);
+	border-color: var(--ob-accent-deep);
+	color: #fff;
+}
+.ob-page-gap {
+	color: var(--ob-muted);
+	padding: 0 2px;
+}
+@media (max-width: 720px) {
+	.ob-people__toolbar {
+		flex-direction: column;
+		align-items: stretch;
+	}
+	.ob-people__search {
+		max-width: none;
+	}
+}

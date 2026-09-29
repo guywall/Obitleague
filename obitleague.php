@@ -87,6 +87,7 @@ add_action(
 		}
 		Obitleague\Modules\Catalogue::boot();
 		Obitleague\Modules\Occupation_Taxonomy::boot();
+		Obitleague\Modules\People_Sync::boot();
 		Obitleague\Modules\Admin_Review::boot();
 		Obitleague\Modules\Discovery_Service::boot();
 		Obitleague\Modules\Wiki_Request_Queue::boot();
