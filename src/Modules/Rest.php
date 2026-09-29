@@ -167,7 +167,7 @@ final class Rest {
 		return Auth::must_be_verified();
 	}
 
-	private static function rate_limited( string $key, int $max, int $window ) {
+	public static function rate_limited( string $key, int $max, int $window ) {
 		$transient = 'obit_rl_' . md5( $key );
 		$count = (int) get_transient( $transient );
 		if ( $count >= $max ) {
@@ -344,7 +344,7 @@ final class Rest {
 		return new \WP_REST_Response( array( 'entry_id' => $entry_id, 'receipt_id' => $receipt->receipt_id, 'submitted_at' => $receipt->committed_at->format( 'c' ), 'deadline' => $receipt->deadline->format( 'c' ), 'ruleset' => $receipt->ruleset_version ), 201 );
 	}
 
-	private static function latest_draft_revision( int $entry_id ): ?object {
+	public static function latest_draft_revision( int $entry_id ): ?object {
 		global $wpdb;
 		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}obitleague_entry_revisions WHERE entry_id = %d AND kind = 'draft' ORDER BY id DESC LIMIT 1", $entry_id ) ) ?: null;
 	}
