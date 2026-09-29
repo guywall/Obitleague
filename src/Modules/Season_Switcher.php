@@ -89,15 +89,17 @@ final class Season_Switcher {
 			<select id="ob-season-select" data-ob-season>
 				<?php foreach ( $seasons as $season ) : ?>
 					<option value="<?php echo esc_attr( (string) $season ); ?>" <?php selected( $season, $displayed ); ?>>
-						<?php
-						$label = (string) $season;
-						if ( $season === $in_play ) {
-							$label .= ' · in play';
-						} elseif ( $season > $in_play ) {
-							$label .= ' · entry';
-						}
-						echo esc_html( $label );
-						?>				</option>
+					<?php
+					// The in-play year renders as the bare year so the closed
+					// selector stays compact; other seasons carry a tag.
+					$label = (string) $season;
+					if ( $season > $in_play ) {
+						$label .= ' · entry';
+					} elseif ( $season < $in_play ) {
+						$label .= ' · archive';
+					}
+					echo esc_html( $label );
+					?>				</option>
 			<?php endforeach; ?>
 			</select>
 		</label>

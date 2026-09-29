@@ -191,7 +191,7 @@ body.ob-on {
 
 .ob-header__search.ob-header__search input,
 .ob-header__search.ob-header__search input[type="search"] {
-	width: 150px;
+	width: 130px;
 	padding: 8px 10px;
 	border: 1px solid rgba(255, 255, 255, 0.12);
 	border-radius: 9px;
