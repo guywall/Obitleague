@@ -27,10 +27,10 @@ defined( 'ABSPATH' ) || exit;
 
 /* Constants. */
 if ( ! defined( 'OBITLEAGUE_VERSION' ) ) {
-	define( 'OBITLEAGUE_VERSION', '0.13.2' );
+	define( 'OBITLEAGUE_VERSION', '0.14.0' );
 }
 if ( ! defined( 'OBITLEAGUE_DB_VERSION' ) ) {
-	define( 'OBITLEAGUE_DB_VERSION', '0.5.0' );
+	define( 'OBITLEAGUE_DB_VERSION', '0.6.0' );
 }
 if ( ! defined( 'OBITLEAGUE_FILE' ) ) {
 	define( 'OBITLEAGUE_FILE', __FILE__ );
@@ -89,6 +89,7 @@ add_action(
 		Obitleague\Modules\Occupation_Taxonomy::boot();
 		Obitleague\Modules\Admin_Review::boot();
 		Obitleague\Modules\Discovery_Service::boot();
+		Obitleague\Modules\Wiki_Request_Queue::boot();
 		Obitleague\Modules\Admin_Discovery::boot();
 		Obitleague\Modules\Admin_Game::boot();
 		Obitleague\Modules\Admin_Stats::boot();

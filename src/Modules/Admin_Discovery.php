@@ -41,14 +41,20 @@ final class Admin_Discovery {
 		if ( isset( $_GET['error'] ) ) {
 			echo '<div class="notice notice-error"><p>' . esc_html( sanitize_text_field( wp_unslash( (string) $_GET['error'] ) ) ) . '</p></div>';
 		}
-		echo '<p>Discovery reads a small Wikidata cohort and queues at most five private drafts per UTC day. It is manual-only; no visitor cron or automatic publishing is configured.</p>';
-		echo '<p><strong>Liveness warning:</strong> Wikidata and Wikipedia filters are screening signals, not proof that a person is alive. Approval requires the editor to verify a recent source and confirm the person is living.</p>';
+		echo '<p>Discovery reads a small Wikidata cohort and queues at most five candidates per UTC day. Passing candidates are approved automatically — the fresh check confirms the record has no death date and the living-person signals are still intact — and anything uncertain stays below for a manual look.</p>';
 		echo '<p>Next birth-month window: <code>' . esc_html( $status['cursor'] ) . '</code>';
 		if ( $status['daily_limited'] ) {
 			echo ' · Daily batch limit reached.';
 		}
 		if ( $status['pause_until'] > time() ) {
 			echo ' · Wikimedia pause until ' . esc_html( gmdate( 'Y-m-d H:i:s', $status['pause_until'] ) ) . ' UTC.';
+		}
+		echo '</p>';
+		$queue = Wiki_Request_Queue::status();
+		$queue_counts = $queue['counts'];
+		echo '<p>Wikimedia request queue: ' . (int) ( $queue_counts['pending'] ?? 0 ) . ' pending · ' . (int) ( $queue_counts['done'] ?? 0 ) . ' completed · ' . (int) ( $queue_counts['failed'] ?? 0 ) . ' failed';
+		if ( $status['pause_until'] > time() ) {
+			echo ' — paused requests run automatically when the cooldown lifts.';
 		}
 		echo '</p>';
 		$last = is_array( $status['last_run'] ) ? $status['last_run'] : array();
@@ -73,7 +79,7 @@ final class Admin_Discovery {
 
 		echo '<h2>Pending candidates (' . count( $pending ) . ')</h2>';
 		if ( ! $pending ) {
-			echo '<p>No candidates awaiting review.</p></div>';
+			echo '<p>Nothing awaiting review — auto-approval is keeping up.</p></div>';
 			return;
 		}
 		foreach ( $pending as $post ) {
@@ -128,7 +134,18 @@ final class Admin_Discovery {
 		if ( is_wp_error( $result ) ) {
 			self::redirect( array( 'error' => $result->get_error_message() ) );
 		}
-		self::redirect( array( 'notice' => sprintf( 'Window %s: checked %d, queued %d, skipped %d.', $result['window'], $result['checked'], $result['queued'], $result['skipped'] ) ) );
+		$notice = sprintf(
+			'Window %s: checked %d, queued %d, skipped %d.%s',
+			(string) $result['window'],
+			(int) ( $result['checked'] ?? 0 ),
+			(int) ( $result['queued'] ?? 0 ),
+			(int) ( $result['skipped'] ?? 0 ),
+			isset( $result['auto_approved'] ) ? sprintf( ' Auto-approved %d candidates.', (int) $result['auto_approved'] ) : ''
+		);
+		if ( 'queued' === (string) ( $result['status'] ?? '' ) ) {
+			$notice = (string) ( $result['note'] ?? 'Batch stored in the Wikimedia request queue.' );
+		}
+		self::redirect( array( 'notice' => $notice ) );
 	}
 
 	/** Record source and confirmation, perform fresh checks, then publish. */

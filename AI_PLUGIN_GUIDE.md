@@ -1,6 +1,6 @@
 # Obitleague plugin guide for AI coding tasks
 
-> **Use this file as the task handoff map, not as an independent specification.** Before changing behavior, inspect the current source and tests named below. This guide describes the checkout when written; it is not a release declaration. Do not assume that every working-tree change is committed or deployed. Refreshed against plugin version 0.13.2 (see `git log --oneline -5` to confirm how recent this is).
+> **Use this file as the task handoff map, not as an independent specification.** Before changing behavior, inspect the current source and tests named below. This guide describes the checkout when written; it is not a release declaration. Do not assume that every working-tree change is committed or deployed. Refreshed against plugin version 0.14.0 (see `git log --oneline -5` to confirm how recent this is).
 
 ## Start here on every task
 
@@ -30,7 +30,7 @@ Safety invariants:
 
 Current source values (verify before relying on these):
 
-- WordPress plugin header / `OBITLEAGUE_VERSION`: `0.13.2` (`obitleague.php`)
+- WordPress plugin header / `OBITLEAGUE_VERSION`: `0.14.0` (`obitleague.php`); DB schema `OBITLEAGUE_DB_VERSION`: `0.6.0` (adds `wp_obitleague_wiki_queue`)
 - `OBITLEAGUE_DB_VERSION`: `0.5.0` (`obitleague.php`; additive migrations in `src/Modules/Setup.php`)
 - Ruleset: `Ruleset::VERSION = '1'` (`src/Domain/Value/Ruleset.php`)
 - Requirements: WordPress 6.4+, PHP 8.2+ (activation blocks older PHP), MySQL 8 / MariaDB 10.6+.
@@ -50,15 +50,14 @@ Ruleset v1 summary: calendar-year season; deadline 00:00 Europe/London on 1 Janu
 - `tests/run-tests.php`: standalone domain scenarios (no WordPress runtime). Other `tests/*.php` are operational/wp-cli scripts; inspect their headers and **never execute data-changing scripts without explicit authorization**.
 - `work/` is git-ignored seed material; `work/build-seed.cjs` and `work/build-cohort-1946.cjs` fetch from Wikipedia/Wikidata before `tests/import-seed-file.php` can load anything.
 
-Module boot order (`plugins_loaded`, priority 5): admin-only `Setup::maybe_upgrade()` + `Admin_Theme`, then `Catalogue`, `Occupation_Taxonomy`, `Admin_Review`, `Discovery_Service`, `Admin_Discovery`, `Admin_Game`, `Admin_Stats`, `Demo_Accounts_Admin`, `Front_Templates`, `Site_Chrome`, `Header`, `Forum`, `Seo`, `Shortcodes`, `Game_Pages`, `Jobs`, `Rest`. `Elementor_Bridge` boots at priority 20; `HeaderBridge` on `elementor/loaded`. `Main_League_Service::on_user_register` hooks `user_register` so every new account receives a main-season entry.
+Module boot order (`plugins_loaded`, priority 5): admin-only `Setup::maybe_upgrade()` + `Admin_Theme`, then `Catalogue`, `Occupation_Taxonomy`, `Admin_Review`, `Discovery_Service`, `Wiki_Request_Queue`, `Admin_Discovery`, `Admin_Game`, `Admin_Stats`, `Demo_Accounts_Admin`, `Front_Templates`, `Site_Chrome`, `Header`, `Season_Switcher`, `Forum`, `Seo`, `Shortcodes`, `Game_Pages`, `Jobs`, `Rest`. `Elementor_Bridge` boots at priority 20; `HeaderBridge` on `elementor/loaded`. `Main_League_Service::on_user_register` hooks `user_register` so every new account receives a main-season entry.
 
 Key modules:
 
 - Game core: `League_Service` (create/join/invites), `Entry_Service` (drafts, submission receipts, stale/lock races), `Review_Service` (editorial state machine), `Outbox_Service` (award fan-out and reversals), `Scoring_Service` (award ledger), `Standings_Service` + `Overall_Standings` (published generations, keyset-paged rebuilds), `Jobs` (feed polling, outbox tick, scheduled standings rebuilds).
 - Catalogue: `Catalogue` (`obit_person` post type, `obit_occupation` taxonomy, eligibility meta, `is_selectable()`), `People_Sync` (portraits P18 + occupations P106 from Wikidata; the only writer of the occupation taxonomy), `Import_Service` (feed/people imports; keeps role text as `obit_occupation_hint`), `Wikidata_Search_Service` (player-initiated lookup/import), `Person_Content` (composed body prose), `Occupation_Taxonomy` (orphan-term pruning), `Pick_Stats` (how often a name was taken).
 - Front end: `Game_Pages` (routes/shortcodes/page provisioning), `Front_Templates` (person/archive templates), `Site_Chrome` (footer, fonts, motion — the navigation bar comes from `Header`), `Header` + `HeaderIntegration` (site header, see below), `Forum`, `Auth` (registration/email verification), `Campaign` (2027 landing demo), `Seo` (titles, meta, JSON-LD, crawl control).
-- Admin: `Admin_Review`, `Admin_Discovery`, `Admin_Game`, `Admin_Stats`, `Admin_Theme`, `Demo_Accounts_Admin`.
-- Discovery: `Discovery_Service` (living-person candidate queue for editorial confirmation).
+- Admin: `Admin_Review`, `Admin_Discovery`, `Admin_Game`, `Admin_Stats`, `Admin_Theme`, `Demo_Accounts_Admin`.- Discovery: `Discovery_Service` (living-person candidate queue). Candidates whose fresh checks pass are **auto-approved** (`auto_approve_candidate()`: no death date on the record + `verify_current_candidate()` liveness re-check) — only uncertain cases wait in the manual review queue. `Wiki_Request_Queue` is the global stored-request queue for outbound Wikimedia calls: requests enqueued during a rate-limit cooldown stay pending and run serially from the `obitleague_wiki_queue_tick` cron (every minute, batch of 3) once the pause lifts. Discovery defers batches to this queue instead of failing during cooldowns, and a queue-run bypasses the daily batch limit (`run_batch( limit, via_queue: true )`).
 
 Primary data concepts are normalized plugin tables (`obitleague_leagues`, league members, entries, entry revisions/picks, events, review cases, awards, standings generations, forum topics/posts, audit log, and supporting tables) plus public WordPress `obit_person` posts/meta. Read `Setup.php` for the exact current schema; do not assume every old architecture diagram matches it.
 
