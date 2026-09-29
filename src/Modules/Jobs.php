@@ -22,6 +22,7 @@ final class Jobs {
 	private const HOOK_REFRESH     = 'obitleague_profile_refresh';
 	private const HOOK_OUTBOX_TICK = 'obitleague_outbox_tick';
 	private const HOOK_STANDINGS_REBUILD = 'obitleague_standings_rebuild';
+	private const HOOK_WIKI_QUEUE  = 'obitleague_wiki_queue_tick';
 
 	private function __construct() {}
 
@@ -37,6 +38,7 @@ final class Jobs {
 		add_action( self::HOOK_REFRESH, array( self::class, 'refresh_profiles' ) );
 		add_action( self::HOOK_OUTBOX_TICK, array( self::class, 'outbox_tick' ) );
 		add_action( self::HOOK_STANDINGS_REBUILD, array( self::class, 'rebuild_standings' ), 10, 2 );
+		add_action( self::HOOK_WIKI_QUEUE, array( self::class, 'run_wiki_queue' ) );
 		add_action( 'obitleague_main_user_backfill', array( Main_League_Service::class, 'run_user_backfill' ), 10, 2 );
 	}
 
@@ -250,5 +252,10 @@ final class Jobs {
 	public static function outbox_tick(): void {
 		Outbox_Service::process_outbox();
 		do_action( 'obitleague_outbox_processed' );
+	}
+
+	/** Process stored Wikimedia requests serially every minute. */
+	public static function run_wiki_queue(): void {
+		Wiki_Request_Queue::process( 3 );
 	}
 }

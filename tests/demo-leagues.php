@@ -468,6 +468,113 @@ foreach ( $users as $user_index => $user_id ) {
 }
 echo "main-league submissions: {$main_submitted}\n";
 
+/* ---------- realistic death spread across submitted entries ---------- */
+// A real dead-pool season is lumpy: some teams hold nobody who has died
+// yet, some hold two. The initial seed handed every entry exactly one 2026
+// scoring pick, which reads as fake. This stage reshapes already-submitted
+// entries (keeping the ten-pick team size and each pre-lock pick) toward a
+// realistic spread, resets those entries' awards, and lets the idempotent
+// award fan-out below recompute the points. Deterministic rolls keep
+// re-runs stable: the same run sees the same targets and changes nothing.
+$all_seed_league_ids = array_map( static fn ( array $league ): int => (int) $league['id'], $league_ids );
+$all_seed_league_ids[] = (int) \Obitleague\Modules\Main_League_Service::ensure_league( $season );
+$entry_rows = (array) $wpdb->get_results(
+	"SELECT DISTINCT e.id FROM {$wpdb->prefix}obitleague_entries e
+	 JOIN {$wpdb->prefix}obitleague_entry_revisions r ON r.entry_id = e.id AND r.kind = 'submitted'
+	 WHERE e.season = " . (int) $season . "
+	   AND e.league_id IN ( " . implode( ',', $all_seed_league_ids ) . " )
+	 ORDER BY e.id ASC"
+);
+$living_uuids  = array_values( array_unique( array_column( $living_pool, 'uuid' ) ) );
+$scoring_uuids = array_values( array_unique( array_column( $scored_pool, 'uuid' ) ) );
+mt_srand( 20260929 );
+$rebalanced = 0;
+foreach ( $entry_rows as $entry_row ) {
+	$entry_id = (int) $entry_row->id;
+
+	$revision_id = (int) $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT id FROM {$wpdb->prefix}obitleague_entry_revisions WHERE entry_id = %d AND kind = 'submitted' ORDER BY id DESC LIMIT 1",
+			$entry_id
+		)
+	);
+	if ( $revision_id < 1 ) {
+		continue;
+	}
+	$current = array();
+	foreach ( (array) $wpdb->get_results(
+		$wpdb->prepare( "SELECT person_uuid FROM {$wpdb->prefix}obitleague_entry_picks WHERE revision_id = %d ORDER BY slot ASC", $revision_id )
+	) as $pick_row ) {
+		$current[] = (string) $pick_row->person_uuid;
+	}
+	if ( count( $current ) < 10 ) {
+		continue;
+	}
+
+	$scoring_held = count( array_intersect( $current, $scoring_uuids ) );
+	// Target spread: ~15% of teams no 2026 death yet, ~8% two, rest one.
+	$roll   = mt_rand( 1, 100 );
+	$target = $roll <= 15 ? 0 : ( $roll <= 23 ? 2 : 1 );
+	if ( $scoring_held === $target ) {
+		continue;
+	}
+
+	// Rebuild the pick set: keep the non-scoring picks (pre-lock + living),
+	// choose the target number of 2026 scoring people, top up to ten from
+	// the living pool so every entry keeps its full team size.
+	$keep = array_values( array_diff( $current, $scoring_uuids ) );
+	$chosen_scoring = array();
+	$scoring_offset = ( $entry_id * 13 ) % max( 1, count( $scoring_uuids ) );
+	for ( $attempt = 0; count( $chosen_scoring ) < $target && $attempt < count( $scoring_uuids ); ++$attempt ) {
+		$candidate = $scoring_uuids[ ( $scoring_offset + $attempt ) % count( $scoring_uuids ) ];
+		if ( ! in_array( $candidate, $keep, true ) && ! in_array( $candidate, $chosen_scoring, true ) ) {
+			$chosen_scoring[] = $candidate;
+		}
+	}
+	$updated = array_merge( $keep, $chosen_scoring );
+	$offset   = ( $entry_id * 7 ) % max( 1, count( $living_uuids ) );
+	for ( $attempt = 0; count( $updated ) < 10 && $attempt < count( $living_uuids ); ++$attempt ) {
+		$candidate = $living_uuids[ ( $offset + $attempt ) % count( $living_uuids ) ];
+		if ( ! in_array( $candidate, $updated, true ) ) {
+			$updated[] = $candidate;
+		}
+	}
+	if ( count( $updated ) < 10 ) {
+		continue; // Pool too small to fill this team; leave it untouched.
+	}
+	$updated = array_slice( $updated, 0, 10 );
+
+	$wpdb->query( 'START TRANSACTION' );
+	try {
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}obitleague_entry_picks WHERE revision_id = %d", $revision_id ) );
+		foreach ( array_values( $updated ) as $slot_index => $uuid ) {
+			$wpdb->query(
+				$wpdb->prepare(
+					"INSERT INTO {$wpdb->prefix}obitleague_entry_picks (revision_id, slot, person_uuid) VALUES (%d, %d, %s)",
+					$revision_id,
+					$slot_index + 1,
+					$uuid
+				)
+			);
+		}
+		// Drop this entry's 2026 awards so the fan-out below re-derives
+		// them from the new pick set (operation keys make re-awards safe).
+		$wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM {$wpdb->prefix}obitleague_awards WHERE entry_id = %d AND season = %d",
+				$entry_id,
+				(int) $season
+			)
+		);
+		$wpdb->query( 'COMMIT' );
+		++$rebalanced;
+	} catch ( Throwable $exception ) {
+		$wpdb->query( 'ROLLBACK' );
+		throw $exception;
+	}
+}
+echo "entries reshaped for a realistic death spread: {$rebalanced}\n";
+
 /* ---------- real approvals and score fan-out ---------- */
 $editor_id = $users[0];
 $approved = 0;

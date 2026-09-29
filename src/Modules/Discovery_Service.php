@@ -41,8 +41,24 @@ final class Discovery_Service {
 
 	public static function boot(): void {
 		add_filter( 'wp_insert_post_data', array( self::class, 'guard_candidate_publication' ), 10, 2 );
+		Wiki_Request_Queue::register_handler(
+			'discovery_batch',
+			static function ( array $payload ) {
+				$result = self::run_batch( max( 1, (int) ( $payload['limit'] ?? self::QUEUE_LIMIT ) ), true );
+				if ( is_array( $result ) && 'ok' === (string) ( $result['status'] ?? '' ) ) {
+					return $result;
+				}
+				if ( is_array( $result ) && 'queued' === (string) ( $result['status'] ?? '' ) ) {
+					return new \WP_Error( 'obitleague_discovery_paused', 'Wikimedia pause still active; the batch stays queued.' );
+				}
+				return is_wp_error( $result )
+					? $result
+					: new \WP_Error( 'obitleague_discovery_batch', (string) ( $result['note'] ?? 'Batch did not complete.' ) );
+			}
+		);
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
 			\WP_CLI::add_command( 'obitleague discovery', array( self::class, 'cli_run_batch' ) );
+			\WP_CLI::add_command( 'obitleague discovery-approve-pending', array( self::class, 'cli_approve_pending' ) );
 		}
 	}
 
@@ -98,7 +114,7 @@ final class Discovery_Service {
 	}
 
 	/** Run one small, manually invoked batch. No WP-Cron hook is installed. */
-	public static function run_batch( int $limit = self::QUEUE_LIMIT ): array|\WP_Error {
+	public static function run_batch( int $limit = self::QUEUE_LIMIT, bool $via_queue = false ): array|\WP_Error {
 		$limit = min( self::QUEUE_LIMIT, max( 1, $limit ) );
 		if ( ! add_option( self::LOCK_OPTION, time(), '', false ) ) {
 			$lock_time = (int) get_option( self::LOCK_OPTION, 0 );
@@ -111,25 +127,28 @@ final class Discovery_Service {
 			}
 		}
 		try {
-			return self::run_batch_locked( $limit );
+			return self::run_batch_locked( $limit, $via_queue );
 		} finally {
 			delete_option( self::LOCK_OPTION );
 		}
 	}
 
 	/** @return array<string,int|string>|\WP_Error */
-	private static function run_batch_locked( int $limit ): array|\WP_Error {
+	private static function run_batch_locked( int $limit, bool $via_queue = false ): array|\WP_Error {
 		$today = gmdate( 'Y-m-d' );
 		$daily = get_option( self::DAILY_OPTION, array() );
-		if ( is_array( $daily ) && $today === (string) ( $daily['date'] ?? '' ) && ! empty( $daily['ran'] ) ) {
+		if ( ! $via_queue && is_array( $daily ) && $today === (string) ( $daily['date'] ?? '' ) && ! empty( $daily['ran'] ) ) {
 			return new \WP_Error( 'obitleague_discovery_daily_limit', 'Discovery has already run its one small batch for today (UTC). Try again tomorrow.' );
-		}
-		$pause = (int) get_option( self::PAUSE_OPTION, 0 );
-		if ( $pause > time() ) {
-			return new \WP_Error( 'obitleague_discovery_paused', sprintf( 'Wikimedia asked us to pause until %s UTC.', gmdate( 'Y-m-d H:i:s', $pause ) ), array( 'status' => 429, 'retry_after' => $pause ) );
 		}
 		$cursor = self::cursor();
 		$window = sprintf( '%04d-%02d', $cursor['year'], $cursor['month'] );
+		$pause  = (int) get_option( self::PAUSE_OPTION, 0 );
+		if ( $pause > time() ) {
+			// Cooldown: store the request in the global Wikimedia queue instead
+			// of failing — it runs automatically once the pause lifts.
+			Wiki_Request_Queue::enqueue( 'discovery_batch', array( 'limit' => $limit ), 'discovery-batch' );
+			return array( 'status' => 'queued', 'window' => $window, 'checked' => 0, 'queued' => 0, 'skipped' => 0, 'note' => sprintf( 'Wikimedia pause until %s UTC — batch request stored in the queue and will run automatically when the pause lifts.', gmdate( 'Y-m-d H:i:s', $pause ) ) );
+		}
 		$rows   = self::fetch_sparql_page( $cursor );
 		if ( is_wp_error( $rows ) ) {
 			self::record_last_run( array( 'status' => 'error', 'window' => $window, 'message' => $rows->get_error_message() ) );
@@ -177,6 +196,10 @@ final class Discovery_Service {
 		if ( $unseen ) {
 			$entities = self::fetch_entities( array_keys( $unseen ) );
 			if ( is_wp_error( $entities ) ) {
+				$deferred = self::defer_on_pause( $entities, $limit, $window );
+				if ( is_array( $deferred ) ) {
+					return $deferred;
+				}
 				self::record_last_run( array( 'status' => 'error', 'window' => $window, 'message' => $entities->get_error_message() ) );
 				return $entities;
 			}
@@ -206,6 +229,10 @@ final class Discovery_Service {
 		if ( $eligible ) {
 			$categories = self::fetch_categories( array_column( $eligible, 'title' ) );
 			if ( is_wp_error( $categories ) ) {
+				$deferred = self::defer_on_pause( $categories, $limit, $window );
+				if ( is_array( $deferred ) ) {
+					return $deferred;
+				}
 				self::record_last_run( array( 'status' => 'error', 'window' => $window, 'message' => $categories->get_error_message() ) );
 				return $categories;
 			}
@@ -269,9 +296,121 @@ final class Discovery_Service {
 			$cursor['after_qid'] = (string) array_key_last( $unique );
 			update_option( self::CURSOR_OPTION, $cursor, false );
 		}
-		$result = array( 'status' => 'ok', 'window' => $window, 'checked' => count( $unique ), 'queued' => $queued, 'skipped' => $skipped, 'note' => 'Candidates remain private drafts; editor must verify a recent living-status source before approval.' );
+		// Automatic approval: candidates whose fresh checks pass (no death
+		// date on the record, living-person category intact) are approved
+		// without manual sign-off. Anything uncertain stays pending.
+		$auto_approved = 0;
+		foreach ( self::pending_candidate_ids() as $pending_id ) {
+			if ( self::auto_approve_candidate( (int) $pending_id ) ) {
+				++$auto_approved;
+			}
+		}
+
+		$result = array( 'status' => 'ok', 'window' => $window, 'checked' => count( $unique ), 'queued' => $queued, 'skipped' => $skipped, 'note' => 'No-death-date candidates were auto-approved; anything needing a closer look stays pending in the review queue.' );
+		if ( $auto_approved > 0 ) {
+			$result['auto_approved'] = $auto_approved;
+		}
 		self::record_last_run( $result );
 		return $result;
+	}
+
+	/** Turn a Wikimedia cooldown error into a stored queued request. */
+	private static function defer_on_pause( \WP_Error $error, int $limit, string $window ): array|\WP_Error {
+		$code = (string) $error->get_error_code();
+		if ( 'obitleague_discovery_paused' !== $code && 'obitleague_discovery_rate_limited' !== $code ) {
+			return $error;
+		}
+		Wiki_Request_Queue::enqueue( 'discovery_batch', array( 'limit' => $limit ), 'discovery-batch' );
+		return array( 'status' => 'queued', 'window' => $window, 'checked' => 0, 'queued' => 0, 'skipped' => 0, 'note' => 'Wikimedia cooldown — the batch was stored in the request queue and will run automatically when the pause lifts.' );
+	}
+
+	/** Ids of private drafts still waiting in the Discovery queue. @return int[] */
+	public static function pending_candidate_ids(): array {
+		global $wpdb;
+		return array_map(
+			'intval',
+			(array) $wpdb->get_col(
+				$wpdb->prepare(
+					"SELECT DISTINCT p.ID FROM {$wpdb->posts} p
+					 JOIN {$wpdb->postmeta} pm1 ON pm1.post_id = p.ID AND pm1.meta_key = 'obit_discovery_source' AND pm1.meta_value = 'wikidata-wdqs'
+					 JOIN {$wpdb->postmeta} pm2 ON pm2.post_id = p.ID AND pm2.meta_key = 'obit_discovery_status' AND pm2.meta_value = 'pending'
+					 WHERE p.post_type = %s AND p.post_status = 'draft'
+					 ORDER BY p.ID ASC LIMIT 200",
+					Catalogue::POST_TYPE
+				)
+			)
+		);
+	}
+
+	/**
+	 * Approve a candidate without manual sign-off, trusting the fresh
+	 * structured checks: the record must have no death date, and
+	 * verify_current_candidate() re-confirms Wikidata/Wikipedia liveness
+	 * signals right before publication. Anything that fails a check (or
+	 * needs an upstream call during a cooldown) stays pending.
+	 */
+	public static function auto_approve_candidate( int $post_id ): bool {
+		$post = get_post( $post_id );
+		if ( ! $post || Catalogue::POST_TYPE !== $post->post_type || 'draft' !== $post->post_status
+			|| 'pending' !== (string) get_post_meta( $post_id, 'obit_discovery_status', true ) ) {
+			return false;
+		}
+		$qid = (string) get_post_meta( $post_id, 'obit_qid', true );
+
+		// The user's rule: a missing death date on the record is the
+		// self-check. A death date present at approval time is a hard stop.
+		if ( '' !== (string) get_post_meta( $post_id, 'obit_death_date', true ) ) {
+			update_post_meta( $post_id, 'obit_discovery_status', 'rejected' );
+			update_post_meta( $post_id, 'obit_discovery_rejected_at', current_time( 'mysql', true ) );
+			update_post_meta( $post_id, 'obit_eligibility', 'ineligible' );
+			update_post_meta( $post_id, 'obit_eligibility_note', 'Auto-rejected by Discovery: the record carries a death date.' );
+			self::audit( $post_id, 'candidate_auto_rejected', array( 'qid' => $qid, 'reason' => 'death date present' ) );
+			return false;
+		}
+
+		$enwiki = trim( (string) get_post_meta( $post_id, 'obit_enwiki', true ) );
+		if ( '' === $enwiki ) {
+			return false; // No identity to anchor the evidence URL to.
+		}
+		$source_url    = 'https://en.wikipedia.org/wiki/' . str_replace( ' ', '_', $enwiki );
+		$evidence_date = gmdate( 'Y-m-d' );
+
+		try {
+			self::acquire_review_lock( $post_id );
+			try {
+				// Records the fresh-check evidence itself, then publishes
+				// through the guarded editorial path.
+				self::approve_candidate_locked( $post_id, $source_url, $evidence_date, 0 );
+			} finally {
+				delete_option( self::REVIEW_LOCK_PREFIX . $post_id );
+			}
+			self::audit(
+				$post_id,
+				'candidate_auto_approved',
+				array(
+					'qid'          => $qid,
+					'evidence_url' => esc_url_raw( $source_url ),
+					'evidence_date' => $evidence_date,
+					'reviewer_id'  => 0,
+					'mode'         => 'automatic',
+				)
+			);
+			return true;
+		} catch ( \Throwable $error ) {
+			self::audit( $post_id, 'candidate_auto_approve_failed', array( 'qid' => $qid, 'reason' => $error->getMessage() ) );
+			return false;
+		}
+	}
+
+	/** WP-CLI: approve every pending candidate that passes the automatic checks. */
+	public static function cli_approve_pending(): void {
+		$approved = 0;
+		foreach ( self::pending_candidate_ids() as $post_id ) {
+			if ( self::auto_approve_candidate( (int) $post_id ) ) {
+				++$approved;
+			}
+		}
+		\WP_CLI::success( sprintf( 'Auto-approved %d pending candidates (no-death-date + fresh liveness checks).', $approved ) );
 	}
 
 	/** Approve only after fresh structured screening and an editor's source check. */
@@ -373,6 +512,11 @@ final class Discovery_Service {
 			'pause_until'   => (int) get_option( self::PAUSE_OPTION, 0 ),
 			'daily_limited' => is_array( $daily ) && gmdate( 'Y-m-d' ) === (string) ( $daily['date'] ?? '' ) && ! empty( $daily['ran'] ),
 		);
+	}
+
+	/** Shared cooldown timestamp for the Wikimedia request queue. */
+	public static function rate_limit_pause_until(): int {
+		return (int) get_option( self::PAUSE_OPTION, 0 );
 	}
 
 	/** Explicit WP-CLI command: wp obitleague discovery [--limit=1..5]. */

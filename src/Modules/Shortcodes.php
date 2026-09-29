@@ -240,13 +240,17 @@ public static function people_search_url(): string {
 		}
 
 		// Occupation filter via taxonomy term slugs passed in the query string.
+		// Occupations live in the obit_occupation taxonomy (mirrored from
+		// Wikidata by People_Sync::sync_occupation_terms), so this is a real
+		// tax_query — not postmeta.
+		$tax_query = array();
 		if ( '' !== $occupation ) {
 			$term = get_term_by( 'slug', $occupation, Catalogue::TAX_OCCUPATION );
 			if ( $term && ! is_wp_error( $term ) ) {
-				$meta_query[] = array(
-					'key'     => Catalogue::TAX_OCCUPATION . '|||' . (int) $term->term_id,
-					'value'   => (string) (int) $term->term_id,
-					'compare' => '=',
+				$tax_query[] = array(
+					'taxonomy' => Catalogue::TAX_OCCUPATION,
+					'field'    => 'slug',
+					'terms'    => $term->slug,
 				);
 			}
 		}
@@ -260,20 +264,24 @@ public static function people_search_url(): string {
 			);
 		}
 
-		// Age band filter: living figures only, computed from birth + now.
+		// Age band filter: living figures only. Ages are not stored as meta, so
+		// filter on the birth-year window each band implies (today minus age).
+		// Four-digit years compare correctly as strings against the stored
+		// 'YYYY-MM-DD' birth dates.
 		if ( $alive && preg_match( '/^(under|70|80|90|100|over)-(\d+)$|^(\d+)$/', $age_band, $m ) ) {
-			// Keep the shape simple and readable for menu links: under-<n> and
-			// over-<n> and bare numeric bands. Narrower bands are harder to hit
-			// in a demo catalogue and not worth bespoke SQL yet.
-			$age_meta = array();
-			if ( isset( $m[1] ) && 'under' === $m[1] ) {
-				$age_meta[] = array( 'key' => '_obit_calculated_age', 'value' => (int) $m[2], 'compare' => '<', 'type' => 'NUMERIC' );
-			} elseif ( isset( $m[1] ) && 'over' === $m[1] ) {
-				$age_meta[] = array( 'key' => '_obit_calculated_age', 'value' => (int) $m[2], 'compare' => '>=', 'type' => 'NUMERIC' );
-			} elseif ( isset( $m[3] ) ) {
-				$age_meta[] = array( 'key' => '_obit_calculated_age', 'value' => (int) $m[3], 'compare' => '>=', 'type' => 'NUMERIC' );
-				$age_meta[] = array( 'key' => '_obit_calculated_age', 'value' => (int) $m[3] + 9, 'compare' => '<=', 'type' => 'NUMERIC' );
-			}
+			$now_year = (int) current_time( 'Y' );
+			$age_meta = array();				if ( isset( $m[1] ) && 'under' === $m[1] ) {
+					// Younger than N: born in (now - N + 1) or later.
+					$age_meta[] = array( 'key' => 'obit_birth_date', 'value' => (string) ( $now_year - (int) $m[2] + 1 ), 'compare' => '>=' );
+				} elseif ( isset( $m[1] ) && 'over' === $m[1] ) {
+					// Age N or older: born strictly before (now - N + 1), which
+					// keeps the whole boundary year (stored dates are 'YYYY…').
+					$age_meta[] = array( 'key' => 'obit_birth_date', 'value' => (string) ( $now_year - (int) $m[2] + 1 ), 'compare' => '<' );
+				} elseif ( isset( $m[3] ) ) {
+					// Bare band: ages N through N+9.
+					$age_meta[] = array( 'key' => 'obit_birth_date', 'value' => (string) ( $now_year - (int) $m[3] - 9 ), 'compare' => '>=' );
+					$age_meta[] = array( 'key' => 'obit_birth_date', 'value' => (string) ( $now_year - (int) $m[3] + 1 ), 'compare' => '<' );
+				}
 			if ( $age_meta ) {
 				$meta_query[] = $age_meta;
 			}
@@ -285,6 +293,7 @@ public static function people_search_url(): string {
 				'post_status'    => 'publish',
 				'posts_per_page' => min( 48, max( 4, (int) $a['per_page'] ) ),
 				'meta_query'     => $meta_query,
+				'tax_query'      => $tax_query,
 				'orderby'        => 'title',
 				'order'          => 'ASC',
 			)

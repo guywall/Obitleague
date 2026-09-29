@@ -36,6 +36,9 @@ final class Setup {
 		if ( ! \wp_next_scheduled( 'obitleague_outbox_tick' ) ) {
 			\wp_schedule_event( time() + 90, 'obitleague_1min', 'obitleague_outbox_tick' );
 		}
+		if ( ! \wp_next_scheduled( 'obitleague_wiki_queue_tick' ) ) {
+			\wp_schedule_event( time() + 120, 'obitleague_1min', 'obitleague_wiki_queue_tick' );
+		}
 
 		flush_rewrite_rules();
 	}
@@ -54,7 +57,7 @@ final class Setup {
 	}
 
 	public static function deactivate(): void {
-		foreach ( array( 'obitleague_feed_poll', 'obitleague_profile_refresh', 'obitleague_outbox_tick', 'obitleague_standings_rebuild', 'obitleague_main_user_backfill' ) as $hook ) {
+		foreach ( array( 'obitleague_feed_poll', 'obitleague_profile_refresh', 'obitleague_outbox_tick', 'obitleague_standings_rebuild', 'obitleague_main_user_backfill', 'obitleague_wiki_queue_tick' ) as $hook ) {
 			$timestamp = \wp_next_scheduled( $hook );
 			while ( false !== $timestamp ) {
 				\wp_unschedule_event( $timestamp, $hook );
@@ -327,6 +330,24 @@ final class Setup {
 			created_at DATETIME NOT NULL,
 			PRIMARY KEY  (id),
 			KEY topic_status (topic_id, status, id)
+		) {$charset};";
+
+		// Global Wikimedia request queue: stored outbound requests processed
+		// serially, honouring the shared rate-limit pause.
+		$wiki_queue = "{$wpdb->prefix}obitleague_wiki_queue";
+		$sql[] = "CREATE TABLE {$wiki_queue} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			request_kind VARCHAR(40) NOT NULL,
+			payload LONGTEXT NULL,
+			dedupe_key VARCHAR(191) NOT NULL DEFAULT '',
+			status VARCHAR(12) NOT NULL DEFAULT 'pending',
+			attempts SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+			last_error TEXT NULL,
+			created_at DATETIME NOT NULL,
+			processed_at DATETIME NULL,
+			PRIMARY KEY  (id),
+			KEY kind_status (request_kind, status, id),
+			KEY dedupe (request_kind, dedupe_key, status)
 		) {$charset};";
 
 		foreach ( $sql as $statement ) {
