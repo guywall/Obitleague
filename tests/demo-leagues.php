@@ -54,6 +54,10 @@ $display_names = array(
 );
 
 /* ---------- explicitly fictional demo users ---------- */
+// Scale beyond the curated name list: OBITLEAGUE_DEMO_PLAYERS=150 makes the
+// seeder generate additional synthetic accounts (obitleague_demo_NNNNN) with
+// varied display names, reusing the idempotent naming scheme.
+$target_players = (int) ( getenv( 'OBITLEAGUE_DEMO_PLAYERS' ) ?: 0 );
 $users = array();
 foreach ( $display_names as $index => $display_name ) {
 	$number = $index + 1;
@@ -77,7 +81,41 @@ foreach ( $display_names as $index => $display_name ) {
 	}
 	$users[] = (int) $user->ID;
 }
-echo 'demo users available: ' . count( $users ) . "\n";
+
+if ( $target_players > count( $users ) ) {
+	$first_names = array( 'Alex', 'Avery', 'Bailey', 'Casey', 'Charlie', 'Dakota', 'Drew', 'Ellis', 'Emery', 'Finley', 'Harper', 'Jamie', 'Jesse', 'Jordan', 'Kai', 'Logan', 'Morgan', 'Parker', 'Quinn', 'Riley', 'Rowan', 'Sam', 'Skyler', 'Taylor', 'Cameron', 'Devon', 'Frankie', 'Hayden', 'Kendall', 'Reese', 'Robin', 'Shay', 'Terry', 'Val', 'Billie', 'Corey', 'Remy', 'Sasha', 'Shannon', 'Toby' );
+	$surnames = array( 'Abbott', 'Bennett', 'Carter', 'Dawson', 'Ellis', 'Foster', 'Hayes', 'Morgan', 'Parker', 'Reed', 'Bailey', 'Brooks', 'Cooper', 'Fletcher', 'Grant', 'Hughes', 'Kelly', 'Miller', 'Price', 'Turner', 'Adler', 'Bishop', 'Clarke', 'Delaney', 'Everett', 'Finch', 'Gardner', 'Hollis', 'Mercer', 'Sutton', 'Banks', 'Bell', 'Cross', 'Doyle', 'Fields', 'Hart', 'Lane', 'Nolan', 'Quinn', 'Shaw' );
+	$team_prefixes = array( 'The Grim', 'Final', 'Silent', 'Ivory', 'Crimson', 'Velvet', 'Marble', 'Hollow', 'Gilded', 'Midnight', 'Paper', 'Winter', 'Amber', 'Iron', 'Quiet' );
+	$team_suffixes = array( 'Society', 'Collective', 'Register', 'Enthusiasts', 'Committee', 'Brigade', 'Chorus', 'Archive', 'Circle', 'Union' );
+	for ( $number = count( $users ) + 1; $number <= $target_players; ++$number ) {
+		$login = 'obitleague_demo_' . sprintf( '%05d', $number );
+		$user = get_user_by( 'login', $login );
+		if ( ! $user ) {
+			$first = $first_names[ $number % count( $first_names ) ];
+			$last = $surnames[ ( $number * 7 ) % count( $surnames ) ];
+			$suffix = $number % 9;
+			$display = ( 0 === $suffix ) ? $first . ' ' . $last . ' ' . ( 1960 + $number % 40 )
+				: ( ( 1 === $suffix ) ? strtolower( $first . $last ) . ( 40 + $number % 60 )
+				: $first . ' ' . $last );
+			$user_id = wp_insert_user(
+				array(
+					'user_login' => $login,
+					'user_pass' => wp_generate_password( 24 ),
+					'user_email' => $login . '@example.test',
+					'display_name' => $display,
+					'role' => 'subscriber',
+				)
+			);
+			if ( is_wp_error( $user_id ) ) {
+				throw new RuntimeException( 'Could not create demo account ' . $login . ': ' . $user_id->get_error_message() );
+			}
+			update_user_meta( (int) $user_id, 'obitleague_demo_account', 1 );
+			$user = get_userdata( (int) $user_id );
+		}
+		$users[] = (int) $user->ID;
+	}
+	echo 'demo players requested: ' . $target_players . ', available: ' . count( $users ) . "\n";
+}
 
 /* ---------- sourced pools; no invented people or deaths ---------- */
 global $wpdb;
@@ -101,7 +139,11 @@ $read_json = static function ( string $filename ) use ( $work ): array {
 	return $data;
 };
 
-$living_rows  = $read_json( 'seed-living-pool.json' );
+$living_rows = $read_json( 'seed-living-pool.json' );
+// Widen the selectable pool with the diverse 1946 cohort when present.
+if ( is_readable( $work . '/seed-cohort-1946.json' ) ) {
+	$living_rows = array_merge( $living_rows, $read_json( 'seed-cohort-1946.json' ) );
+}
 $death_rows   = $read_json( 'seed-deaths-2026.json' );
 $prelock_rows = $read_json( 'seed-prelock-deaths.json' );
 $living_pool = array();
@@ -277,7 +319,15 @@ foreach ( $league_ids as $league ) {
 
 	foreach ( $demo_members as $user_index => $user_id ) {
 		$entry_id = Entry_Service::get_or_create_entry( (int) $league['id'], $season, $user_id );
-		$team_name = $team_names[ $user_index % count( $team_names ) ];
+		if ( $user_index < count( $team_names ) ) {
+			$team_name = $team_names[ $user_index ];
+		} else {
+			// Beyond the curated list, generate distinct names so no two
+			// teams on a leaderboard share a label.
+			$team_prefixes = $team_prefixes ?? array( 'The Grim', 'Final', 'Silent', 'Ivory', 'Crimson', 'Velvet', 'Marble', 'Hollow', 'Gilded', 'Midnight', 'Paper', 'Winter', 'Amber', 'Iron', 'Quiet' );
+			$team_suffixes = $team_suffixes ?? array( 'Society', 'Collective', 'Register', 'Enthusiasts', 'Committee', 'Brigade', 'Chorus', 'Archive', 'Circle', 'Union' );
+			$team_name = $team_prefixes[ $user_index % count( $team_prefixes ) ] . ' ' . $team_suffixes[ ( $user_index * 3 ) % count( $team_suffixes ) ] . ' ' . ( $user_index + 1 );
+		}
 		$wpdb->update(
 			$wpdb->prefix . 'obitleague_entries',
 			array( 'team_name' => $team_name ),
@@ -347,6 +397,72 @@ foreach ( $league_ids as $league ) {
 }
 echo "new demo submissions: {$submitted}\n";
 
+/* ---------- canonical main league: the overall 2026 leaderboard ---------- */
+$main_league_id = Main_League_Service::ensure_league( $season );
+$main_submitted = 0;
+foreach ( $users as $user_index => $user_id ) {
+	$entry_id = Entry_Service::get_or_create_entry( $main_league_id, $season, (int) $user_id );
+	$team_name = $user_index < count( $team_names ) ? $team_names[ $user_index ] : ( $team_prefixes[ $user_index % count( $team_prefixes ) ] . ' ' . $team_suffixes[ ( $user_index * 3 ) % count( $team_suffixes ) ] . ' ' . ( $user_index + 1 ) );
+	$wpdb->update(
+		$wpdb->prefix . 'obitleague_entries',
+		array( 'team_name' => $team_name, 'main_season_key' => $season ),
+		array( 'id' => $entry_id ),
+		array( '%s', '%d' ),
+		array( '%d' )
+	);
+	if ( Entry_Service::submitted_revision( (int) $entry_id ) ) {
+		continue;
+	}
+	$picks = array();
+	$main_cursor = ( $user_index * 11 ) % max( 1, count( $living_pool ) );
+	$fill_unique( $picks, $living_pool, 8, $main_cursor, 'main-league living picks' );
+	$fill_unique( $picks, $scored_pool, 9, $scored_cursor, 'main-league 2026 scoring pick' );
+	$fill_unique( $picks, $prelock_pool, 10, $prelock_cursor, 'main-league pre-lock pick' );
+
+	$backdate = new DateTimeImmutable( sprintf( '2025-12-%02dT%02d:30:00Z', 3 + ( $user_index % 22 ), 10 + ( $user_index % 11 ) ), new DateTimeZone( 'UTC' ) );
+	$mysql = $backdate->format( 'Y-m-d H:i:s' );
+	$wpdb->query( 'START TRANSACTION' );
+	try {
+		$wpdb->query(
+			$wpdb->prepare(
+				'INSERT INTO ' . $wpdb->prefix . 'obitleague_entry_revisions (entry_id, kind, receipt_id, submitted_at, created_at)
+				 VALUES (%d, %s, %s, %s, %s)',
+				$entry_id,
+				'submitted',
+				wp_generate_uuid4(),
+				$mysql,
+				$mysql
+			)
+		);
+		$revision_id = (int) $wpdb->insert_id;
+		foreach ( $picks as $slot => $uuid ) {
+			$wpdb->query(
+				$wpdb->prepare(
+					'INSERT INTO ' . $wpdb->prefix . 'obitleague_entry_picks (revision_id, slot, person_uuid)
+					 VALUES (%d, %d, %s)',
+					$revision_id,
+					$slot + 1,
+					$uuid
+				)
+			);
+		}
+		$wpdb->query(
+			$wpdb->prepare(
+				'UPDATE ' . $wpdb->prefix . 'obitleague_entries SET state = %s, updated_at = %s WHERE id = %d',
+				'submitted',
+				$mysql,
+				$entry_id
+			)
+		);
+		$wpdb->query( 'COMMIT' );
+		++$main_submitted;
+	} catch ( Throwable $exception ) {
+		$wpdb->query( 'ROLLBACK' );
+		throw $exception;
+	}
+}
+echo "main-league submissions: {$main_submitted}\n";
+
 /* ---------- real approvals and score fan-out ---------- */
 $editor_id = $users[0];
 $approved = 0;
@@ -393,5 +509,13 @@ foreach ( $league_ids as $league ) {
 	foreach ( $rows as $row ) {
 		printf( "  %2d. %-28s %3d pts (%d scoring picks)\n", $row['rank'], $row['player'], $row['points'], $row['scoring_picks'] );
 	}
+}
+
+/* ---------- canonical main-league standings ---------- */
+Standings_Service::rebuild( $main_league_id, $season );
+$main_rows = Standings_Service::current( $main_league_id, $season ) ?? array();
+echo "\n== Overall League {$season} (" . count( $main_rows ) . " teams) ==\n";
+foreach ( array_slice( $main_rows, 0, 10 ) as $row ) {
+	printf( "  %2d. %-28s %3d pts (%d scoring picks)\n", $row['rank'], $row['player'], $row['points'], $row['scoring_picks'] );
 }
 echo "\ndemo ready.\n";

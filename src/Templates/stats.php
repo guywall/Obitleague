@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 use Obitleague\Modules\Shortcodes;
 use Obitleague\Modules\Stats_Service;
+use Obitleague\Modules\Season_Switcher;
 
 $season = Shortcodes::season();
 $most   = Stats_Service::pick_popularity( $season, 8 );
@@ -26,6 +27,7 @@ get_header();
 		<span class="ob-hero__kicker">Season <?php echo esc_html( (string) $season ); ?> in numbers</span>
 		<h1>Statistics</h1>
 		<p>Who the field trusts, which teams are piling up points, and where the season's momentum sits — computed live from the awards ledger.</p>
+		<?php Season_Switcher::render_toggle(); ?>
 	</section>
 
 	<div class="ob-stats-boards">
