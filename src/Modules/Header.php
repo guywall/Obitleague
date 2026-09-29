@@ -118,7 +118,7 @@ public static function render(): void {
 	<div class="ob-header__inner">
 		<a class="ob-header__brand" href="<?php echo esc_url( home_url( '/' ) ); ?>" aria-label="Obitleague home">
 			<span class="ob-mark" aria-hidden="true">O</span>
-			<span class="ob-header__name">Obitleague</span>				<?php Season_Switcher::render(); ?>
+			<span class="ob-header__name">Obitleague</span>				<span class="ob-header__season"><?php echo esc_html( (string) Pick_Stats::season_in_play() ); ?></span>
 		</a>
 
 		<div class="ob-header__search">

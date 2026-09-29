@@ -69,51 +69,53 @@ final class Season_Switcher {
 	/** True when the displayed season is not the default, i.e. a selection is active. */
 	public static function is_active_selection(): bool {
 		return self::displayed_season() !== Pick_Stats::season_in_play();
+	}	/** The toggle as a string, for shortcode-built markup. */
+	public static function toggle_html(): string {
+		ob_start();
+		self::render_toggle();
+		return (string) ob_get_clean();
 	}
 
-	/** Render the header selector: a small <select> styled like the old badge. */
-	public static function render(): void {
+	/** Render the season toggle: a segmented control for competitive pages. */
+	public static function render_toggle(): void {
+		static $rendered = false;
+		if ( $rendered ) {
+			return;
+		}
 		$seasons   = self::seasons_with_data();
 		$displayed = self::displayed_season();
 		$in_play   = Pick_Stats::season_in_play();
 
 		if ( count( $seasons ) < 2 ) {
-			// Single season: keep the plain badge, no selector chrome.
-			echo '<span class="ob-header__season">' . esc_html( (string) $displayed ) . '</span>';
 			return;
 		}
+		$rendered = true;
 
+		$path = (string) wp_parse_url( (string) ( $_SERVER['REQUEST_URI'] ?? '/' ), PHP_URL_PATH );
 		?>
-		<label class="ob-season-select" aria-label="Season to display">
-			<span class="screen-reader-text">Season to display</span>
-			<select id="ob-season-select" data-ob-season>
-				<?php foreach ( $seasons as $season ) : ?>
-					<option value="<?php echo esc_attr( (string) $season ); ?>" <?php selected( $season, $displayed ); ?>>
-					<?php
-					// The in-play year renders as the bare year so the closed
-					// selector stays compact; other seasons carry a tag.
-					$label = (string) $season;
-					if ( $season > $in_play ) {
-						$label .= ' · entry';
-					} elseif ( $season < $in_play ) {
-						$label .= ' · archive';
-					}
-					echo esc_html( $label );
-					?>				</option>
+		<nav class="ob-season-toggle" aria-label="Season to display">
+			<?php foreach ( $seasons as $season ) : ?>
+				<?php
+				$url   = esc_url( home_url( $path . '?season=' . (int) $season ) );
+				$label = (string) $season;
+				$title = 'Season ' . $season;
+				if ( $season === $in_play ) {
+					$title .= ' · in play';
+				} elseif ( $season > $in_play ) {
+					$title .= ' · entry season';
+				} else {
+					$title .= ' · archive';
+				}
+				$active = $season === $displayed;
+				?>
+				<a class="ob-season-toggle__option<?php echo $active ? ' is-active' : ''; ?>"
+					href="<?php echo $url; ?>"
+					title="<?php echo esc_attr( $title ); ?>"
+					<?php echo $active ? 'aria-current="true"' : ''; ?>>
+					<?php echo esc_html( $label ); ?>
+				</a>
 			<?php endforeach; ?>
-			</select>
-		</label>
-		<script>
-		(function(){
-			var sel=document.getElementById('ob-season-select');
-			if(!sel){return;}
-			sel.addEventListener('change',function(){
-				var url=new URL(window.location.href);
-				url.searchParams.set('season',sel.value);
-				window.location.href=url.toString();
-			});
-		})();
-		</script>
+		</nav>
 		<?php
 	}
 }

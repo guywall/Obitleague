@@ -58,17 +58,15 @@ if ( $valid > 0 && $valid !== $in_play ) {
 unset( $_GET['season'] );
 
 ob_start();
-Season_Switcher::render();
-$select_html = (string) ob_get_clean();
+Season_Switcher::render_toggle();
+$toggle_html = (string) ob_get_clean();
 if ( count( $seasons ) >= 2 ) {
-	if ( ! str_contains( $select_html, 'data-ob-season' ) ) {
-		$failures[] = 'Season selector markup should be rendered when multiple seasons exist';
+	if ( ! str_contains( $toggle_html, 'ob-season-toggle' ) ) {
+		$failures[] = 'Season toggle markup should render when multiple seasons exist';
 	}
-	if ( ! str_contains( $select_html, (string) $in_play ) ) {
-		$failures[] = 'Season selector should list the in-play year';
+	if ( ! str_contains( $toggle_html, (string) $in_play ) ) {
+		$failures[] = 'Season toggle should list the in-play year';
 	}
-} elseif ( ! str_contains( $select_html, 'ob-header__season' ) ) {
-	$failures[] = 'Single-season installs should render the plain season badge';
 }
 
 if ( $failures ) {

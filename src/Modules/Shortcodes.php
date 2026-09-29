@@ -37,13 +37,12 @@ final class Shortcodes {
 	}
 
 	public static function season(): int {
-		global $wpdb;
-		// An explicit ?season= selection wins; it is validated against the
-		// seasons that actually have data, so bad values fall through.
-		$requested = isset( $_GET['season'] ) ? absint( (string) $_GET['season'] ) : 0;
-		if ( $requested > 0 && class_exists( Season_Switcher::class ) && in_array( $requested, Season_Switcher::seasons_with_data(), true ) ) {
-			return $requested;
+		// One source of truth with the header selector: an explicit validated
+		// ?season= wins, otherwise the in-play year when it has data.
+		if ( class_exists( Season_Switcher::class ) ) {
+			return Season_Switcher::displayed_season();
 		}
+		global $wpdb;
 		$latest = (int) $wpdb->get_var( 'SELECT MAX(season) FROM ' . $wpdb->prefix . 'obitleague_standings_generations WHERE is_current = 1' );
 		return $latest > 0 ? $latest : League_Service::current_season();
 	}
@@ -107,7 +106,8 @@ public static function people_search_url(): string {
 
 	public static function hero( $atts = array() ): string {
 		$season = self::season();
-		$out    = '<section class="ob-hero ob-anim"><span class="ob-hero__kicker">Season ' . (int) $season . ' · In play</span>';
+		$kicker = Season_Switcher::is_active_selection() ? 'Season ' . (int) $season . ' · archive view' : 'Season ' . (int) $season . ' · In play';
+		$out    = '<section class="ob-hero ob-anim"><span class="ob-hero__kicker">' . esc_html( $kicker ) . '</span>';
 		$out   .= '<h1>Pick ten lives. Follow the year.</h1>';
 		$out   .= '<p>Every confirmed, editor-approved death of a picked figure scores points — younger lives score more: max(1, 100 − age).</p>';
 		$out   .= '<div class="ob-hero__cta">';
