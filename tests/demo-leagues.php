@@ -192,8 +192,10 @@ $league_specs = array(
 	array( 'name' => 'Office Pool 2026', 'theme' => 'open' ),
 	array( 'name' => 'Celebrity Circle 2026', 'theme' => 'open' ),
 );
-if ( count( array_unique( $team_names ) ) < count( $users ) ) {
-	throw new RuntimeException( 'Demo seed needs a distinct team name for every demo account in each league.' );
+// Team names are curated first, then generated with the user index appended
+// (always distinct), so capacity is unbounded; sanity-floor instead.
+if ( count( $team_names ) < 10 ) {
+	throw new RuntimeException( 'Demo seed needs a base list of team names.' );
 }
 $league_ids = array();
 $created_count = 0;

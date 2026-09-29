@@ -59,7 +59,12 @@ foreach ( json_decode( file_get_contents( $work . '/seed-prelock-deaths.json' ),
 }
 
 echo "== importing living pool (selectable picks) ==\n";
-foreach ( json_decode( file_get_contents( $work . '/seed-living-pool.json' ), true ) as $row ) {
+$living_rows = json_decode( file_get_contents( $work . '/seed-living-pool.json' ), true );
+// Widen the selectable pool with the diverse 1946 cohort when present.
+if ( is_readable( $work . '/seed-cohort-1946.json' ) ) {
+	$living_rows = array_merge( $living_rows, json_decode( file_get_contents( $work . '/seed-cohort-1946.json' ), true ) );
+}
+foreach ( $living_rows as $row ) {
 	try {
 		// No occupation here on purpose. This pool used to be imported with a
 		// hardcoded "Public figure" occupation, which created a public
