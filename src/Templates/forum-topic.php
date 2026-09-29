@@ -78,7 +78,7 @@ get_header();
 			<p>A moderator has locked this thread.</p>
 		<?php elseif ( ! is_user_logged_in() ) : ?>
 			<h2 class="ob-card__title">Join the conversation</h2>
-			<p><a href="<?php echo esc_url( wp_login_url( home_url( '/forum/' . rawurlencode( $slug ) . '/' ) ) ); ?>">Sign in</a> to reply to this thread.</p>
+			<p><a href="<?php echo esc_url( home_url( '/login/?redirect_to=' . rawurlencode( home_url( '/forum/' . rawurlencode( $slug ) . '/' ) ) ) ); ?>">Sign in</a> to reply to this thread.</p>
 		<?php elseif ( ! Forum::user_can_post() ) : ?>
 			<h2 class="ob-card__title">Join the conversation</h2>
 			<p>Verify your email to reply. Check your inbox for the verification link.</p>

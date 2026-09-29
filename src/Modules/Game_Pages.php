@@ -8,15 +8,22 @@ final class Game_Pages {
 	private function __construct() {}
 
 	public static function boot(): void {
+		add_action( 'init', array( self::class, 'add_login_rewrite' ), 8 );
 		add_action( 'init', array( self::class, 'rewrites' ) );
+		add_action( 'init', array( self::class, 'ensure_campaign_pages' ), 20 );
 		add_filter( 'query_vars', array( self::class, 'query_vars' ) );
 		add_filter( 'template_include', array( self::class, 'maybe_route' ), 30 );
 		add_filter( 'template_include', array( self::class, 'campaign_template' ), 40 );
+		add_filter( 'template_include', array( self::class, 'login_page_template' ), 45 );
+		add_filter( 'login_redirect', array( self::class, 'login_redirect' ), 10, 3 );
+		add_filter( 'lostpassword_url', array( self::class, 'lostpassword_url' ), 10, 2 );
+		add_filter( 'register_url', array( self::class, 'register_url' ) );
+		add_filter( 'retrieve_password_message', array( self::class, 'password_reset_message' ), 10, 4 );
+		add_action( 'template_redirect', array( self::class, 'handle_logout' ), 1 );
 		add_shortcode( 'obitleague_overall_standings', array( self::class, 'overall_shortcode' ) );
 		add_shortcode( 'obitleague_join', array( self::class, 'join_shortcode' ) );
 		Auth::boot();
 		Campaign::boot();
-		add_action( 'init', array( self::class, 'ensure_campaign_pages' ), 20 );
 	}
 
 	/** Render campaign at the front page, keeping Elementor data intact. */
@@ -32,35 +39,41 @@ final class Game_Pages {
 		return 'register' === $path ? OBITLEAGUE_DIR . 'src/Templates/register-page.php' : $template;
 	}
 
-	/** Create only dedicated auth pages; do not enable global WordPress registration. */
+	/** Create dedicated authentication pages without enabling global registration. */
 	public static function ensure_campaign_pages(): void {
 		$pages = array(
-			'register' => array( 'title' => 'Create your Obitleague account', 'content' => '[obitleague_register]' ),
+			'login'        => array( 'title' => 'Sign in to Obitleague', 'content' => '[obitleague_login]' ),
+			'register'     => array( 'title' => 'Create your Obitleague account', 'content' => '[obitleague_register]' ),
 			'verify-email' => array( 'title' => 'Verify your Obitleague email', 'content' => '' ),
 		);
 		foreach ( $pages as $slug => $page ) {
-			if ( ! get_page_by_path( $slug ) ) {
-				wp_insert_post( array(
-					'post_type' => 'page',
-					'post_status' => 'publish',
-					'post_title' => $page['title'],
-					'post_name' => $slug,
-					'post_content' => $page['content'],
-					'comment_status' => 'closed',
-				) );
+			if ( get_page_by_path( $slug ) ) {
+				continue;
 			}
+			wp_insert_post( array(
+				'post_type'      => 'page',
+				'post_status'    => 'publish',
+				'post_title'     => $page['title'],
+				'post_name'      => $slug,
+				'post_content'   => $page['content'],
+				'comment_status' => 'closed',
+			) );
 		}
 	}
 
-	public static function rewrites(): void {
-		add_rewrite_rule( '^league/(\d+)/?$', 'index.php?ob_league_id=$matches[1]', 'top' );
-		add_rewrite_rule( '^team/(\d+)/?$', 'index.php?ob_team_id=$matches[1]', 'top' );
+	public static function add_login_rewrite(): void {
+		add_rewrite_rule( '^login/?$', 'index.php?pagename=login', 'top' );
 	}
 
 	public static function query_vars( array $vars ): array {
 		$vars[] = 'ob_league_id';
 		$vars[] = 'ob_team_id';
 		return $vars;
+	}
+
+	public static function rewrites(): void {
+		add_rewrite_rule( '^league/(\d+)/?$', 'index.php?ob_league_id=$matches[1]', 'top' );
+		add_rewrite_rule( '^team/(\d+)/?$', 'index.php?ob_team_id=$matches[1]', 'top' );
 	}
 
 	public static function maybe_route( string $template ): string {
@@ -77,42 +90,76 @@ final class Game_Pages {
 		if ( '' !== $home && str_starts_with( $path, $home ) ) {
 			$path = trim( substr( $path, strlen( $home ) ), '/' );
 		}
-		/*
-		 * Route slug => template file. 'join' is served by join-league.php;
-		 * building the filename from the slug resolved to a missing
-		 * join.php and rendered the page as an empty 200 response.
-		 */
 		$routes = array(
 			'my-leagues' => 'my-leagues.php',
 			'join'       => 'join-league.php',
 			'stats'      => 'stats.php',
 		);
-		if ( isset( $routes[ $path ] ) ) {
-			return OBITLEAGUE_DIR . 'src/Templates/' . $routes[ $path ];
-		}
-		return $template;
+		return isset( $routes[ $path ] ) ? OBITLEAGUE_DIR . 'src/Templates/' . $routes[ $path ] : $template;
 	}
 
-	/** Main-season global standings.
-	 *
-	 * The heading uses the published current standings season when one exists,
-	 * so the page never advertises a locked future season as if it were live.
-	 * When nothing is published yet, the entry season is shown with an honest
-	 * note rather than a misleadingly live-looking table.
-	 */
+	public static function login_page_template( string $template ): string {
+		if ( 'login' !== Auth::request_path() ) {
+			return $template;
+		}
+		status_header( 200 );
+		return OBITLEAGUE_DIR . 'src/Templates/login-page.php';
+	}
+
+	/** Process front-end sign-out and administrator mode switch before output. */
+	public static function handle_logout(): void {
+		if ( 'login' !== Auth::request_path() ) {
+			return;
+		}
+		if ( isset( $_GET['ob_switch'] ) && 'wordpress' === sanitize_key( (string) $_GET['ob_switch'] ) && current_user_can( 'manage_options' ) ) {
+			check_admin_referer( 'obitleague_admin_switch' );
+			wp_logout();
+			wp_safe_redirect( Auth::admin_test_url() );
+			exit;
+		}
+		if ( ! isset( $_GET['ob_logout'] ) ) {
+			return;
+		}
+		$nonce = isset( $_GET['_ob_logout_nonce'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['_ob_logout_nonce'] ) ) : '';
+		if ( is_user_logged_in() && wp_verify_nonce( $nonce, 'obitleague_logout' ) ) {
+			wp_logout();
+		}
+		$redirect = isset( $_GET['redirect_to'] ) ? wp_validate_redirect( wp_unslash( (string) $_GET['redirect_to'] ), home_url( '/' ) ) : home_url( '/' );
+		wp_safe_redirect( $redirect );
+		exit;
+	}
+
+	public static function login_redirect( string $redirect_to, string $requested_redirect_to, $user ): string {
+		if ( $user instanceof \WP_User && user_can( $user, 'manage_options' ) ) {
+			return $requested_redirect_to ?: admin_url();
+		}
+		return home_url( '/my-leagues/' );
+	}
+
+	public static function lostpassword_url( string $lostpassword_url, string $redirect ): string {
+		return home_url( '/login/' );
+	}
+
+	public static function register_url( string $register_url ): string {
+		return home_url( '/register/' );
+	}
+
+	/** Keep WordPress-generated reset emails on the branded form. */
+	public static function password_reset_message( string $message, string $key, string $user_login, $user_data ): string {
+		$url = add_query_arg( array( 'action' => 'reset', 'key' => $key, 'login' => $user_login ), home_url( '/login/' ) );
+		return sprintf( "Someone has requested a password reset for the following Obitleague account:\n\n%s\n\nIf this was a mistake, ignore this email and nothing will happen. To reset your password, visit the following address:\n\n%s\n", $user_data->user_email, $url );
+	}
+
+	/** Main-season global standings. */
 	public static function overall_shortcode( $atts = array() ): string {
 		$requested = shortcode_atts( array( 'season' => Shortcodes::season(), 'top' => 0, 'page' => 1, 'per_page' => 50 ), $atts, 'obitleague_overall_standings' );
 		$season = (int) $requested['season'];
-
-		// Prefer the published current standings season when available, so the
-		// heading matches the data the reader is actually looking at.
 		$published = (int) $GLOBALS['wpdb']->get_var(
 			"SELECT season FROM {$GLOBALS['wpdb']->prefix}obitleague_standings_generations WHERE is_current = 1 AND season > 0 LIMIT 1"
 		);
 		if ( $published > 0 ) {
 			$season = $published;
 		}
-
 		$page   = max( 1, absint( $requested['page'] ) );
 		$limit  = (int) $requested['top'] > 0 ? min( 100, (int) $requested['top'] ) : min( 100, max( 1, (int) $requested['per_page'] ) );
 		$offset = ( $page - 1 ) * $limit;
@@ -159,7 +206,7 @@ final class Game_Pages {
 	/** Join or create optional invite-only side leagues. */
 	public static function join_shortcode( $atts = array() ): string {
 		if ( ! is_user_logged_in() ) {
-			return Shortcodes::enqueue() . '<section class="ob-card ob-join-card"><h2 class="ob-card__title">Join a side league</h2><p>Sign in to join a side league with an invite code, or create your own. Your main-season team is separate.</p><p><a class="ob-btn" href="' . esc_url( wp_login_url( home_url( '/join/' ) ) ) . '">Sign in to continue</a></p></section>';
+			return Shortcodes::enqueue() . '<section class="ob-card ob-join-card"><h2 class="ob-card__title">Join a side league</h2><p>Sign in to join a side league with an invite code, or create your own. Your main-season team is separate.</p><p><a class="ob-btn" href="' . esc_url( home_url( '/login/?redirect_to=' . rawurlencode( home_url( '/join/' ) ) ) ) . '">Sign in to continue</a></p></section>';
 		}
 		$season = League_Service::current_season();
 		$out = Shortcodes::enqueue() . '<div class="ob-join-grid">';
@@ -167,9 +214,9 @@ final class Game_Pages {
 		$out .= wp_nonce_field( 'wp_rest', '_obnonce', true, false ) . '<input type="text" name="token" required placeholder="Invite code" autocomplete="off" /><button type="submit" class="ob-btn">Join side league</button></form><p class="ob-join-msg" data-ob-join-msg aria-live="polite"></p></section>';
 		$out .= '<section class="ob-card ob-join-card"><h2 class="ob-card__title">Create a side league</h2><p>Create an uncapped invite-only side league for season ' . esc_html( (string) $season ) . '.</p><form class="ob-join-form" data-ob-create>';
 		$out .= wp_nonce_field( 'wp_rest', '_obnonce', true, false ) . '<input type="text" name="name" required maxlength="120" placeholder="League name (e.g. Office Pool)" /><button type="submit" class="ob-btn ob-btn--secondary">Create side league</button></form><p class="ob-join-msg" data-ob-create-msg aria-live="polite"></p></section></div>';
-		$rest = esc_url( rest_url( 'obitleague/v1' ) );
+		$rest   = esc_url( rest_url( 'obitleague/v1' ) );
 		$my_url = esc_url( home_url( '/my-leagues/' ) );
-		$out .= <<<HTML
+		$out   .= <<<HTML
 <script>
 (function(){
  var rest='{$rest}', myUrl='{$my_url}';

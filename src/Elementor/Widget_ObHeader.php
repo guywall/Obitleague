@@ -228,7 +228,7 @@ final class Widget_ObHeader extends \Elementor\Widget_Base {
 			? home_url( '/my-leagues/#build-team' )
 			: home_url( '/register/' );
 
-		$signin_url = wp_login_url( home_url( '/my-leagues/' ) );
+		$signin_url = home_url( '/login/?redirect_to=' . rawurlencode( home_url( '/my-leagues/' ) ) );
 
 		?>
 <header class="ob-header ob-js" data-ob-header>

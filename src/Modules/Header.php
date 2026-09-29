@@ -85,8 +85,7 @@ public static function render(): void {
 	}
 
 	$cta_url = $logged_in ? home_url( '/my-leagues/#build-team' ) : home_url( '/register/' );
-
-	$signin_url = wp_login_url( home_url( '/my-leagues/' ) );
+	$signin_url = home_url( '/login/?redirect_to=' . rawurlencode( home_url( '/my-leagues/' ) ) );
 
 	$primary = isset( $settings['primary'] ) ? (array) $settings['primary'] : array();
 
