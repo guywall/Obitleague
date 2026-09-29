@@ -465,7 +465,10 @@ final class Discovery_Service {
 		if ( '' === $enwiki ) {
 			return false; // No identity to anchor the evidence URL to.
 		}
-		$source_url    = 'https://en.wikipedia.org/wiki/' . str_replace( ' ', '_', $enwiki );
+		// Percent-encode the path: FILTER_VALIDATE_URL (used by the evidence
+		// check) rejects raw non-ASCII slugs like Miguel_Ángel_…. Decode
+		// first so an already-encoded stored slug is not double-encoded.
+		$source_url    = 'https://en.wikipedia.org/wiki/' . rawurlencode( str_replace( ' ', '_', rawurldecode( $enwiki ) ) );
 		$evidence_date = gmdate( 'Y-m-d' );
 
 		try {
