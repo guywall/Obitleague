@@ -14,8 +14,11 @@ header in `obitleague.php`; each released version is tagged in git.
   fill itself at a decent rate with a random mix of popular and obscure
   people; the cursor, the daily-run option and the advance logic are gone.
 - Manual batch starts are bounded to 4 per rolling hour so repeated clicks
-  cannot hammer the Wikidata endpoints; automatic queue drains (cooldown
-  recovery) bypass that bound exactly as they bypassed the old daily cap.
+  cannot hammer the Wikidata endpoints; automatic runs bypass that bound
+  exactly as they bypassed the old daily cap. A new hourly cron tick
+  (`obitleague_discovery_tick`) runs one full batch every hour, so the
+  catalogue self-populates without anyone clicking; the tick is armed on
+  activation/boot and unscheduled on deactivation like the other jobs.
   Admin batch size options are now 10/25/50; `wp obitleague discovery`
   defaults to a full batch and accepts `--limit=1..50`.
 

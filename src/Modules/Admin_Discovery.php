@@ -126,11 +126,11 @@ final class Admin_Discovery {
 		echo '</div>';
 	}
 
-	/** Handle one small manually-triggered batch. */
+	/** Handle one manually-triggered batch. */
 	public static function run_batch(): void {
 		self::require_post( 'obitleague_discovery_run', self::BATCH_CAP );
-		$limit  = isset( $_POST['limit'] ) ? absint( $_POST['limit'] ) : 1;
-		$result = Discovery_Service::run_batch( min( 5, max( 1, $limit ) ) );
+		$limit  = isset( $_POST['limit'] ) ? absint( $_POST['limit'] ) : 50;
+		$result = Discovery_Service::run_batch( min( 50, max( 1, $limit ) ) );
 		if ( is_wp_error( $result ) ) {
 			self::redirect( array( 'error' => $result->get_error_message() ) );
 		}

@@ -39,6 +39,9 @@ final class Setup {
 		if ( ! \wp_next_scheduled( 'obitleague_wiki_queue_tick' ) ) {
 			\wp_schedule_event( time() + 120, 'obitleague_1min', 'obitleague_wiki_queue_tick' );
 		}
+		if ( ! \wp_next_scheduled( 'obitleague_discovery_tick' ) ) {
+			\wp_schedule_event( time() + 300, 'hourly', 'obitleague_discovery_tick' );
+		}
 
 		flush_rewrite_rules();
 	}
@@ -57,7 +60,7 @@ final class Setup {
 	}
 
 	public static function deactivate(): void {
-		foreach ( array( 'obitleague_feed_poll', 'obitleague_profile_refresh', 'obitleague_outbox_tick', 'obitleague_standings_rebuild', 'obitleague_main_user_backfill', 'obitleague_wiki_queue_tick' ) as $hook ) {
+		foreach ( array( 'obitleague_feed_poll', 'obitleague_profile_refresh', 'obitleague_outbox_tick', 'obitleague_standings_rebuild', 'obitleague_main_user_backfill', 'obitleague_wiki_queue_tick', 'obitleague_discovery_tick' ) as $hook ) {
 			$timestamp = \wp_next_scheduled( $hook );
 			while ( false !== $timestamp ) {
 				\wp_unschedule_event( $timestamp, $hook );

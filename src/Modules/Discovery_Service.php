@@ -53,7 +53,7 @@ final class Discovery_Service {
 		Wiki_Request_Queue::register_handler(
 			'discovery_batch',
 			static function ( array $payload ) {
-				$result = self::run_batch( max( 1, (int) ( $payload['limit'] ?? self::BATCH_LIMIT ) ), true );
+				$result = self::run_batch( max( 1, (int) ( $payload['limit'] ?? self::BATCH_LIMIT ) ), (bool) ( $payload['automatic'] ?? true ) ); // Queue drains are automatic by default.
 				if ( is_array( $result ) && 'ok' === (string) ( $result['status'] ?? '' ) ) {
 					return $result;
 				}
@@ -214,12 +214,13 @@ final class Discovery_Service {
 
 	/**
 	 * Run one batch: a random sample of living people, up to BATCH_LIMIT
-	 * new candidates. No WP-Cron hook is installed; manual runs are bounded
-	 * per rolling hour, automatic queue drains are not.
+	 * new candidates. Manual runs are bounded per rolling hour; automatic
+	 * runs — the hourly cron tick and cooldown queue drains — bypass that
+	 * bound.
 	 */
-	public static function run_batch( int $limit = self::BATCH_LIMIT, bool $via_queue = false ): array|\WP_Error {
+	public static function run_batch( int $limit = self::BATCH_LIMIT, bool $automatic = false ): array|\WP_Error {
 		$limit = min( self::BATCH_LIMIT, max( 1, $limit ) );
-		if ( ! $via_queue && ! self::hourly_runs_available() ) {
+		if ( ! $automatic && ! self::hourly_runs_available() ) {
 			return new \WP_Error(
 				'obitleague_discovery_hourly_limit',
 				sprintf( 'Manual Discovery batches are limited to %d per hour; automatic queue drains are unaffected. Try again shortly.', self::HOURLY_RUNS ),
@@ -237,15 +238,15 @@ final class Discovery_Service {
 			}
 		}
 		try {
-			return self::run_batch_locked( $limit, $via_queue );
+			return self::run_batch_locked( $limit, $automatic );
 		} finally {
 			delete_option( self::LOCK_OPTION );
 		}
 	}
 
 	/** @return array<string,int|string>|\WP_Error */
-	private static function run_batch_locked( int $limit, bool $via_queue = false ): array|\WP_Error {
-		if ( ! $via_queue ) {
+	private static function run_batch_locked( int $limit, bool $automatic = false ): array|\WP_Error {
+		if ( ! $automatic ) {
 			$hourly = self::hourly_runs();
 			$hourly['ran'] = ( (int) ( $hourly['ran'] ?? 0 ) ) + 1;
 			update_option( self::HOURLY_OPTION, $hourly, false );
@@ -255,7 +256,7 @@ final class Discovery_Service {
 		if ( $pause > time() ) {
 			// Cooldown: store the request in the global Wikimedia queue instead
 			// of failing — it runs automatically once the pause lifts.
-			Wiki_Request_Queue::enqueue( 'discovery_batch', array( 'limit' => $limit ), 'discovery-batch' );
+			Wiki_Request_Queue::enqueue( 'discovery_batch', array( 'limit' => $limit, 'automatic' => true ), 'discovery-batch' );
 			return array( 'status' => 'queued', 'window' => implode( ', ', array_column( $samples, 'window' ) ), 'checked' => 0, 'queued' => 0, 'skipped' => 0, 'note' => sprintf( 'Wikimedia pause until %s UTC — batch request stored in the queue and will run automatically when the pause lifts.', gmdate( 'Y-m-d H:i:s', $pause ) ) );
 		}
 		// Random sampling: every birth-month window contributes at most one
@@ -416,7 +417,7 @@ final class Discovery_Service {
 		if ( 'obitleague_discovery_paused' !== $code && 'obitleague_discovery_rate_limited' !== $code ) {
 			return $error;
 		}
-		Wiki_Request_Queue::enqueue( 'discovery_batch', array( 'limit' => $limit ), 'discovery-batch' );
+		Wiki_Request_Queue::enqueue( 'discovery_batch', array( 'limit' => $limit, 'automatic' => true ), 'discovery-batch' );
 		return array( 'status' => 'queued', 'window' => $window, 'checked' => 0, 'queued' => 0, 'skipped' => 0, 'note' => 'Wikimedia cooldown — the batch was stored in the request queue and will run automatically when the pause lifts.' );
 	}
 
@@ -438,9 +439,8 @@ final class Discovery_Service {
 		);
 	}
 
-	/**
-	 * Approve a candidate without manual sign-off, trusting the fresh
-	 * structured checks: the record must have no death date, and
+	/**		 * Approve a candidate without manual sign-off, trusting the fresh
+	 * structured checks: the record must have no death date, and the
 	 * verify_current_candidate() re-confirms Wikidata/Wikipedia liveness
 	 * signals right before publication. Anything that fails a check (or
 	 * needs an upstream call during a cooldown) stays pending.
@@ -645,6 +645,18 @@ final class Discovery_Service {
 	/** Shared cooldown timestamp for the Wikimedia request queue. */
 	public static function rate_limit_pause_until(): int {
 		return (int) get_option( self::PAUSE_OPTION, 0 );
+	}
+
+	/**
+	 * The hourly cron tick: one automatic batch so the catalogue fills
+	 * itself without anyone clicking. Busy locks, cooldown deferrals and
+	 * throttling are all healthy outcomes here — the run record and the
+	 * admin screen carry the detail, and the next tick simply tries again.
+	 *
+	 * @return array<string,int|string>|\WP_Error The batch result, for the scheduler log.
+	 */
+	public static function run_automatic_batch(): array|\WP_Error {
+		return self::run_batch( self::BATCH_LIMIT, true );
 	}
 
 	/** Explicit WP-CLI command: wp obitleague discovery [--limit=1..50]. */
