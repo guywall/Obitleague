@@ -403,7 +403,7 @@ foreach ( $league_ids as $league ) {
 echo "new demo submissions: {$submitted}\n";
 
 /* ---------- canonical main league: the overall 2026 leaderboard ---------- */
-$main_league_id = Main_League_Service::ensure_league( $season );
+$main_league_id = \Obitleague\Modules\Main_League_Service::ensure_league( $season );
 $main_submitted = 0;
 foreach ( $users as $user_index => $user_id ) {
 	$entry_id = Entry_Service::get_or_create_entry( $main_league_id, $season, (int) $user_id );
