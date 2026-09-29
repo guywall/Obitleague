@@ -4,7 +4,9 @@
  *
  * Candidates are never published automatically. Wikimedia data is only a
  * filter; editor approval requires fresh upstream checks and a recent source.
- * One cursor page and no more than five new drafts are processed per day.
+ * Each batch samples random birth-month windows and imports up to fifty
+ * new drafts; manual runs are bounded per rolling hour, automatic queue
+ * drains are not.
  *
  * @package Obitleague
  */
@@ -21,16 +23,22 @@ final class Discovery_Service {
 	private const SPARQL_ENDPOINT    = 'https://query.wikidata.org/sparql';
 	private const WIKIDATA_API       = 'https://www.wikidata.org/w/api.php';
 	private const WIKIPEDIA_API      = 'https://en.wikipedia.org/w/api.php';
-	private const CURSOR_OPTION      = 'obitleague_discovery_cursor';
 	private const LAST_RUN_OPTION    = 'obitleague_discovery_last_run';
 	private const PAUSE_OPTION       = 'obitleague_discovery_pause_until';
 	private const LOCK_OPTION        = 'obitleague_discovery_lock';
 	private const HTTP_LOCK_OPTION   = 'obitleague_discovery_http_lock';
 	private const LAST_HTTP_OPTION   = 'obitleague_discovery_last_http';
 	private const REVIEW_LOCK_PREFIX = 'obitleague_discovery_review_';
-	private const DAILY_OPTION       = 'obitleague_discovery_daily';
+	private const HOURLY_OPTION      = 'obitleague_discovery_hourly';
 	private const BATCH_SIZE         = 25;
-	private const QUEUE_LIMIT        = 5;
+	/** Candidates one batch may import. The catalogue is meant to fill itself. */
+	private const BATCH_LIMIT        = 50;
+	/** Manual batch starts allowed per rolling hour (automatic queue drains bypass this). */
+	private const HOURLY_RUNS        = 4;
+	/** Length of the manual-run window in seconds. */
+	private const HOURLY_SECONDS     = 3600;
+	/** Distinct birth-month windows one batch samples. */
+	private const SAMPLE_WINDOWS     = 6;
 	private const FIRST_BIRTH_YEAR   = 1946;
 	private const EDITOR_CAPABILITY  = 'obitleague_review';
 	private const REVIEW_LOCK_TTL    = 900;
@@ -45,7 +53,7 @@ final class Discovery_Service {
 		Wiki_Request_Queue::register_handler(
 			'discovery_batch',
 			static function ( array $payload ) {
-				$result = self::run_batch( max( 1, (int) ( $payload['limit'] ?? self::QUEUE_LIMIT ) ), true );
+				$result = self::run_batch( max( 1, (int) ( $payload['limit'] ?? self::BATCH_LIMIT ) ), true );
 				if ( is_array( $result ) && 'ok' === (string) ( $result['status'] ?? '' ) ) {
 					return $result;
 				}
@@ -204,9 +212,20 @@ final class Discovery_Service {
 		}
 	}
 
-	/** Run one small, manually invoked batch. No WP-Cron hook is installed. */
-	public static function run_batch( int $limit = self::QUEUE_LIMIT, bool $via_queue = false ): array|\WP_Error {
-		$limit = min( self::QUEUE_LIMIT, max( 1, $limit ) );
+	/**
+	 * Run one batch: a random sample of living people, up to BATCH_LIMIT
+	 * new candidates. No WP-Cron hook is installed; manual runs are bounded
+	 * per rolling hour, automatic queue drains are not.
+	 */
+	public static function run_batch( int $limit = self::BATCH_LIMIT, bool $via_queue = false ): array|\WP_Error {
+		$limit = min( self::BATCH_LIMIT, max( 1, $limit ) );
+		if ( ! $via_queue && ! self::hourly_runs_available() ) {
+			return new \WP_Error(
+				'obitleague_discovery_hourly_limit',
+				sprintf( 'Manual Discovery batches are limited to %d per hour; automatic queue drains are unaffected. Try again shortly.', self::HOURLY_RUNS ),
+				array( 'status' => 429 )
+			);
+		}
 		if ( ! add_option( self::LOCK_OPTION, time(), '', false ) ) {
 			$lock_time = (int) get_option( self::LOCK_OPTION, 0 );
 			if ( $lock_time > time() - 600 ) {
@@ -226,53 +245,54 @@ final class Discovery_Service {
 
 	/** @return array<string,int|string>|\WP_Error */
 	private static function run_batch_locked( int $limit, bool $via_queue = false ): array|\WP_Error {
-		$today = gmdate( 'Y-m-d' );
-		$daily = get_option( self::DAILY_OPTION, array() );
-		if ( ! $via_queue && is_array( $daily ) && $today === (string) ( $daily['date'] ?? '' ) && ! empty( $daily['ran'] ) ) {
-			return new \WP_Error( 'obitleague_discovery_daily_limit', 'Discovery has already run its one small batch for today (UTC). Try again tomorrow.' );
+		if ( ! $via_queue ) {
+			$hourly = self::hourly_runs();
+			$hourly['ran'] = ( (int) ( $hourly['ran'] ?? 0 ) ) + 1;
+			update_option( self::HOURLY_OPTION, $hourly, false );
 		}
-		$cursor = self::cursor();
-		$window = sprintf( '%04d-%02d', $cursor['year'], $cursor['month'] );
+		$samples = self::random_birth_windows( $limit );
 		$pause  = (int) get_option( self::PAUSE_OPTION, 0 );
 		if ( $pause > time() ) {
 			// Cooldown: store the request in the global Wikimedia queue instead
 			// of failing — it runs automatically once the pause lifts.
 			Wiki_Request_Queue::enqueue( 'discovery_batch', array( 'limit' => $limit ), 'discovery-batch' );
-			return array( 'status' => 'queued', 'window' => $window, 'checked' => 0, 'queued' => 0, 'skipped' => 0, 'note' => sprintf( 'Wikimedia pause until %s UTC — batch request stored in the queue and will run automatically when the pause lifts.', gmdate( 'Y-m-d H:i:s', $pause ) ) );
+			return array( 'status' => 'queued', 'window' => implode( ', ', array_column( $samples, 'window' ) ), 'checked' => 0, 'queued' => 0, 'skipped' => 0, 'note' => sprintf( 'Wikimedia pause until %s UTC — batch request stored in the queue and will run automatically when the pause lifts.', gmdate( 'Y-m-d H:i:s', $pause ) ) );
 		}
-		$rows   = self::fetch_sparql_page( $cursor );
-		if ( is_wp_error( $rows ) ) {
-			self::record_last_run( array( 'status' => 'error', 'window' => $window, 'message' => $rows->get_error_message() ) );
-			return $rows;
-		}
-		// The batch is only reserved once the network round-trip has succeeded:
-		// a timed-out or rate-limited attempt must not consume the daily slot.
-		self::mark_daily_run( $today );
-
+		// Random sampling: every birth-month window contributes at most one
+		// SPARQL page, so the candidate mix is a genuine cross-section of the
+		// living cohort (popular and obscure alike) rather than one
+		// alphabetical month slice.
 		$unique = array();
-		foreach ( $rows as $row ) {
-			if ( ! is_array( $row ) || ! is_array( $row['person'] ?? null ) || ! is_array( $row['title'] ?? null )
-				|| ! is_string( $row['person']['value'] ?? null ) || ! is_string( $row['title']['value'] ?? null )
-			) {
-				self::record_last_run( array( 'status' => 'error', 'window' => $window, 'message' => 'Wikidata returned a malformed row; the cursor did not advance.' ) );
-				return new \WP_Error( 'obitleague_discovery_sparql_row', 'Wikidata returned a malformed row; no candidates were created.' );
+		$windows = array();
+		foreach ( $samples as $sample ) {
+			$rows = self::fetch_sparql_page( $sample );
+			if ( is_wp_error( $rows ) ) {
+				if ( ! $unique ) {
+					self::record_last_run( array( 'status' => 'error', 'window' => $sample['window'], 'message' => $rows->get_error_message() ) );
+					return $rows;
+				}
+				break; // Later windows are optional once we hold a sample.
 			}
-			$qid = self::qid_from_uri( $row['person']['value'] );
-			if ( '' === $qid ) {
-				self::record_last_run( array( 'status' => 'error', 'window' => $window, 'message' => 'Wikidata returned an invalid person URI; the cursor did not advance.' ) );
-				return new \WP_Error( 'obitleague_discovery_sparql_qid', 'Wikidata returned an invalid person URI; no candidates were created.' );
-			}
-			if ( ! isset( $unique[ $qid ] ) ) {
+			$windows[] = $sample['window'];
+			foreach ( $rows as $row ) {
+				if ( ! is_array( $row ) || ! is_array( $row['person'] ?? null ) || ! is_array( $row['title'] ?? null )
+					|| ! is_string( $row['person']['value'] ?? null ) || ! is_string( $row['title']['value'] ?? null )
+				) {
+					continue; // A malformed row is skipped, not fatal, when other windows can supply rows.
+				}
+				$qid = self::qid_from_uri( (string) $row['person']['value'] );
+				if ( '' === $qid || isset( $unique[ $qid ] ) ) {
+					continue;
+				}
 				$unique[ $qid ] = $row;
+			}
+			// One batch already carries more than enough raw material.
+			if ( count( $unique ) >= self::BATCH_SIZE * 2 ) {
+				break;
 			}
 		}
 		if ( array() === $unique ) {
-			if ( array() !== $rows ) {
-				self::record_last_run( array( 'status' => 'error', 'window' => $window, 'message' => 'Wikidata returned no valid identifiers; the cursor did not advance.' ) );
-				return new \WP_Error( 'obitleague_discovery_sparql_qid', 'Wikidata returned no valid identifiers; no candidates were created.' );
-			}
-			self::advance_cursor( $cursor );
-			$result = array( 'status' => 'ok', 'window' => $window, 'checked' => 0, 'queued' => 0, 'skipped' => 0, 'note' => 'No rows in this window; advanced to the next birth month.' );
+			$result = array( 'status' => 'ok', 'window' => implode( ', ', $windows ), 'checked' => 0, 'queued' => 0, 'skipped' => 0, 'note' => 'The sampled birth windows returned no new candidates; run again for a different random sample.' );
 			self::record_last_run( $result );
 			return $result;
 		}
@@ -287,11 +307,11 @@ final class Discovery_Service {
 		if ( $unseen ) {
 			$entities = self::fetch_entities( array_keys( $unseen ) );
 			if ( is_wp_error( $entities ) ) {
-				$deferred = self::defer_on_pause( $entities, $limit, $window );
+				$deferred = self::defer_on_pause( $entities, $limit, implode( ', ', $windows ) );
 				if ( is_array( $deferred ) ) {
 					return $deferred;
 				}
-				self::record_last_run( array( 'status' => 'error', 'window' => $window, 'message' => $entities->get_error_message() ) );
+				self::record_last_run( array( 'status' => 'error', 'window' => implode( ', ', $windows ), 'message' => $entities->get_error_message() ) );
 				return $entities;
 			}
 		}
@@ -304,8 +324,7 @@ final class Discovery_Service {
 			}
 			$birth = Discovery_Rules::exact_birth_date( $entity );
 			if ( ! Discovery_Rules::is_human( $entity ) || Discovery_Rules::has_death_claim( $entity )
-				|| null === $birth || ! str_starts_with( $birth, $window )
-				|| ! Discovery_Rules::is_old_enough( $birth, League_Service::current_season() )
+				|| null === $birth || ! Discovery_Rules::is_old_enough( $birth, League_Service::current_season() )
 			) {
 				continue;
 			}
@@ -320,21 +339,18 @@ final class Discovery_Service {
 		if ( $eligible ) {
 			$categories = self::fetch_categories( array_column( $eligible, 'title' ) );
 			if ( is_wp_error( $categories ) ) {
-				$deferred = self::defer_on_pause( $categories, $limit, $window );
+				$deferred = self::defer_on_pause( $categories, $limit, implode( ', ', $windows ) );
 				if ( is_array( $deferred ) ) {
 					return $deferred;
 				}
-				self::record_last_run( array( 'status' => 'error', 'window' => $window, 'message' => $categories->get_error_message() ) );
+				self::record_last_run( array( 'status' => 'error', 'window' => implode( ', ', $windows ), 'message' => $categories->get_error_message() ) );
 				return $categories;
 			}
 		}
 
 		$queued = 0;
 		$skipped = 0;
-		$last_processed = (string) $cursor['after_qid'];
-		$stopped_at_limit = false;
 		foreach ( $unique as $qid => $row ) {
-			$last_processed = $qid;
 			if ( Import_Service::post_id_by_qid( $qid ) ) {
 				++$skipped;
 				continue;
@@ -371,21 +387,10 @@ final class Discovery_Service {
 			update_post_meta( $post_id, 'obit_discovery_living_category', 'Living people' );
 			update_post_meta( $post_id, 'obit_discovery_description', trim( (string) ( $entity['descriptions']['en']['value'] ?? '' ) ) );
 			++$queued;
-			self::audit( $post_id, 'candidate_queued', array( 'qid' => $qid, 'birth' => $candidate['birth'], 'window' => $window, 'living_category' => true ) );
+			self::audit( $post_id, 'candidate_queued', array( 'qid' => $qid, 'birth' => $candidate['birth'], 'window' => implode( ', ', $windows ), 'living_category' => true ) );
 			if ( $queued >= $limit ) {
-				$stopped_at_limit = true;
 				break;
 			}
-		}
-
-		$cursor['after_qid'] = $last_processed;
-		if ( $stopped_at_limit ) {
-			update_option( self::CURSOR_OPTION, $cursor, false );
-		} elseif ( count( $rows ) < self::BATCH_SIZE ) {
-			self::advance_cursor( $cursor );
-		} else {
-			$cursor['after_qid'] = (string) array_key_last( $unique );
-			update_option( self::CURSOR_OPTION, $cursor, false );
 		}
 		// Automatic approval: candidates whose fresh checks pass (no death
 		// date on the record, living-person category intact) are approved
@@ -397,7 +402,7 @@ final class Discovery_Service {
 			}
 		}
 
-		$result = array( 'status' => 'ok', 'window' => $window, 'checked' => count( $unique ), 'queued' => $queued, 'skipped' => $skipped, 'note' => 'No-death-date candidates were auto-approved; anything needing a closer look stays pending in the review queue.' );
+		$result = array( 'status' => 'ok', 'window' => implode( ', ', $windows ), 'checked' => count( $unique ), 'queued' => $queued, 'skipped' => $skipped, 'note' => 'Random sample: no-death-date candidates were auto-approved; anything needing a closer look stays pending in the review queue.' );
 		if ( $auto_approved > 0 ) {
 			$result['auto_approved'] = $auto_approved;
 		}
@@ -627,13 +632,13 @@ final class Discovery_Service {
 
 	/** Saved progress for the admin screen. */
 	public static function status(): array {
-		$cursor = self::cursor();
-		$daily  = get_option( self::DAILY_OPTION, array() );
 		return array(
-			'cursor'        => sprintf( '%04d-%02d', $cursor['year'], $cursor['month'] ),
+			'windows'       => implode( ', ', array_column( self::random_birth_windows( self::SAMPLE_WINDOWS ), 'window' ) ),
 			'last_run'      => get_option( self::LAST_RUN_OPTION, array() ),
 			'pause_until'   => (int) get_option( self::PAUSE_OPTION, 0 ),
-			'daily_limited' => is_array( $daily ) && gmdate( 'Y-m-d' ) === (string) ( $daily['date'] ?? '' ) && ! empty( $daily['ran'] ),
+			'hourly_limited' => ! self::hourly_runs_available(),
+			'hourly_runs'   => count( self::hourly_runs()['times'] ),
+			'hourly_runs_max' => self::HOURLY_RUNS,
 		);
 	}
 
@@ -642,9 +647,9 @@ final class Discovery_Service {
 		return (int) get_option( self::PAUSE_OPTION, 0 );
 	}
 
-	/** Explicit WP-CLI command: wp obitleague discovery [--limit=1..5]. */
+	/** Explicit WP-CLI command: wp obitleague discovery [--limit=1..50]. */
 	public static function cli_run_batch( array $args, array $assoc_args ): void {
-		$limit  = isset( $assoc_args['limit'] ) ? absint( $assoc_args['limit'] ) : 1;
+		$limit  = isset( $assoc_args['limit'] ) ? absint( $assoc_args['limit'] ) : self::BATCH_LIMIT;
 		$result = self::run_batch( $limit );
 		if ( is_wp_error( $result ) ) {
 			\WP_CLI::error( $result->get_error_message() );
@@ -699,12 +704,12 @@ final class Discovery_Service {
 		return true;
 	}
 
-	/** Fetch one ordered page from a bounded month window. */
+	/** Fetch one page from a birth-month window (random sampling ignores the old cursor). */
 	private static function fetch_sparql_page( array $cursor ): array|\WP_Error {
 		$from  = sprintf( '%04d-%02d-01T00:00:00Z', $cursor['year'], $cursor['month'] );
 		$next  = ( new \DateTimeImmutable( $from, new \DateTimeZone( 'UTC' ) ) )->modify( '+1 month' )->format( 'Y-m-d' ) . 'T00:00:00Z';
 		$after = '';
-		if ( '' !== $cursor['after_qid'] ) {
+		if ( '' !== (string) ( $cursor['after_qid'] ?? '' ) ) {
 			$after = 'FILTER(STR(?person) > "http://www.wikidata.org/entity/' . $cursor['after_qid'] . '")';
 		}
 		$query = 'PREFIX wd: <http://www.wikidata.org/entity/> '
@@ -970,31 +975,56 @@ final class Discovery_Service {
 		return 'Obitleague-Discovery/' . $version . ' (' . $identity . '; ' . ( '' !== $contact ? $contact : home_url( '/' ) ) . ') WordPress/' . get_bloginfo( 'version' );
 	}
 
-	private static function cursor(): array {
-		$cursor   = get_option( self::CURSOR_OPTION, array() );
-		$cursor   = is_array( $cursor ) ? $cursor : array();
+	/**
+	 * A random set of distinct birth-month windows within the eligible span.
+	 * One batch draws several windows and takes at most one SPARQL page from
+	 * each, so every run samples the whole living cohort at random — some
+	 * popular, some obscure — instead of walking one alphabetical slice.
+	 *
+	 * @return array<int, array{year:int, month:int, window:string}>
+	 */
+	private static function random_birth_windows( int $count ): array {
 		$max_year = max( self::FIRST_BIRTH_YEAR, League_Service::current_season() - Ruleset::MIN_AGE );
-		$year     = max( self::FIRST_BIRTH_YEAR, min( $max_year, (int) ( $cursor['year'] ?? self::FIRST_BIRTH_YEAR ) ) );
-		$month    = max( 1, min( 12, (int) ( $cursor['month'] ?? 1 ) ) );
-		$after    = strtoupper( trim( (string) ( $cursor['after_qid'] ?? '' ) ) );
-		if ( ! preg_match( '/^Q[1-9][0-9]*$/', $after ) ) {
-			$after = '';
+		$months   = max( 1, ( $max_year - self::FIRST_BIRTH_YEAR + 1 ) * 12 );
+		$wanted   = max( 1, min( self::SAMPLE_WINDOWS, $count ) );
+		$picked   = array();
+		$seen     = array();
+		while ( count( $picked ) < $wanted && count( $seen ) < $months ) {
+			$index = random_int( 0, $months - 1 );
+			if ( isset( $seen[ $index ] ) ) {
+				continue;
+			}
+			$seen[ $index ] = true;
+			$year   = intdiv( $index, 12 ) + self::FIRST_BIRTH_YEAR;
+			$month  = ( $index % 12 ) + 1;
+			$picked[] = array(
+				'year'   => $year,
+				'month'  => $month,
+				'window' => sprintf( '%04d-%02d', $year, $month ),
+			);
 		}
-		return array( 'year' => $year, 'month' => $month, 'after_qid' => $after );
+		return $picked;
 	}
 
-	private static function advance_cursor( array $cursor ): void {
-		$max_year = max( self::FIRST_BIRTH_YEAR, League_Service::current_season() - Ruleset::MIN_AGE );
-		++$cursor['month'];
-		$cursor['after_qid'] = '';
-		if ( $cursor['month'] > 12 ) {
-			$cursor['month'] = 1;
-			++$cursor['year'];
-			if ( $cursor['year'] > $max_year ) {
-				$cursor['year'] = self::FIRST_BIRTH_YEAR;
-			}
-		}
-		update_option( self::CURSOR_OPTION, $cursor, false );
+	/** Rolling-hour run book for manually started batches. */
+	private static function hourly_runs(): array {
+		$state = get_option( self::HOURLY_OPTION, array() );
+		$state = is_array( $state ) ? $state : array();
+		$now = time();
+		$window_start = $now - self::HOURLY_SECONDS;
+		$times = array_values(
+			array_filter(
+				(array) ( $state['times'] ?? array() ),
+				static fn ( $ts ): bool => is_numeric( $ts ) && (int) $ts > $window_start
+			)
+		);
+		return array( 'times' => array_map( 'intval', $times ) );
+	}
+
+	/** True when another manual batch may start within the rolling hour. */
+	private static function hourly_runs_available(): bool {
+		$state = self::hourly_runs();
+		return count( $state['times'] ) < self::HOURLY_RUNS;
 	}
 
 	private static function qid_from_uri( string $uri ): string {
@@ -1007,10 +1037,6 @@ final class Discovery_Service {
 	private static function normalize_title( string $title ): string {
 		$title = str_replace( '_', ' ', trim( $title ) );
 		return function_exists( 'mb_strtolower' ) ? mb_strtolower( $title ) : strtolower( $title );
-	}
-
-	private static function mark_daily_run( string $date ): void {
-		update_option( self::DAILY_OPTION, array( 'date' => $date, 'ran' => true ), false );
 	}
 
 	private static function record_last_run( array $result ): void {

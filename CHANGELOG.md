@@ -5,6 +5,20 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Changed — Discovery self-population
+
+- **Discovery now samples the living cohort at random instead of walking it in
+  order.** Each batch draws up to six distinct birth-month windows from the
+  eligible span and imports up to **50 new candidates** (previously five per
+  UTC day, one batch per day, in strict QID order). The catalogue is meant to
+  fill itself at a decent rate with a random mix of popular and obscure
+  people; the cursor, the daily-run option and the advance logic are gone.
+- Manual batch starts are bounded to 4 per rolling hour so repeated clicks
+  cannot hammer the Wikidata endpoints; automatic queue drains (cooldown
+  recovery) bypass that bound exactly as they bypassed the old daily cap.
+  Admin batch size options are now 10/25/50; `wp obitleague discovery`
+  defaults to a full batch and accepts `--limit=1..50`.
+
 ### Added — Humans vs AI (feature/ai-vs-humans)
 
 - **AI competitors are participants, not a separate game.** An agent is an

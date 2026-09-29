@@ -41,10 +41,10 @@ final class Admin_Discovery {
 		if ( isset( $_GET['error'] ) ) {
 			echo '<div class="notice notice-error"><p>' . esc_html( sanitize_text_field( wp_unslash( (string) $_GET['error'] ) ) ) . '</p></div>';
 		}
-		echo '<p>Discovery reads a small Wikidata cohort and queues at most five candidates per UTC day. Passing candidates are approved automatically — the fresh check confirms the record has no death date and the living-person signals are still intact — and anything uncertain stays below for a manual look.</p>';
-		echo '<p>Next birth-month window: <code>' . esc_html( $status['cursor'] ) . '</code>';
-		if ( $status['daily_limited'] ) {
-			echo ' · Daily batch limit reached.';
+		echo '<p>Discovery samples random birth-month cohorts from Wikidata and queues up to 50 new candidates per batch, drawn at random across the whole eligible span — popular names and obscure ones alike. Passing candidates are approved automatically — the fresh check confirms the record has no death date and the living-person signals are still intact — and anything uncertain stays below for a manual look.</p>';
+		echo '<p>Sampled birth-month windows (random each batch): <code>' . esc_html( (string) $status['windows'] ) . '</code>';
+		if ( ! empty( $status['hourly_limited'] ) ) {
+			echo ' · Hourly manual-run limit reached (' . (int) $status['hourly_runs'] . '/' . (int) $status['hourly_runs_max'] . ' this hour) — automatic queue drains are unaffected.';
 		}
 		if ( $status['pause_until'] > time() ) {
 			echo ' · Wikimedia pause until ' . esc_html( gmdate( 'Y-m-d H:i:s', $status['pause_until'] ) ) . ' UTC.';
@@ -64,11 +64,11 @@ final class Admin_Discovery {
 				echo '<p class="description">' . esc_html( (string) $last['message'] ) . '</p>';
 			}
 		}
-		if ( current_user_can( self::BATCH_CAP ) && ! $status['daily_limited'] && $status['pause_until'] <= time() ) {
+		if ( current_user_can( self::BATCH_CAP ) && ! $status['hourly_limited'] && $status['pause_until'] <= time() ) {
 			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 			wp_nonce_field( 'obitleague_discovery_run' );
 			echo '<input type="hidden" name="action" value="obitleague_discovery_run" />';
-			echo '<label for="ob-discovery-limit">Maximum new candidates </label><select name="limit" id="ob-discovery-limit"><option value="1">1 (recommended)</option><option value="3">3</option><option value="5">5 (daily maximum)</option></select> ';
+			echo '<label for="ob-discovery-limit">Maximum new candidates </label><select name="limit" id="ob-discovery-limit"><option value="10">10</option><option value="25">25</option><option value="50">50 (batch maximum)</option></select> ';
 			submit_button( 'Run one Discovery batch', 'primary', 'submit', false );
 			echo '</form>';
 		} elseif ( ! current_user_can( self::BATCH_CAP ) ) {
