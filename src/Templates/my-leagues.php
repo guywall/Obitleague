@@ -6,7 +6,9 @@ use Obitleague\Modules\Entry_Service;
 use Obitleague\Modules\League_Service;
 use Obitleague\Modules\League_View_Service;
 use Obitleague\Modules\Overall_Standings;
+use Obitleague\Modules\Pick_Stats;
 use Obitleague\Modules\Standings_Service;
+use Obitleague\Modules\Season_Switcher;
 
 $user_id = get_current_user_id();
 get_header();
