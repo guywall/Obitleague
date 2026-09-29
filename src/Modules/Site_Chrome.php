@@ -63,7 +63,8 @@ final class Site_Chrome {
 		$year  = date_i18n( 'Y' );				$links = array(
 				'Standings'     => home_url( '/standings/' ),
 			'People'        => home_url( '/people/' ),
-			'Picks'         => home_url( '/people/?living=0' ),
+			'Teams'         => home_url( '/teams/' ),
+			'Obituaries'     => home_url( '/obituaries/' ),
 			'Death Archive' => home_url( '/archive/' ),
 				'Rules'         => home_url( '/rules/' ),
 				'My Leagues'    => home_url( '/my-leagues/' ),

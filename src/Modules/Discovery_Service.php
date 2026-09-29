@@ -642,6 +642,11 @@ final class Discovery_Service {
 		return (int) get_option( self::PAUSE_OPTION, 0 );
 	}
 
+	/** Record a rate-limit pause reported by another module's request. */
+	public static function note_rate_limit( string $retry_after ): int {
+		return self::set_rate_limit_pause($retry_after);
+	}
+
 	/** Explicit WP-CLI command: wp obitleague discovery [--limit=1..5]. */
 	public static function cli_run_batch( array $args, array $assoc_args ): void {
 		$limit  = isset( $assoc_args['limit'] ) ? absint( $assoc_args['limit'] ) : 1;

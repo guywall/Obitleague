@@ -182,7 +182,7 @@ public static function render(): void {
 
 								<?php if ( ! empty( $picks_stats ) ) : ?>
 									<div class="ob-header__picks">
-										<h4><?php esc_html_e( 'Picks', 'obitleague' ); ?></h4>
+										<h4><?php esc_html_e( 'Most picked', 'obitleague' ); ?></h4>
 										<div class="ob-header__picks-row">
 											<?php foreach ( $picks_stats as $pick ) : ?>
 												<?php
@@ -234,7 +234,8 @@ public static function render(): void {
 		$defaults = array(
 			'primary'         => array(
 				array( 'label' => 'People',         'url' => home_url( '/people/' ),         'mega' => 'yes' ),
-				array( 'label' => 'Picks',          'url' => home_url( '/people/?living=0' ),'mega' => 'yes' ),
+				array( 'label' => 'Teams',          'url' => home_url( '/teams/' ),         'mega' => 'yes' ),
+				array( 'label' => 'Obituaries',     'url' => home_url( '/obituaries/' ),    'mega' => 'no' ),
 				array( 'label' => 'Standings',      'url' => home_url( '/standings/' ),      'mega' => 'no' ),
 				array( 'label' => 'Stats',          'url' => home_url( '/stats/' ),          'mega' => 'no' ),
 				array( 'label' => 'Rules',         'url' => home_url( '/rules/' ),         'mega' => 'no' ),

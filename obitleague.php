@@ -30,7 +30,7 @@ if ( ! defined( 'OBITLEAGUE_VERSION' ) ) {
 	define( 'OBITLEAGUE_VERSION', '0.14.1' );
 }
 if ( ! defined( 'OBITLEAGUE_DB_VERSION' ) ) {
-	define( 'OBITLEAGUE_DB_VERSION', '0.6.0' );
+	define( 'OBITLEAGUE_DB_VERSION', '0.7.0' );
 }
 if ( ! defined( 'OBITLEAGUE_FILE' ) ) {
 	define( 'OBITLEAGUE_FILE', __FILE__ );
@@ -104,6 +104,7 @@ add_action(
 		Obitleague\Modules\Shortcodes::boot();
 		Obitleague\Modules\Game_Pages::boot();
 		Obitleague\Modules\Jobs::boot();
+		Obitleague\Modules\Death_Wire::boot();
 		Obitleague\Modules\Rest::boot();
 	},
 	5
