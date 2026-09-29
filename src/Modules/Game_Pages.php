@@ -10,6 +10,7 @@ final class Game_Pages {
 	public static function boot(): void {
 		add_action( 'init', array( self::class, 'add_login_rewrite' ), 8 );
 		add_action( 'init', array( self::class, 'rewrites' ) );
+		add_action( 'init', array( self::class, 'ensure_content_pages' ), 20 );
 		add_action( 'init', array( self::class, 'ensure_campaign_pages' ), 20 );
 		add_filter( 'query_vars', array( self::class, 'query_vars' ) );
 		add_filter( 'template_include', array( self::class, 'maybe_route' ), 30 );
@@ -60,6 +61,33 @@ final class Game_Pages {
 			'login'        => array( 'title' => 'Sign in to Obitleague', 'content' => '[obitleague_login]' ),
 			'register'     => array( 'title' => 'Create your Obitleague account', 'content' => '[obitleague_register]' ),
 			'verify-email' => array( 'title' => 'Verify your Obitleague email', 'content' => '' ),
+		);
+		foreach ( $pages as $slug => $page ) {
+			if ( get_page_by_path( $slug ) ) {
+				continue;
+			}
+			wp_insert_post( array(
+				'post_type'      => 'page',
+				'post_status'    => 'publish',
+				'post_title'     => $page['title'],
+				'post_name'      => $slug,
+				'post_content'   => $page['content'],
+				'comment_status' => 'closed',
+			) );
+		}
+	}
+
+	/**
+	 * Public directory pages the nav advertises: the team directory and the
+	 * season obituary index. Auto-created once; safe to call every boot.
+	 */
+	public static function ensure_content_pages(): void {
+		$pages = array(
+			'teams' => array( 'title' => 'Teams', 'content' => '[obitleague_teams]' ),
+			'obituaries' => array(
+				'title'   => 'Obituaries ' . Pick_Stats::season_in_play(),
+				'content' => '[obitleague_deaths season="' . Pick_Stats::season_in_play() . '"]',
+			),
 		);
 		foreach ( $pages as $slug => $page ) {
 			if ( get_page_by_path( $slug ) ) {
