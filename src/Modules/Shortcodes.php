@@ -38,6 +38,12 @@ final class Shortcodes {
 
 	public static function season(): int {
 		global $wpdb;
+		// An explicit ?season= selection wins; it is validated against the
+		// seasons that actually have data, so bad values fall through.
+		$requested = isset( $_GET['season'] ) ? absint( (string) $_GET['season'] ) : 0;
+		if ( $requested > 0 && class_exists( Season_Switcher::class ) && in_array( $requested, Season_Switcher::seasons_with_data(), true ) ) {
+			return $requested;
+		}
 		$latest = (int) $wpdb->get_var( 'SELECT MAX(season) FROM ' . $wpdb->prefix . 'obitleague_standings_generations WHERE is_current = 1' );
 		return $latest > 0 ? $latest : League_Service::current_season();
 	}

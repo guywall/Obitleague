@@ -235,8 +235,7 @@ final class Widget_ObHeader extends \Elementor\Widget_Base {
 	<div class="ob-header__inner">
 		<a class="ob-header__brand" href="<?php echo esc_url( home_url( '/' ) ); ?>" aria-label="Obitleague home">
 			<span class="ob-mark" aria-hidden="true">O</span>
-			<span class="ob-header__name">Obitleague</span>
-			<span class="ob-header__season"><?php echo esc_html( (string) $entry_season ); ?></span>
+			<span class="ob-header__name">Obitleague</span>				<?php \Obitleague\Modules\Season_Switcher::render(); ?>
 		</a>
 
 		<div class="ob-header__search">

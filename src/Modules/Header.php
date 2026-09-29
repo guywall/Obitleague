@@ -6,6 +6,7 @@ namespace Obitleague\Modules;
 use Obitleague\Modules\Pick_Stats;
 use Obitleague\Modules\League_Service;
 use Obitleague\Modules\Shortcodes;
+use Obitleague\Modules\Season_Switcher;
 
 final class Header {
 
@@ -117,8 +118,7 @@ public static function render(): void {
 	<div class="ob-header__inner">
 		<a class="ob-header__brand" href="<?php echo esc_url( home_url( '/' ) ); ?>" aria-label="Obitleague home">
 			<span class="ob-mark" aria-hidden="true">O</span>
-			<span class="ob-header__name">Obitleague</span>
-			<span class="ob-header__season"><?php echo esc_html( (string) $entry_season ); ?></span>
+			<span class="ob-header__name">Obitleague</span>				<?php Season_Switcher::render(); ?>
 		</a>
 
 		<div class="ob-header__search">
