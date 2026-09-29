@@ -128,8 +128,6 @@ final class Discovery_Service {
 		if ( $pause > time() ) {
 			return new \WP_Error( 'obitleague_discovery_paused', sprintf( 'Wikimedia asked us to pause until %s UTC.', gmdate( 'Y-m-d H:i:s', $pause ) ), array( 'status' => 429, 'retry_after' => $pause ) );
 		}
-		self::mark_daily_run( $today );
-
 		$cursor = self::cursor();
 		$window = sprintf( '%04d-%02d', $cursor['year'], $cursor['month'] );
 		$rows   = self::fetch_sparql_page( $cursor );
@@ -137,6 +135,9 @@ final class Discovery_Service {
 			self::record_last_run( array( 'status' => 'error', 'window' => $window, 'message' => $rows->get_error_message() ) );
 			return $rows;
 		}
+		// The batch is only reserved once the network round-trip has succeeded:
+		// a timed-out or rate-limited attempt must not consume the daily slot.
+		self::mark_daily_run( $today );
 
 		$unique = array();
 		foreach ( $rows as $row ) {
@@ -595,7 +596,9 @@ final class Discovery_Service {
 			$response = wp_remote_get(
 				$url,
 				array(
-					'timeout'     => 20,
+					// WDQS cold-cache queries on a month window regularly run
+					// 40-60s (measured: 200 in ~53s); 20s always timed out.
+					'timeout'     => 120,
 					'redirection' => 2,
 					'user-agent'  => self::user_agent(),
 					'headers'     => array( 'Accept' => $accept ),
@@ -605,9 +608,28 @@ final class Discovery_Service {
 		} finally {
 			delete_option( self::HTTP_LOCK_OPTION );
 		}
-		if ( is_wp_error( $response ) ) {
+	if ( is_wp_error( $response ) || in_array( (int) wp_remote_retrieve_response_code( $response ), array( 502, 503, 504 ), true ) ) {
+		// WDQS answers far faster once its query cache is warm; one patient
+		// retry turns most cold-timeout round trips into a result.
+		$retry_wait = is_wp_error( $response ) ? 5 : 15;
+		sleep( $retry_wait );
+		$response_started = microtime( true );
+		$retry = wp_remote_get(
+			$url,
+			array(
+				'timeout'     => 120,
+				'redirection' => 2,
+				'user-agent'  => self::user_agent(),
+				'headers'     => array( 'Accept' => $accept ),
+			)
+		);
+		update_option( self::LAST_HTTP_OPTION, $response_started, false );
+		if ( ! is_wp_error( $retry ) && 200 === (int) wp_remote_retrieve_response_code( $retry ) ) {
+			$response = $retry;
+		} elseif ( is_wp_error( $response ) ) {
 			return new \WP_Error( 'obitleague_discovery_network', 'Wikimedia could not be reached: ' . $response->get_error_message() );
 		}
+	}
 		$code      = (int) wp_remote_retrieve_response_code( $response );
 		$body      = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 		$api_error = is_array( $body ) && is_array( $body['error'] ?? null ) ? $body['error'] : array();
