@@ -58,7 +58,14 @@ final class Discovery_Service {
 		);
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
 			\WP_CLI::add_command( 'obitleague discovery', array( self::class, 'cli_run_batch' ) );
-			\WP_CLI::add_command( 'obitleague discovery-approve-pending', array( self::class, 'cli_approve_pending' ) );
+			// Closure form: wp-cli's reflection would otherwise try to
+			// instantiate this class (private constructor) for the command.
+			\WP_CLI::add_command(
+				'obitleague discovery-approve-pending',
+				static function (): void {
+					self::cli_approve_pending();
+				}
+			);
 		}
 	}
 

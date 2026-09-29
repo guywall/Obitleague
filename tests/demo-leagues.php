@@ -487,6 +487,8 @@ $entry_rows = (array) $wpdb->get_results(
 );
 $living_uuids  = array_values( array_unique( array_column( $living_pool, 'uuid' ) ) );
 $scoring_uuids = array_values( array_unique( array_column( $scored_pool, 'uuid' ) ) );
+$prelock_uuids = array_values( array_unique( array_column( $prelock_pool, 'uuid' ) ) );
+$dead_uuids    = array_values( array_unique( array_merge( $scoring_uuids, $prelock_uuids ) ) );
 mt_srand( 20260929 );
 $rebalanced = 0;
 foreach ( $entry_rows as $entry_row ) {
@@ -519,19 +521,26 @@ foreach ( $entry_rows as $entry_row ) {
 		continue;
 	}
 
-	// Rebuild the pick set: keep the non-scoring picks (pre-lock + living),
-	// choose the target number of 2026 scoring people, top up to ten from
-	// the living pool so every entry keeps its full team size.
-	$keep = array_values( array_diff( $current, $scoring_uuids ) );
+	// Budget the ten slots: keep the pre-lock dead pick(s), choose the
+	// target number of 2026 scoring people, and fill the remaining slots
+	// with living picks — so a two-death team actually keeps both deaths
+	// instead of having the extra one sliced off at the team-size cap.
+	$kept_prelock = array_values( array_intersect( $current, $prelock_uuids ) );
+	$kept_living  = array_values( array_diff( $current, $dead_uuids ) );
+	$living_quota = 10 - $target - count( $kept_prelock );
+	if ( $living_quota < 0 ) {
+		continue; // Too many pre-lock picks to fit the target; leave untouched.
+	}
+	$kept_living = array_slice( $kept_living, 0, $living_quota );
 	$chosen_scoring = array();
 	$scoring_offset = ( $entry_id * 13 ) % max( 1, count( $scoring_uuids ) );
 	for ( $attempt = 0; count( $chosen_scoring ) < $target && $attempt < count( $scoring_uuids ); ++$attempt ) {
 		$candidate = $scoring_uuids[ ( $scoring_offset + $attempt ) % count( $scoring_uuids ) ];
-		if ( ! in_array( $candidate, $keep, true ) && ! in_array( $candidate, $chosen_scoring, true ) ) {
+		if ( ! in_array( $candidate, $kept_prelock, true ) && ! in_array( $candidate, $chosen_scoring, true ) ) {
 			$chosen_scoring[] = $candidate;
 		}
 	}
-	$updated = array_merge( $keep, $chosen_scoring );
+	$updated = array_merge( $kept_prelock, $chosen_scoring, $kept_living );
 	$offset   = ( $entry_id * 7 ) % max( 1, count( $living_uuids ) );
 	for ( $attempt = 0; count( $updated ) < 10 && $attempt < count( $living_uuids ); ++$attempt ) {
 		$candidate = $living_uuids[ ( $offset + $attempt ) % count( $living_uuids ) ];
