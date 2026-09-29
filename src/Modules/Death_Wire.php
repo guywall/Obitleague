@@ -182,7 +182,7 @@ final class Death_Wire {
 	}
 
 	/** Queue handler: one month section of the Wikipedia list. */
-	public static function handle_list_page( array $payload ): array {
+	public static function handle_list_page( array $payload ): array|WP_Error {
 		$month = (string) ( $payload['month'] ?? '' );
 		if ( ! preg_match( '/^\d{4}-\d{2}$/', $month ) ) {
 			return array( 'ok' => true, 'note' => 'No month given.' );
@@ -306,7 +306,7 @@ final class Death_Wire {
 	 * ------------------------------------------------------------------- */
 
 	/** Queue handler: process a bounded slice of candidate feed items. */
-	public static function handle_wire_batch( array $payload ): array {
+	public static function handle_wire_batch( array $payload ): array|WP_Error {
 		$paused = self::paused_error();
 		if ( $paused ) {
 			return $paused;
@@ -429,7 +429,7 @@ final class Death_Wire {
 	}
 
 	/** Queue handler: confirm one story against the subject's Wikipedia article. */
-	public static function handle_wire_check( array $payload ): array {
+	public static function handle_wire_check( array $payload ): array|WP_Error {
 		$paused = self::paused_error();
 		if ( $paused ) {
 			return $paused;
