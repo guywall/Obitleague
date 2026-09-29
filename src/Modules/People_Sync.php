@@ -30,6 +30,20 @@ final class People_Sync {
 
 	private function __construct() {}
 
+	/** Keep the derived sort/birth-year meta fresh on every person save. */
+	public static function boot(): void {
+		add_action( 'save_post_' . Catalogue::POST_TYPE, array( self::class, 'compute_sort_meta' ), 20, 1 );
+		if ( defined( 'WP_CLI' ) && WP_CLI ) {
+			\WP_CLI::add_command(
+				'obitleague backfill-sort-meta',
+				static function (): void {
+					$count = self::backfill_sort_meta();
+					\WP_CLI::success( "Backfilled browse/sort meta for {$count} people." );
+				}
+			);
+		}
+	}
+
 	/**
 	 * Sync portraits and occupations for all published people (bounded).
 	 * Selects posts missing either field, so re-runs fill gaps in both.
@@ -386,6 +400,45 @@ final class People_Sync {
 				self::sync_occupation_terms( $post_id, $labels );
 				++$count;
 			}
+		}
+		return $count;
+	}
+
+	/**
+	 * Compute the browse/sort meta for one person: a lowercase surrogate of
+	 * the display title (leading article stripped) and the numeric birth
+	 * year. Purely derived from stored data — no network.
+	 */
+	public static function compute_sort_meta( int $post_id ): void {
+		$title   = (string) get_the_title( $post_id );
+		$sort    = mb_strtolower( $title );
+		$sort    = preg_replace( '/^(the|a|an)\s+/u', '', $sort ) ?? $sort;
+		update_post_meta( $post_id, 'obit_sort_name', $sort );
+
+		$birth_raw = (string) get_post_meta( $post_id, 'obit_birth_date', true );
+		if ( preg_match( '/^(\d{4})/', $birth_raw, $m ) ) {
+			update_post_meta( $post_id, 'obit_birth_year_num', (int) $m[1] );
+		} else {
+			delete_post_meta( $post_id, 'obit_birth_year_num' );
+		}
+	}
+
+	/**
+	 * Backfill the browse/sort meta for every person post. Idempotent and
+	 * local-only; run after imports or via the maintenance command.
+	 */
+	public static function backfill_sort_meta(): int {
+		global $wpdb;
+		$post_ids = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT p.ID FROM {$wpdb->posts} p WHERE p.post_type = %s AND p.post_status IN ( 'publish', 'draft' )",
+				Catalogue::POST_TYPE
+			)
+		);
+		$count = 0;
+		foreach ( array_map( 'intval', (array) $post_ids ) as $post_id ) {
+			self::compute_sort_meta( $post_id );
+			++$count;
 		}
 		return $count;
 	}
