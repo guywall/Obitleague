@@ -1804,3 +1804,248 @@ a.ob-pick__name:hover {
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
+
+/* ---------- person profile layout ---------- */
+/* The single-person template shipped semantic markup without layout rules;
+   everything stacked as plain text with the bio far below the fold. */
+.ob-page .ob-profile.ob-profile {
+	max-width: 1140px;
+	margin: 26px auto 0;
+	padding: 26px 28px 22px;
+	background: #fff;
+	border: 1px solid var(--ob-line);
+	border-radius: 18px;
+	box-shadow: var(--ob-shadow);
+}
+
+.ob-page .ob-profile__id.ob-profile__id {
+	display: flex;
+	align-items: center;
+	gap: 22px;
+}
+
+img.ob-page .ob-profile__avatar--img,
+.ob-page img.ob-profile__avatar--img {
+	width: 104px;
+	height: 104px;
+	border-radius: 16px;
+	object-fit: cover;
+	box-shadow: inset 0 0 0 1px rgba(19, 28, 23, 0.12), 0 3px 10px rgba(4, 22, 15, 0.18);
+}
+
+.ob-page .ob-profile__id > div {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.ob-page .ob-profile__kicker.ob-profile__kicker {
+	display: block;
+	color: var(--ob-muted);
+	font-size: 0.78rem;
+	font-weight: 800;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	margin: 0 0 6px;
+}
+
+.ob-page .ob-profile__name.ob-profile__name {
+	font-family: 'Fraunces', Georgia, serif;
+	font-size: clamp(1.9rem, 4vw, 2.8rem);
+	line-height: 1.05;
+	margin: 0 0 8px;
+	color: var(--ob-ink);
+}
+
+.ob-page .ob-profile__role.ob-profile__role {
+	font-size: 1.02rem;
+	color: var(--ob-ink);
+	margin: 0 0 6px;
+	max-width: 62ch;
+}
+
+.ob-page .ob-profile__occ.ob-profile__occ {
+	color: var(--ob-muted);
+	font-size: 0.82rem;
+	margin: 0;
+	max-width: 62ch;
+}
+
+.ob-page .ob-profile__status.ob-profile__status {
+	flex: 0 0 auto;
+	align-self: flex-start;
+	padding: 5px 12px;
+	border-radius: 999px;
+	font-size: 0.74rem;
+	font-weight: 800;
+	letter-spacing: 0.06em;
+	background: #e4f3e9;
+	color: #174d38;
+}
+
+.ob-profile--memoriam .ob-profile__status.ob-profile__status {
+	background: var(--ob-brass-soft);
+	color: #6b5b32;
+}
+
+/* Life timeline as a proper horizontal bar, not stacked text. */
+.ob-page .ob-profile__timeline.ob-profile__timeline {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	margin-top: 20px;
+	padding: 14px 18px;
+	background: #f6f8f4;
+	border: 1px solid var(--ob-line);
+	border-radius: 12px;
+}
+
+.ob-page .ob-profile__moment.ob-profile__moment {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.ob-page .ob-profile__moment--end {
+	text-align: right;
+	margin-left: auto;
+}
+
+.ob-page .ob-profile__moment-label.ob-profile__moment-label {
+	font-size: 0.7rem;
+	font-weight: 800;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--ob-muted);
+}
+
+.ob-page .ob-profile__moment-date.ob-profile__moment-date {
+	font-family: 'Fraunces', Georgia, serif;
+	font-weight: 700;
+	font-size: 1rem;
+	color: var(--ob-ink);
+}
+
+.ob-page .ob-profile__span.ob-profile__span {
+	flex: 1 1 auto;
+	position: relative;
+	height: 2px;
+	background: var(--ob-line);
+	margin: 18px 6px 0;
+}
+
+.ob-page .ob-profile__span-line.ob-profile__span-line {
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(90deg, var(--ob-green), var(--ob-line));
+}
+
+.ob-page .ob-profile__span-age.ob-profile__span-age {
+	position: absolute;
+	left: 50%;
+	top: -22px;
+	transform: translateX(-50%);
+	white-space: nowrap;
+	font-size: 0.8rem;
+	font-weight: 800;
+	color: var(--ob-green);
+}
+
+/* Two columns: bio and facts left, scorecard and picks right — bio high
+   on the page instead of buried at the bottom. */
+.ob-page .ob-profile__columns.ob-profile__columns {
+	max-width: 1140px;
+	margin: 22px auto 60px;
+	padding: 0 28px;
+	display: grid;
+	grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
+	gap: 26px;
+	align-items: start;
+}
+
+.ob-page .ob-profile__main.ob-profile__main {
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 22px;
+}
+
+.ob-page .ob-profile__side.ob-profile__side {
+	display: flex;
+	flex-direction: column;
+	gap: 22px;
+	position: sticky;
+	top: 86px;
+}
+
+.ob-page .ob-profile__bio.ob-profile__bio .ob-profile__prose {
+	font-size: 1rem;
+	line-height: 1.75;
+	color: var(--ob-ink);
+}
+
+.ob-page .ob-profile__back.ob-profile__back {
+	display: inline-flex;
+	margin-top: 6px;
+}
+
+@media (max-width: 900px) {
+	.ob-page .ob-profile.ob-profile,
+	.ob-page .ob-profile__columns.ob-profile__columns {
+		padding-left: 16px;
+		padding-right: 16px;
+	}
+
+	.ob-page .ob-profile__columns.ob-profile__columns {
+		grid-template-columns: 1fr;
+	}
+
+	.ob-page .ob-profile__side.ob-profile__side {
+		position: static;
+	}
+
+	.ob-page .ob-profile__id.ob-profile__id {
+		flex-wrap: wrap;
+	}
+
+	.ob-page .ob-profile__timeline.ob-profile__timeline {
+		flex-wrap: wrap;
+	}
+
+	.ob-page .ob-profile__span.ob-profile__span {
+		display: none;
+	}
+}
+
+/* ---------- people tiles: whole card clickable ---------- */
+.ob-people .ob-person.ob-person {
+	cursor: pointer;
+}
+
+.ob-people .ob-person .ob-person__overlay-link.ob-person__overlay-link {
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+	border-radius: inherit;
+}
+
+.ob-people .ob-person .ob-person__cta.ob-person__cta {
+	position: relative;
+	z-index: 2;
+	display: inline-flex;
+	align-items: center;
+	margin-top: 10px;
+	padding: 6px 12px;
+	border-radius: 999px;
+	background: #eaf4ee;
+	color: #0d5c40;
+	font-size: 0.76rem;
+	font-weight: 800;
+	text-decoration: none;
+	transition: background 0.15s, color 0.15s;
+}
+
+.ob-people .ob-person:hover .ob-person__cta.ob-person__cta {
+	background: var(--ob-green);
+	color: #fff;
+}
+

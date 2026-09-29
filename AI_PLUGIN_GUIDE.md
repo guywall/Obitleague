@@ -1,6 +1,6 @@
 # Obitleague plugin guide for AI coding tasks
 
-> **Use this file as the task handoff map, not as an independent specification.** Before changing behavior, inspect the current source and tests named below. This guide describes the checkout when written; it is not a release declaration. Do not assume that every working-tree change is committed or deployed. Refreshed against plugin version 0.13.1 (see `git log --oneline -5` to confirm how recent this is).
+> **Use this file as the task handoff map, not as an independent specification.** Before changing behavior, inspect the current source and tests named below. This guide describes the checkout when written; it is not a release declaration. Do not assume that every working-tree change is committed or deployed. Refreshed against plugin version 0.13.2 (see `git log --oneline -5` to confirm how recent this is).
 
 ## Start here on every task
 
@@ -30,7 +30,7 @@ Safety invariants:
 
 Current source values (verify before relying on these):
 
-- WordPress plugin header / `OBITLEAGUE_VERSION`: `0.13.1` (`obitleague.php`)
+- WordPress plugin header / `OBITLEAGUE_VERSION`: `0.13.2` (`obitleague.php`)
 - `OBITLEAGUE_DB_VERSION`: `0.5.0` (`obitleague.php`; additive migrations in `src/Modules/Setup.php`)
 - Ruleset: `Ruleset::VERSION = '1'` (`src/Domain/Value/Ruleset.php`)
 - Requirements: WordPress 6.4+, PHP 8.2+ (activation blocks older PHP), MySQL 8 / MariaDB 10.6+.

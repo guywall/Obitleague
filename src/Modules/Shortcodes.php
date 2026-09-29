@@ -313,6 +313,9 @@ public static function people_search_url(): string {
 		foreach ( $q->posts as $post ) {
 			[ $birth, $death ] = self::person_bits( (int) $post->ID );
 			$out .= '<div class="ob-person' . ( $death ? ' ob-person--dead' : '' ) . ' ob-anim">';
+			// Whole-tile click target: covers the card so image, role, and
+			// everything else navigate to the profile, not just the name.
+			$out .= '<a class="ob-person__overlay-link" href="' . esc_url( (string) get_permalink( $post ) ) . '" tabindex="-1" aria-hidden="true"></a>';
 			$image = (string) get_post_meta( $post->ID, People_Sync::META_IMAGE_URL, true );
 			if ( '' !== $image ) {
 				$out .= '<img class="ob-person__avatar ob-person__avatar--img" src="' . esc_url( $image ) . '" alt="" loading="lazy" />';
@@ -329,7 +332,9 @@ public static function people_search_url(): string {
 			$out .= '<p class="ob-person__dates">';
 			$out .= $birth ? esc_html( 'b. ' . $birth->label() ) : '';
 			$out .= $death ? esc_html( ' · d. ' . $death->label() ) : '';
-			$out .= '</p></div>';
+			$out .= '</p>';
+			$out .= '<a class="ob-person__cta" href="' . esc_url( (string) get_permalink( $post ) ) . '">View profile →</a>';
+			$out .= '</div>';
 		}
 		$out .= '</div>';
 		return self::style() . $out;
