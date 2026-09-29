@@ -90,7 +90,7 @@ final class Discovery_Rules {
 		}
 		try {
 			$birth = new Partial_Date( (int) $match[1], (int) $match[2], (int) $match[3] );
-			$age   = Age::completed_at( $birth, Deadline_Policy::entry_deadline( $season ) );
+			$age   = Age::completed_at( $birth, Deadline_Policy::season_start( $season ) );
 		} catch ( \Throwable ) {
 			return false;
 		}

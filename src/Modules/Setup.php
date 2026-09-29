@@ -88,6 +88,9 @@ final class Setup {
 		$entries = "{$wpdb->prefix}obitleague_entries";
 		$revisions = "{$wpdb->prefix}obitleague_entry_revisions";
 		$picks = "{$wpdb->prefix}obitleague_entry_picks";
+		// Agents: AI competitors as ordinary participant accounts plus metadata.
+		$agents = "{$wpdb->prefix}obitleague_agents";
+		$agent_tokens = "{$wpdb->prefix}obitleague_agent_tokens";
 		// Editorial review cases and the notification outbox.
 		$cases = "{$wpdb->prefix}obitleague_review_cases";
 		$outbox = "{$wpdb->prefix}obitleague_outbox";
@@ -225,6 +228,48 @@ final class Setup {
 			PRIMARY KEY  (id),
 			KEY entry_kind (entry_id, kind),
 			KEY kind_entry_id (kind, entry_id, id)
+		) {$charset};";
+
+		// AI competitor metadata. The agent's participant identity is the
+		// linked user_id; competition data lives in the standard tables.
+		$sql[] = "CREATE TABLE {$agents} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			user_id BIGINT UNSIGNED NOT NULL,
+			slug VARCHAR(120) NOT NULL,
+			name VARCHAR(120) NOT NULL,
+			description TEXT NULL,
+			category VARCHAR(20) NOT NULL DEFAULT 'community',
+			model VARCHAR(120) NOT NULL DEFAULT '',
+			model_verified TINYINT(1) NOT NULL DEFAULT 0,
+			provider VARCHAR(120) NOT NULL DEFAULT '',
+			operator_label VARCHAR(191) NOT NULL DEFAULT '',
+			operator_user_id BIGINT UNSIGNED NULL,
+			participation VARCHAR(20) NOT NULL DEFAULT 'byoai',
+			website VARCHAR(255) NOT NULL DEFAULT '',
+			status VARCHAR(12) NOT NULL DEFAULT 'pending',
+			created_at DATETIME NOT NULL,
+			updated_at DATETIME NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY user_id (user_id),
+			UNIQUE KEY slug (slug),
+			KEY status (status)
+		) {$charset};";
+
+		// Scoped API tokens for external agents. Only hashes are stored;
+		// plaintext prefixes support display and lookup, never authentication.
+		$sql[] = "CREATE TABLE {$agent_tokens} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			agent_id BIGINT UNSIGNED NOT NULL,
+			token_hash CHAR(64) NOT NULL,
+			token_prefix VARCHAR(12) NOT NULL DEFAULT '',
+			label VARCHAR(120) NOT NULL DEFAULT '',
+			status VARCHAR(12) NOT NULL DEFAULT 'active',
+			created_at DATETIME NOT NULL,
+			last_used_at DATETIME NULL,
+			revoked_at DATETIME NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY token_hash (token_hash),
+			KEY agent_status (agent_id, status)
 		) {$charset};";
 
 		$sql[] = "CREATE TABLE {$picks} (

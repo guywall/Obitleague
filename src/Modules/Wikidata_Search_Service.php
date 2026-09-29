@@ -92,7 +92,7 @@ final class Wikidata_Search_Service {
 		$occupation_labels = self::labels( array_keys( $occupation_ids ) );
 
 		$people = array();
-		$deadline = Deadline_Policy::entry_deadline( $season );
+		$deadline = Deadline_Policy::season_start( $season );
 		foreach ( $qids as $qid ) {
 			$entity = $entities[ $qid ] ?? null;
 			if ( ! self::is_human( $entity ) || self::has_live_claim( $entity, 'P570' ) ) {
@@ -154,7 +154,7 @@ final class Wikidata_Search_Service {
 			return new \WP_Error( 'obitleague_birth_date_unverified', 'This person does not have an exact Wikidata birth date, so cannot be selected.', array( 'status' => 422 ) );
 		}
 		try {
-			$age_at_lock = Age::completed_at( $birth, Deadline_Policy::entry_deadline( $season ) );
+			$age_at_lock = Age::completed_at( $birth, Deadline_Policy::season_start( $season ) );
 		} catch ( \InvalidArgumentException ) {
 			$age_at_lock = null;
 		}

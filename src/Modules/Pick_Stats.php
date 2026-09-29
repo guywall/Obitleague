@@ -138,7 +138,14 @@ final class Pick_Stats {
 			return $empty;
 		}
 
-		$teams = self::picking_teams( $uuid, $season );
+		/*
+		 * Rolling-entry privacy: while a season's entry window is open its
+		 * teams stay amendable, so the list of which teams picked a person is
+		 * withheld (the aggregate count above stays public). The deadline
+		 * policy keeps v1 seasons on their 1 January instant.
+		 */
+		$window_closed = ! \Obitleague\Domain\Deadline_Policy::is_entry_open( $season, new \DateTimeImmutable( 'now', new \DateTimeZone( 'UTC' ) ) );
+		$teams = $window_closed ? self::picking_teams( $uuid, $season ) : array();
 
 		return array(
 			'season'          => $season,

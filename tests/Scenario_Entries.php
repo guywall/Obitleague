@@ -69,12 +69,23 @@ final class Scenario_Entries {
 	}
 
 	public function test_commit_time_rule_on_deadline_boundary( Runner $t ): void {
-		$before = new \DateTimeImmutable( '2026-12-31T23:59:59+00:00' );
-		$at     = new \DateTimeImmutable( '2027-01-01T00:00:00+00:00' );
+		$before = new \DateTimeImmutable( '2027-12-31T23:59:58+00:00' );
+		$at     = new \DateTimeImmutable( '2027-12-31T23:59:59+00:00' );
 
-		$t->check( Deadline_Policy::commit_on_time( 2027, $before ), __METHOD__, 'commit before deadline is on time' );
-		$t->check( ! Deadline_Policy::commit_on_time( 2027, $at ), __METHOD__, 'commit at deadline is late' );
+		$t->check( Deadline_Policy::commit_on_time( 2027, $before ), __METHOD__, 'commit before the rolling close is on time' );
+		$t->check( ! Deadline_Policy::commit_on_time( 2027, $at ), __METHOD__, 'commit at the rolling close is late' );
 		$t->check( ! Deadline_Policy::is_entry_open( 2027, $at ), __METHOD__, 'entry closed at the instant' );
+	}
+
+	public function test_submission_floor_scores_only_after_the_teams_own_submission( Runner $t ): void {
+		// A season-start team (v1 behaviour): floor is 1 January 00:00:01.
+		$floor = Entry_Rules::death_scores_for_pick( 2027, new \DateTimeImmutable( '2027-01-01T00:00:00+00:00' ) );
+		$t->check( '2027-01-01 00:00:01' === $floor->format( 'Y-m-d H:i:s' ), __METHOD__, 'season-start floor is 1 January plus one second' );
+
+		// A November joiner scores only deaths from their submission instant.
+		$late = Entry_Rules::death_scores_for_pick( 2027, new \DateTimeImmutable( '2027-11-15T10:30:00+00:00' ) );
+		$t->check( '2027-11-15 10:30:00' === $late->format( 'Y-m-d H:i:s' ), __METHOD__, 'late floor is the submission instant' );
+		$t->check( $late > Entry_Rules::death_scores_for_pick( 2027, new \DateTimeImmutable( '2027-01-01T00:00:00+00:00' ) ), __METHOD__, 'late joiners get no retrospective points' );
 	}
 
 	public function test_receipt_requires_ten_picks_and_current_ruleset( Runner $t ): void {

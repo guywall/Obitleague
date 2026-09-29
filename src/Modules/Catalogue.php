@@ -143,7 +143,7 @@ final class Catalogue {
 		if ( ! $birth->is_exact() ) {
 			return false; // A verified full birth date is required.
 		}
-		$age = \Obitleague\Domain\Age::completed_at( $birth, \Obitleague\Support\Time::entry_deadline( $season ) );
+		$age = \Obitleague\Domain\Age::completed_at( $birth, \Obitleague\Domain\Deadline_Policy::season_start( $season ) );
 		return null !== $age && $age >= \Obitleague\Domain\Value\Ruleset::MIN_AGE;
 	}
 
