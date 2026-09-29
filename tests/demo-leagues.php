@@ -186,16 +186,23 @@ if ( count( $living_pool ) < 10 || count( $scored_pool ) < 1 || count( $prelock_
 }
 echo 'usable sourced pools: living=' . count( $living_pool ) . ' 2026 deaths=' . count( $scored_pool ) . ' pre-lock=' . count( $prelock_pool ) . "\n";
 
-/* ---------- league themes ---------- */
+/* ---------- league configuration ----------
+ * One canonical main league ("Overall League {season}", via
+ * Main_League_Service) carries the whole competition, so the site reads as
+ * a single busy league. Side leagues are deliberately switched OFF for now:
+ * to introduce them later, re-add specs here — the themed-picks, membership,
+ * and standings stages below handle them automatically, and re-running the
+ * seeder recreates them idempotently by name.
+ */
 $league_specs = array(
-	array( 'name' => 'The Final Chorus · Singers & Songwriters 2026', 'theme' => 'singer' ),
-	array( 'name' => 'Six Strings Attached · Guitar Greats 2026', 'theme' => 'guitar' ),
-	array( 'name' => 'Poets, Puns & Premonitions 2026', 'theme' => 'poet' ),
-	array( 'name' => 'Class of 1950 · The Yearbook League 2026', 'theme' => 'year' ),
-	array( 'name' => 'The Sporting Chance · Athletes 2026', 'theme' => 'athlete' ),
-	array( 'name' => 'Winter League 2026', 'theme' => 'open' ),
-	array( 'name' => 'Office Pool 2026', 'theme' => 'open' ),
-	array( 'name' => 'Celebrity Circle 2026', 'theme' => 'open' ),
+	// array( 'name' => 'The Final Chorus · Singers & Songwriters 2026', 'theme' => 'singer' ),
+	// array( 'name' => 'Six Strings Attached · Guitar Greats 2026', 'theme' => 'guitar' ),
+	// array( 'name' => 'Poets, Puns & Premonitions 2026', 'theme' => 'poet' ),
+	// array( 'name' => 'Class of 1950 · The Yearbook League 2026', 'theme' => 'year' ),
+	// array( 'name' => 'The Sporting Chance · Athletes 2026', 'theme' => 'athlete' ),
+	// array( 'name' => 'Winter League 2026', 'theme' => 'open' ),
+	// array( 'name' => 'Office Pool 2026', 'theme' => 'open' ),
+	// array( 'name' => 'Celebrity Circle 2026', 'theme' => 'open' ),
 );
 // Team names are curated first, then generated with the user index appended
 // (always distinct), so capacity is unbounded; sanity-floor instead.
@@ -222,7 +229,7 @@ foreach ( $league_specs as $league_index => $spec ) {
 	}
 	$league_ids[] = array( 'id' => $league_id, 'theme' => $spec['theme'], 'name' => $name );
 }
-echo 'themed leagues available: ' . count( $league_ids ) . " (new: {$created_count})\n";
+echo 'side leagues configured: ' . count( $league_ids ) . " (new: {$created_count}) — main league carries the competition\n";
 
 /* ---------- themed selectable picks ---------- */
 $has_term = static function ( array $labels, array $terms ): bool {
@@ -477,8 +484,7 @@ echo "main-league submissions: {$main_submitted}\n";
 // award fan-out below recompute the points. Deterministic rolls keep
 // re-runs stable: the same run sees the same targets and changes nothing.
 $all_seed_league_ids = array_map( static fn ( array $league ): int => (int) $league['id'], $league_ids );
-$all_seed_league_ids[] = (int) \Obitleague\Modules\Main_League_Service::ensure_league( $season );
-$entry_rows = (array) $wpdb->get_results(
+$all_seed_league_ids[] = (int) \Obitleague\Modules\Main_League_Service::ensure_league( $season );$entry_rows = (array) $wpdb->get_results(
 	"SELECT DISTINCT e.id FROM {$wpdb->prefix}obitleague_entries e
 	 JOIN {$wpdb->prefix}obitleague_entry_revisions r ON r.entry_id = e.id AND r.kind = 'submitted'
 	 WHERE e.season = " . (int) $season . "
@@ -630,6 +636,9 @@ foreach ( $league_ids as $league ) {
 	foreach ( $rows as $row ) {
 		printf( "  %2d. %-28s %3d pts (%d scoring picks)\n", $row['rank'], $row['player'], $row['points'], $row['scoring_picks'] );
 	}
+}
+if ( ! $league_ids ) {
+	echo "\n(no side leagues configured — the main league below carries the competition)\n";
 }
 
 /* ---------- canonical main-league standings ---------- */
