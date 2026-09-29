@@ -37,7 +37,7 @@ final class Death_Wire {
 	private const DONE_MONTHS_OPTION = 'obitleague_death_wire_months_done';
 	private const WIKI_LIST_TITLE    = 'Deaths in 2026';
 	private const PAGE_SIZE          = 50;
-	private const MAX_LIST_PAGES     = 12; // Safety bound: ~600 names/month.
+	private const MAX_LIST_PAGES     = 40; // Safety bound: ~2000 names/month.
 	private const WIRE_BATCH         = 100;
 	private const WIRE_LOOKBACK_DAYS = 400;
 	private const USER_AGENT         = 'Obitleague-DeathWire/0.1 (WordPress; +obitleague.co.uk)';
