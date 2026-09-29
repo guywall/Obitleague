@@ -170,17 +170,17 @@ final class Import_Service {
 
 		update_post_meta( $post_id, 'obit_eligibility', 'approved' );
 		update_post_meta( $post_id, 'obit_eligibility_note', $eligibility_note );
-		if ( $is_discovery ) {
+		if ( $is_discovery && ! Discovery_Service::is_system_publication( $post_id ) ) {
 			Discovery_Service::begin_editorial_publication( $post_id );
 		}
 		try {
-			$result = wp_update_post( array( 'ID' => $post_id, 'post_status' => 'publish' ), true );
+			$result = wp_update_post( array('ID' => $post_id, 'post_status' => 'publish' ), true );
 			if ( is_wp_error( $result ) || (int) $result !== $post_id || 'publish' !== get_post_status( $post_id ) ) {
 				$message = is_wp_error( $result ) ? $result->get_error_message() : 'WordPress did not retain the published status.';
 				throw new \RuntimeException( 'Could not publish the approved person: ' . $message );
 			}
 		} finally {
-			if ( $is_discovery ) {
+			if ( $is_discovery && ! Discovery_Service::is_system_publication( $post_id ) ) {
 				Discovery_Service::end_editorial_publication();
 			}
 		}
