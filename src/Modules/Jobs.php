@@ -123,7 +123,7 @@ final class Jobs {
 		$etag = \wp_remote_retrieve_header( $response, 'etag' );
 		$last = \wp_remote_retrieve_header( $response, 'last-modified' );
 
-		$new = self::ingest_items( (int) $source->id, $body );
+		$new = self::ingest_items( (int) $source->id, $body, $source );
 
 		self::record_poll( $source, 'ok', '' !== (string) $etag ? (string) $etag : null, '' !== (string) $last ? (string) $last : null );
 
@@ -133,9 +133,11 @@ final class Jobs {
 	/**
 	 * Parse RSS 2.0 or Atom and store unseen items.
 	 *
+	 * @param object|null $source The source row (name and feed URL feed the
+	 *                            classifier's obituary-desk detection).
 	 * @return int Number of newly stored items.
 	 */
-	private static function ingest_items( int $source_id, string $xml_body ): int {
+	private static function ingest_items( int $source_id, string $xml_body, ?object $source = null ): int {
 		global $wpdb;
 
 		$limit     = \apply_filters( 'obitleague_feed_ingest_byte_limit', 1024 * 1024 );
@@ -153,10 +155,16 @@ final class Jobs {
 
 		// RSS 2.0.
 		foreach ( $xml->channel->item ?? array() as $item ) {
+			$categories = array();
+			foreach ( $item->category ?? array() as $category ) {
+				$categories[] = (string) $category;
+			}
 			$items[] = array(
 				'guid' => (string) ( $item->guid ?? $item->link ?? '' ),
 				'url'  => (string) ( $item->link ?? '' ),
 				'title' => (string) ( $item->title ?? '' ),
+				'text'  => (string) ( $item->description ?? '' ),
+				'categories' => $categories,
 				'date' => (string) ( $item->pubDate ?? '' ),
 			);
 		}
@@ -164,10 +172,16 @@ final class Jobs {
 		// Atom.
 		$atom = $xml->children( 'http://www.w3.org/2005/Atom' );
 		foreach ( $atom->entry ?? array() as $entry ) {
+			$categories = array();
+			foreach ( $entry->category ?? array() as $category ) {
+				$categories[] = (string) ( $category['term'] ?? $category['label'] ?? '' );
+			}
 			$items[] = array(
 				'guid' => (string) ( $entry->id ?? '' ),
 				'url'  => (string) ( isset( $entry->link['href'] ) ? $entry->link['href'] : '' ),
 				'title' => (string) ( $entry->title ?? '' ),
+				'text'  => (string) ( $entry->summary ?? $entry->content ?? '' ),
+				'categories' => $categories,
 				'date' => (string) ( $entry->updated ?? $entry->published ?? '' ),
 			);
 		}
@@ -189,10 +203,19 @@ final class Jobs {
 			if ( $exists ) {
 				continue;
 			}
-			$verdict = Feed_Classifier::classify( (string) $item['title'] );
+			$verdict = Feed_Classifier::classify(
+			(string) $item['title'],
+			(string) ( $item['text'] ?? '' ),
+			array(
+				'source_name' => (string) ( $source->name ?? '' ),
+				'source_url'  => (string) ( $source->feed_url ?? '' ),
+				'categories'  => (array) ( $item['categories'] ?? array() ),
+			)
+		);
 			$cues    = array_merge(
 				(array) $verdict['matched'],
-				array_map( static fn ( string $cue ): string => '−' . $cue, (array) $verdict['negative'] )
+				array_map( static fn ( string $cue ): string => '−' . $cue, (array) $verdict['negative'] ),
+				array_map( static fn ( string $cue ): string => '✕' . $cue, (array) $verdict['excluded'] )
 			);
 			$wpdb->insert(
 				$table,

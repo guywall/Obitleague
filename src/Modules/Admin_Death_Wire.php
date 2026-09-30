@@ -227,12 +227,13 @@ final class Admin_Death_Wire {
 
 	private static function unprocessed_count(): int {
 		global $wpdb;
+		$signals = \Obitleague\Domain\Feed_Classifier::DEATH_SIGNALS;
 		return (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM {$wpdb->prefix}obitleague_feed_items i
 				 JOIN {$wpdb->prefix}obitleague_sources s ON s.id = i.source_id AND s.enabled = 1
-				 WHERE i.wire_state = '' AND i.classification = %s",
-				\Obitleague\Domain\Feed_Classifier::CANDIDATE
+				 WHERE i.wire_state = '' AND i.classification IN (" . implode( ',', array_fill( 0, count( $signals ), '%s' ) ) . ')',
+				$signals
 			)
 		);
 	}
@@ -252,15 +253,15 @@ final class Admin_Death_Wire {
 	/** @return object[] Stories awaiting a sweep decision, most likely first. */
 	private static function pending_stories( int $limit ): array {
 		global $wpdb;
+		$signals = \Obitleague\Domain\Feed_Classifier::DEATH_SIGNALS;
 		return (array) $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT i.id, i.title, i.url, i.retrieved_at, i.classification_score, i.matched_cues, s.name AS source_name
 				 FROM {$wpdb->prefix}obitleague_feed_items i
 				 JOIN {$wpdb->prefix}obitleague_sources s ON s.id = i.source_id
-				 WHERE i.wire_state = '' AND i.classification = %s
+				 WHERE i.wire_state = '' AND i.classification IN (" . implode( ',', array_fill( 0, count( $signals ), '%s' ) ) . ")
 				 ORDER BY i.classification_score DESC, i.id DESC LIMIT %d",
-				\Obitleague\Domain\Feed_Classifier::CANDIDATE,
-				$limit
+				array_merge( $signals, array( $limit ) )
 			)
 		);
 	}

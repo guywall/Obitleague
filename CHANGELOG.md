@@ -5,6 +5,43 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Changed — Weighted death-detection classifier replaces the cue counter (0.15.0)
+
+- **The RSS classifier is now a weighted death detector, not a keyword
+  counter.** Phrase tables carry separate title/body weights, matched
+  spans are masked so a phrase never scores twice through its own
+  substring, and the whole table set — phrases, weights, bonuses,
+  exclusions — lives in named constants so it can be retuned without
+  touching the logic.
+- **Four verdicts** replace candidate/not_candidate:
+  `death_announcement` (70+, strong candidate), `obituary` (obituary-desk
+  content in the review band), `death_followup` (50–69, requires further
+  confirmation) and `not_death` (below 50, no candidate is created).
+  Legacy stored values still count as wire signals, so nothing already
+  in the queue is lost.
+- **The strongest patterns score highest**: "dies aged [AGE]", "has died
+  aged", "who has died aged …" and their dead/dead-at/passses-away/killed
+  variants carry 50–60 points on the title alone; an age attached to a
+  death phrase adds 25 (title) or 15 (body); attribution to family,
+  agent, manager, publicist, representative or spokesperson adds 10;
+  each additional distinct death phrase adds 8 (to +16); a dedicated
+  obituary feed or death category adds 70 and marks the story as
+  obituary-desk content. Scores cap at 95.
+- **Hard exclusions force `not_death`**: death hoaxes, false/mistaken
+  reports, death rumours, "not dead"/"still alive"/denials, fictional
+  characters killed off, death scenes, on-screen deaths, and anniversary
+  /"years since"/"on this day" retrospectives. Soft dampeners (funeral,
+  inquest, cause of death, tributes, remembrance, archive pieces, "would
+  have turned") pull follow-up genres down — but a title that announces
+  a death itself ("Tributes paid as X dies aged 80") is never buried by
+  its own genre word, and body-level dampeners no longer miss genre
+  words that the phrase-masker has consumed.
+- **The wire sweeps every death signal**, not just legacy candidates, and
+  ingests RSS descriptions and categories so the classifier sees body
+  text and the feed's obituary-desk context. The likelihood gauge reads
+  the weighted score directly; first-generation rows keep their ×10
+  mapping.
+
 ### Added — Honest obituary likelihood, auto-discard, and per-story decisions
 
 - **The likelihood gauge was fiction at the low end.** It mapped a zero-

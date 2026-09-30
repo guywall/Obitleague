@@ -326,19 +326,20 @@ final class Death_Wire {
 		global $wpdb;
 		$cursor = (int) get_option( self::WIRE_CURSOR_OPTION, 0 );
 		$season = Pick_Stats::season_in_play();
-		$items  = (array) $wpdb->get_results(
+		$signals  = \Obitleague\Domain\Feed_Classifier::DEATH_SIGNALS;
+		$in       = implode( ',', array_fill( 0, count( $signals ), '%s' ) );
+		$items    = (array) $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT i.id, i.title, i.url, i.published_at, i.classification_score, s.name AS source_name
 				 FROM {$wpdb->prefix}obitleague_feed_items i
 				 JOIN {$wpdb->prefix}obitleague_sources s ON s.id = i.source_id
-				 WHERE i.classification = %s AND i.wire_state = '' AND i.id > %d
+				 WHERE i.classification IN ({$in}) AND i.wire_state = '' AND i.id > %d
 				   AND i.published_at >= %s AND i.published_at < %s
 				 ORDER BY i.id ASC LIMIT %d",
-				\Obitleague\Domain\Feed_Classifier::CANDIDATE,
-				$cursor,
-				$season . '-01-01 00:00:00',
-				( $season + 1 ) . '-01-01 00:00:00',
-				self::WIRE_BATCH
+				array_merge(
+					$signals,
+					array( $cursor, $season . '-01-01 00:00:00', ( $season + 1 ) . '-01-01 00:00:00', self::WIRE_BATCH )
+				)
 			)
 		);
 		if ( ! $items ) {
@@ -626,13 +627,16 @@ final class Death_Wire {
 	}
 
 	/**
-	 * Classifier score as an honest 0–100 obituary likelihood: 0% for a story
-	 * with no death signal (score 0 or negative), roughly +10 points per
-	 * positive cue-weight, capped below certainty.
+	 * Classifier score as an honest 0–95 obituary likelihood. The weighted
+	 * classifier already scores on that scale; first-generation cue-counter
+	 * rows (small positive ints) are mapped ×10 as before.
 	 */
 	public static function likelihood_pct( int $score ): int {
 		if ( $score <= 0 ) {
 			return 0;
+		}
+		if ( $score >= Feed_Classifier::THRESHOLD_REVIEW ) {
+			return (int) min( 95, $score );
 		}
 		return (int) min( 95, $score * 10 );
 	}
