@@ -30,7 +30,7 @@ final class Import_Service {
 	/**
 	 * Import or refresh one person, idempotent by Wikidata QID.
 	 *
-	 * @param array{qid:string, name:string, birth_date:string, death_date?:string, occupation?:string, role?:string, enwiki?:string, discovery_candidate?:bool} $data
+	 * @param array{qid:string, name:string, birth_date:string, death_date?:string, occupation?:string, role?:string, enwiki?:string, discovery_candidate?:bool, provisional?:bool} $data
 	 * @return int Post id of the person record.
 	 */
 	public static function import_person( array $data ): int {
@@ -83,8 +83,11 @@ final class Import_Service {
 		$post_id = wp_insert_post(
 			array(
 				'post_type'    => Catalogue::POST_TYPE,
-				// Candidates stay private until an editor approves them.
-				'post_status'  => 'draft',
+				// Candidates stay private until an editor approves them; the
+				// death wire's provisional records publish immediately (they
+				// are visible at once but carry a pending-confirmation flag
+				// and score nothing until an editor confirms the death).
+				'post_status'  => ! empty( $data['provisional'] ) ? 'publish' : 'draft',
 				'post_title'   => $name,
 				'post_content' => '',
 			),

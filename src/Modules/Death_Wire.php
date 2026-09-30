@@ -128,7 +128,7 @@ final class Death_Wire {
 				"SELECT s.source_name, s.source_url, s.published_at
 				 FROM {$wpdb->prefix}obitleague_death_sources s
 				 JOIN {$wpdb->prefix}obitleague_review_cases c ON c.id = s.case_id
-				 WHERE c.person_uuid = %s AND c.state = 'approved'
+				 WHERE c.person_uuid = %s AND c.state IN ('approved', 'pending')
 				 ORDER BY s.id ASC LIMIT 12",
 				$uuid
 			)
@@ -251,8 +251,10 @@ final class Death_Wire {
 		$post_id    = Import_Service::post_id_by_qid( $person['qid'] );
 
 		if ( ! $post_id ) {
-			// Not on the site yet: import a draft candidate for the editors.
-			// Records with no stored birth date cannot be created at all.
+			// Not on the site yet: publish immediately as provisional. The
+			// record is visible at once (flagged as awaiting confirmation and
+			// scoring nothing) with a pending review case, so editors triage a
+			// queue instead of hunting through hidden drafts.
 			if ( '' === $birth_norm ) {
 				++$stats['skipped_no_birth'];
 				return;
@@ -260,11 +262,12 @@ final class Death_Wire {
 			try {
 				$new_id = Import_Service::import_person(
 					array(
-						'qid'        => $person['qid'],
-						'name'       => $person['name'],
-						'birth_date' => $birth_norm,
-						'death_date' => $death_norm,
-						'enwiki'     => $person['enwiki'],
+						'qid'         => $person['qid'],
+						'name'        => $person['name'],
+						'birth_date'  => $birth_norm,
+						'death_date'  => $death_norm,
+						'enwiki'      => $person['enwiki'],
+						'provisional' => true,
 					)
 				);
 			} catch ( \Throwable $e ) {
@@ -272,8 +275,10 @@ final class Death_Wire {
 				return;
 			}
 			update_post_meta( $new_id, 'obit_death_wiki_name', self::WIKI_LIST_TITLE );
+			self::mark_provisional( $new_id );
 			self::open_case_for( $new_id, 'Wikipedia lists a ' . $person['dod'] . ' death; editor confirmation required.' );
 			self::attach_source( $new_id, 'Wikipedia — ' . self::WIKI_LIST_TITLE, 'https://en.wikipedia.org/wiki/' . rawurlencode( self::WIKI_LIST_TITLE ), '' );
+			Person_Content::regenerate( $new_id );
 			++$stats['new_candidates'];
 			return;
 		}
@@ -286,7 +291,11 @@ final class Death_Wire {
 
 		$stored = (string) get_post_meta( $post_id, 'obit_death_date', true );
 		if ( '' !== $stored && str_starts_with( $stored, '2026' ) ) {
-			// Already confirmed on the site: credit the list as a source.
+			// Already recorded on the site: credit the list as a source. A
+			// provisional record the list re-confirms is upgraded on the spot.
+			if ( self::is_provisional( $post_id ) ) {
+				self::confirm_provisional( $post_id );
+			}
 			self::attach_source( $post_id, 'Wikipedia — ' . self::WIKI_LIST_TITLE, 'https://en.wikipedia.org/wiki/' . rawurlencode( self::WIKI_LIST_TITLE ), '' );
 			++$stats['confirmed_matched'];
 			return;
@@ -502,9 +511,9 @@ final class Death_Wire {
 			++$stats['wire_new_unconfirmed'];
 			self::save_stats( $stats );
 			return array( 'ok' => true, 'note' => 'Import failed: ' . $e->getMessage() );
-		}
-		update_post_meta( $new_id, 'obit_death_wiki_name', $enwiki );
-		self::open_case_for( $new_id, 'Wire story ' . $source_url . ' and the Wikipedia article confirm a ' . $year . ' death. Editor confirmation required.' );
+		}			update_post_meta( $new_id, 'obit_death_wiki_name', $enwiki );
+			self::mark_provisional( $new_id );
+			self::open_case_for( $new_id, 'Wire story ' . $source_url . ' and the Wikipedia article confirm a ' . $year . ' death. Editor confirmation required.' );
 		self::attach_source( $new_id, $source_name, $source_url, (string) current_time( 'mysql', true ) );
 		++$stats['new_candidates'];
 		self::save_stats( $stats );
@@ -581,6 +590,24 @@ final class Death_Wire {
 
 	private static function has_death( int $post_id ): bool {
 		return '' !== (string) get_post_meta( $post_id, 'obit_death_date', true );
+	}
+
+	/**
+	 * Provisional publication flag. A provisional record is public at once
+	 * but scores nothing until an editor confirms the death.
+	 */
+	public static function mark_provisional( int $post_id ): void {
+		update_post_meta( $post_id, 'obit_death_provisional', 1 );
+	}
+
+	/** True when the record is published but still awaiting confirmation. */
+	public static function is_provisional( int $post_id ): bool {
+		return (bool) (int) get_post_meta( $post_id, 'obit_death_provisional', true );
+	}
+
+	/** Promote a provisional record to a confirmed death. */
+	public static function confirm_provisional( int $post_id ): void {
+		delete_post_meta( $post_id, 'obit_death_provisional' );
 	}
 
 	/** Open a review case unless one is already open or approved. */

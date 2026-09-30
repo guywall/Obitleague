@@ -169,6 +169,15 @@
 	transform: translateY(-2px);
 	box-shadow: var(--ob-shadow-lift);
 }
+.ob-badge--provisional {
+	background: #f4e9c8;
+	color: #7a5c14;
+	border: 1px solid #d9a93c;
+}
+.ob-person__status--provisional {
+	background: #f4e9c8;
+	color: #7a5c14;
+}
 .ob-stat::before {
 	content: '';
 	position: absolute;

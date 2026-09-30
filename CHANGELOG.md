@@ -5,6 +5,32 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Added — Provisional deaths, a triage queue and bulk approval
+
+- **The wire now publishes deaths immediately as provisional.** Imported
+  records (from the Deaths-in-2026 lists and matched RSS stories) go live
+  at once instead of hiding as drafts: flagged `obit_death_provisional`,
+  visible on every public surface, scoring nothing, and excluded from the
+  confirmed-death counts, hits and misses. Public surfaces badge them
+  "Awaiting confirmation"; the stats board gains an "Awaiting
+  confirmation" tile. When a case is approved — by hand, from the queue,
+  or in bulk — the record is promoted to a fully confirmed death in the
+  same transaction as the decision.
+- **The review queue is a triage desk, not a file list.** Each pending
+  row now shows the person, their role, the recorded death date with
+  computed age, the cause wording (or its status), the attached sources
+  as links, and two actions: **Confirm** (one click, only when the record
+  already carries an exact death date and two independent origins) and
+  **Edit** (the full decision form). A bulk bar approves every
+  evidence-complete case at once. The whole page is drawn with three
+  bulk queries instead of hundreds of per-row lookups.
+- **New CLI: `wp obitleague review-approve-all`.** Bulk-approves pending
+  cases whose records satisfy the approval rules on their stored facts;
+  lists and leaves anything else for a human. Supports `--dry-run`,
+  `--limit`, `--editor` and `--reason`. Every approval goes through the
+  normal service, so audit trail, events, outbox and standings behave
+  exactly as a manual decision.
+
 ### Fixed — Hero CTA ink and header breathing room
 
 - **"Browse the catalogue" rendered mint-on-gold.** The home hero emitted

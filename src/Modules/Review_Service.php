@@ -153,6 +153,12 @@ final class Review_Service {
 				self::write_event( $event_uuid, (string) $case->person_uuid, $death_date, $precision, $cause_status, $cause_text, $editor_id, $now );
 				self::queue_outbox( 'death.approved', array( 'event_uuid' => $event_uuid, 'person_uuid' => (string) $case->person_uuid, 'case_id' => $case_id ) );
 				self::publish_person_facts( (string) $case->person_uuid, $death_date, $precision, $cause_status, $cause_text );
+				// A provisional (wire-published, unconfirmed) record becomes a
+				// fully confirmed death the moment an editor approves its case.
+				$post_id = self::person_post_id( (string) $case->person_uuid );
+				if ( $post_id && Death_Wire::is_provisional( $post_id ) ) {
+					Death_Wire::confirm_provisional( $post_id );
+				}
 			} elseif ( Review_Rules::RETRACTED === $to_state && $event_uuid ) {
 				self::queue_outbox( 'death.retracted', array( 'event_uuid' => $event_uuid, 'person_uuid' => (string) $case->person_uuid, 'case_id' => $case_id ) );
 				self::publish_person_facts( (string) $case->person_uuid, null, 'unknown', 'not_disclosed', null );
