@@ -29,6 +29,14 @@ header in `obitleague.php`; each released version is tagged in git.
   Visibility column with Hide/Restore per league; the users screen gains a
   "Public surfaces" column, a "Test accounts" view, and the same toggle per
   account. Every change writes an `obitleague_admin_audit` row.
+- **The empty league reads as waiting, not broken.** Hiding the synthetic
+  entrants leaves the front-page standings card with a published generation
+  and nobody on it, which used to print "Standings not published yet." —
+  untrue, and it looks like a fault. A published-but-empty league now says
+  "No teams to show yet."; only a genuinely unpublished one keeps the old
+  wording. The leagues screen keeps an audit-visible Hide/Restore column with
+  an explanatory line, and both admin toggles now say what to do when a change
+  fails instead of only that it did.
 - **`tests/flag-qa-rows.php`** flags the known synthetic rows on a live
   install. It reports by default and writes only with
   `OBITLEAGUE_QA_APPLY=1`; targets come from a built-in list, optional

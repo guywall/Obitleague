@@ -97,7 +97,7 @@ final class Admin_Game {
 		echo '<h2>Leagues</h2>';
 		if ( $leagues ) {
 			echo '<p class="description">Hiding a league removes it from every public surface — the front-page league cards, the league directory and the sitemap. Nothing is deleted, and hidden leagues stay manageable here.</p>';
-			echo '<div class="ob-admin-table-scroll"><table class="widefat striped"><thead><tr><th>League</th><th>Season</th><th>State</th><th>Visibility</th><th>Owner</th><th>Members</th><th>Teams</th><th></th></tr></thead><tbody>';
+			echo '<div class="ob-admin-table-scroll"><table class="widefat striped"><thead><tr><th>League</th><th>Season</th><th>State</th><th>Visibility</th><th>Owner</th><th>Members</th><th>Teams</th><th>Actions</th></tr></thead><tbody>';
 			foreach ( $leagues as $league ) {
 				$owner = get_userdata( (int) $league->owner_user_id );				$url = self::url( array( 'league' => (int) $league->id ) );
 				$is_main = (int) $league->is_main === 1;
@@ -783,7 +783,7 @@ final class Admin_Game {
 		$league_id = isset( $_POST['league_id'] ) ? absint( $_POST['league_id'] ) : 0;
 		$hide      = isset( $_POST['hide'] ) && '1' === (string) $_POST['hide'];
 		if ( ! $league_id || ! Public_Scope::set_league_hidden( $league_id, $hide, 'changed in the leagues admin' ) ) {
-			self::redirect( array( 'error' => 'Could not change that league\'s public visibility.' ) );
+			self::redirect( array( 'error' => 'Could not change that league\'s public visibility. Reload this screen and try again; if it keeps failing, check the audit log for the last change.' ) );
 		}
 		self::redirect( array( 'notice' => $hide ? 'League hidden from public surfaces.' : 'League restored to public surfaces.' ) );
 	}

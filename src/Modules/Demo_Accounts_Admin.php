@@ -111,7 +111,12 @@ final class Demo_Accounts_Admin {
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( $hidden ? 'Account hidden from public surfaces. Its data is unchanged.' : 'Account restored to public surfaces.' ) . '</p></div>';
 		}
 		if ( isset( $_GET['obitleague_test_error'] ) && current_user_can( 'edit_users' ) ) {
-			echo '<div class="notice notice-error"><p>' . esc_html( 'Could not change that account\'s public visibility.' ) . '</p></div>';
+			echo '<div class="notice notice-error"><p>' . esc_html( 'Could not change that account\'s public visibility. Reload this screen and try again; if it keeps failing, check the administrator audit log.' ) . '</p></div>';
+		}
+		// The column only makes sense once someone explains it, so the view
+		// that gathers these accounts carries the explanation.
+		if ( current_user_can( 'edit_users' ) && isset( $_GET['obitleague_test_accounts'] ) ) {
+			echo '<div class="notice notice-info"><p>' . esc_html( 'A flagged account keeps its data, its team and its sign-in. Flagging only stops it counting as a public player: it leaves the leaderboards, the team directory and the sitemap. Every change is recorded in the administrator audit log.' ) . '</p></div>';
 		}
 		if ( ! current_user_can( 'delete_users' ) || ! isset( $_GET['obitleague_demo_accounts'] ) ) {
 			return;

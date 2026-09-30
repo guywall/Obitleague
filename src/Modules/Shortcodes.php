@@ -323,8 +323,15 @@ final class Shortcodes {
 			$name = $league_id ? (string) $GLOBALS['wpdb']->get_var( $GLOBALS['wpdb']->prepare( 'SELECT name FROM ' . $GLOBALS['wpdb']->prefix . 'obitleague_leagues WHERE id = %d', $league_id ) ) : '';
 			$out .= '<section class="ob-card"><h2 class="ob-card__title"><a class="ob-league-link" href="' . esc_url( home_url( '/league/' . $league_id . '/' ) ) . '">' . esc_html( $name ?: 'League' ) . '</a></h2>';
 			$rows = $league_id ? Standings_Service::current( $league_id, $season, $top ) : null;
-			if ( ! $rows ) {
+			if ( null === $rows ) {
 				$out .= '<p><em>Standings not published yet.</em></p></section>';
+				continue;
+			}
+			if ( ! $rows ) {
+				// The standings exist, nobody is on them yet. "Not published"
+				// would be untrue here, and reads as a broken page rather than a
+				// league waiting for its first team.
+				$out .= '<p><em>No teams to show yet.</em></p></section>';
 				continue;
 			}
 
