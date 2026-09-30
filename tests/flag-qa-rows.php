@@ -25,6 +25,13 @@
  *   3. Explicit names, when Auto is too blunt or misses one:
  *        OBITLEAGUE_QA_LEAGUES="Testings,Guy's Test League 2027"
  *        OBITLEAGUE_QA_ACCOUNTS="qa.human.pass.1,rowan banks"
+ *   4. Owners of submitted teams whose team name looks synthetic. The name a
+ *      visitor sees is the team name, and a synthetic team ("QA Human Pass
+ *      One") hides behind an opaque account login, so its owner is proposed
+ *      even when the account itself matches nothing.
+ *
+ * Every proposal prints the reason it was made, and the run reports before it
+ * writes, so the list can be reviewed before anything changes.
  *
  * Applying also rebuilds the current standings generation for every league,
  * so the published ranking is recomputed without the hidden teams rather
@@ -96,8 +103,25 @@ foreach ( (array) $all_leagues as $league ) {
 	}
 }
 
-$account_targets = array(); // id => array{ login, display, test }
+$account_targets = array(); // id => array{ login, display, test, why }
 $wanted_accounts = array_merge( $qa_default_accounts, $list_env( 'OBITLEAGUE_QA_ACCOUNTS' ) );
+
+/**
+ * Record one account to hide, keeping the first reason it was proposed.
+ *
+ * @param array{login:string,display:string} $info
+ */
+$propose_account = static function ( int $id, array $info, string $why ) use ( &$account_targets ): void {
+	if ( isset( $account_targets[ $id ] ) ) {
+		return;
+	}
+	$account_targets[ $id ] = array(
+		'login'   => $info['login'],
+		'display' => $info['display'],
+		'test'    => Public_Scope::is_test_user( $id ),
+		'why'     => $why,
+	);
+};
 
 $users = get_users(
 	array(
@@ -113,23 +137,48 @@ foreach ( (array) $users as $user ) {
 	$display = (string) $user->display_name;
 	$email   = (string) $user->user_email;
 
-	$hit = false;
 	foreach ( $wanted_accounts as $wanted ) {
 		if ( 0 === strcasecmp( $login, $wanted ) || 0 === strcasecmp( $display, $wanted ) || 0 === strcasecmp( $email, $wanted ) ) {
-			$hit = true;
-			break;
+			$propose_account( $id, array( 'login' => $login, 'display' => $display ), 'matches a listed name' );
+			continue 2;
 		}
 	}
-	if ( ! $hit && $auto && Public_Scope::looks_like_test_account( $login, $display, $email ) ) {
-		$hit = true;
+	if ( $auto && Public_Scope::looks_like_test_account( $login, $display, $email ) ) {
+		$propose_account( $id, array( 'login' => $login, 'display' => $display ), 'synthetic-looking account name' );
 	}
-	if ( $hit ) {
-		$account_targets[ $id ] = array(
-			'login'   => $login,
-			'display' => $display,
-			'test'    => Public_Scope::is_test_user( $id ),
-		);
+}
+
+/*
+ * The name a visitor actually sees on a leaderboard is the team name, and the
+ * synthetic teams are named things like "QA Human Pass One" while the account
+ * behind them is an opaque login. So a submitted team whose name looks
+ * synthetic proposes its owner too — otherwise the visible row survives the
+ * hide even though its account was never matched.
+ */
+$teams = $wpdb->get_results(
+	"SELECT e.user_id, e.team_name, l.name AS league_name
+	 FROM {$wpdb->prefix}obitleague_entries e
+	 JOIN {$wpdb->prefix}obitleague_leagues l ON l.id = e.league_id
+	 WHERE e.state = 'submitted'"
+);
+foreach ( (array) $teams as $team ) {
+	$team_name = trim( (string) $team->team_name );
+	if ( '' === $team_name ) {
+		continue;
 	}
+	$looks_synthetic = $auto
+		? Public_Scope::looks_like_test_account( $team_name, $team_name, '' ) || Public_Scope::looks_like_test_league( $team_name )
+		: Public_Scope::looks_like_test_account( $team_name, $team_name, '' );
+	if ( ! $looks_synthetic ) {
+		continue;
+	}
+	$owner_id = (int) $team->user_id;
+	$owner    = get_userdata( $owner_id );
+	$propose_account(
+		$owner_id,
+		array( 'login' => $owner ? (string) $owner->user_login : '#' . $owner_id, 'display' => $owner ? (string) $owner->display_name : '' ),
+		'owns the team "' . $team_name . '"'
+	);
 }
 
 /* ---------- report ---------- */
@@ -166,7 +215,7 @@ foreach ( $account_targets as $id => $target ) {
 		continue;
 	}
 	++$pending;
-	WP_CLI::line( sprintf( '  %s #%d %s — "%s"', $apply ? '+' : '~', $id, $target['login'], $target['display'] ) );
+	WP_CLI::line( sprintf( '  %s #%d %s — "%s" (%s)', $apply ? '+' : '~', $id, $target['login'], $target['display'], $target['why'] ) );
 	if ( $apply ) {
 		Public_Scope::set_user_test( (int) $id, true, 'flagged by tests/flag-qa-rows.php' );
 	}
