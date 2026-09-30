@@ -185,6 +185,42 @@ final class Pick_Stats {
 		);
 	}
 
+	/**
+	 * The most-picked people for a season, for the header's mega-menu strip.
+	 *
+	 * Reads the cached distribution; returns team labels with counts and the
+	 * share of the field. Empty until teams are submitted — the header must
+	 * never block on this, so it only ever touches the cache.
+	 *
+	 * @return array<int,array{team_label:string,count:int,percent:float}>
+	 */
+	public static function season_picks_summary( int $season, int $limit = 4 ): array {
+		$distribution = self::distribution( $season );
+		$teams_total  = max( 1, (int) $distribution['teams_total'] );
+		$out          = array();
+		foreach ( array_slice( (array) $distribution['counts'], 0, $limit, true ) as $uuid => $count ) {
+			$post_id = self::post_id_by_uuid( (string) $uuid );
+			if ( ! $post_id ) {
+				continue;
+			}
+			$count = (int) $count;
+			$out[] = array(
+				'team_label' => (string) get_the_title( $post_id ),
+				'count'      => $count,
+				'percent'    => round( 100 * $count / $teams_total, 1 ),
+			);
+		}
+		return $out;
+	}
+
+	/** The record post for a person uuid, or 0. */
+	private static function post_id_by_uuid( string $uuid ): int {
+		global $wpdb;
+		return (int) $wpdb->get_var(
+			$wpdb->prepare( "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = 'obit_uuid' AND meta_value = %s LIMIT 1", $uuid )
+		);
+	}
+
 	/* ---------- distribution cache ---------- */
 
 	/**

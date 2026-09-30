@@ -277,7 +277,7 @@ get_header();
 				</section>
 			<?php endif; ?>
 
-			<a class="ob-profile__back" href="<?php echo esc_url( home_url( '/catalogue/' ) ); ?>">← Back to the catalogue</a>
+			<a class="ob-profile__back" href="<?php echo esc_url( home_url( '/people/' ) ); ?>">← Back to the catalogue</a>
 		</aside>
 
 	</div>

@@ -88,6 +88,12 @@ final class Game_Pages {
 				'title'   => 'Obituaries ' . Pick_Stats::season_in_play(),
 				'content' => '[obitleague_deaths season="' . Pick_Stats::season_in_play() . '"]',
 			),
+			// These three are linked from the header, footer and templates;
+			// without auto-creation they 404 on any install where the demo
+			// page importer never ran.
+			'standings' => array( 'title' => 'Standings', 'content' => '[obitleague_overall_standings]' ),
+			'rules' => array( 'title' => 'Rules', 'content' => '[obitleague_rules]' ),
+			'archive' => array( 'title' => 'Death archive', 'content' => '[obitleague_archive]' ),
 		);
 		foreach ( $pages as $slug => $page ) {
 			if ( get_page_by_path( $slug ) ) {

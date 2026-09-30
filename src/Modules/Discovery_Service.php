@@ -988,7 +988,7 @@ final class Discovery_Service {
 
 	private static function user_agent(): string {
 		$contact  = sanitize_email( (string) get_option( 'admin_email', '' ) );
-		$identity = home_url( '/about/' );
+		$identity = home_url( '/' );
 		$version  = defined( 'OBITLEAGUE_VERSION' ) ? OBITLEAGUE_VERSION : '0.1';
 		return 'Obitleague-Discovery/' . $version . ' (' . $identity . '; ' . ( '' !== $contact ? $contact : home_url( '/' ) ) . ') WordPress/' . get_bloginfo( 'version' );
 	}
