@@ -2,8 +2,9 @@
 /**
  * Admin theming.
  *
- * Brings the front-end editorial design system (deep green, brass, Fraunces,
- * Public Sans) into the WordPress admin for Obitleague screens: the plugin
+ * Brings the front-end monochrome typewriter design system (greys only,
+ * JetBrains Mono body, Outfit display) into the WordPress admin for
+ * Obitleague screens: the plugin
  * menu tree, review queue/case screens, leagues & teams admin, statistics
  * screens and the person edit screen. Core admin screens outside the
  * Obitleague plugin tree are left untouched.

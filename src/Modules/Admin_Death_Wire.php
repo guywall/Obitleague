@@ -188,7 +188,7 @@ final class Admin_Death_Wire {
 			$max = (int) reset( $cloud );
 			foreach ( $cloud as $word => $count ) {
 				$scale = $max > 0 ? max( 0.75, min( 2.1, 0.75 + (float) $count / $max ) ) : 0.75;
-				$shade = $count === $max ? 'var(--ob-accent-deep, #0a3d2c)' : 'var(--ob-muted, #6b7280)';
+				$shade = $count === $max ? 'var(--ob-accent-deep, #353535)' : 'var(--ob-muted, #727272)';
 				echo '<span style="font-size:' . esc_attr( (string) round( $scale, 2 ) ) . 'em;color:' . esc_attr( $shade ) . ';margin-right:10px">' . esc_html( (string) $word ) . ' <small>' . (int) $count . '</small></span>';
 			}
 			echo '</p>';
@@ -284,12 +284,12 @@ final class Admin_Death_Wire {
 
 	private static function likelihood_colour( int $likelihood ): string {
 		if ( $likelihood >= 70 ) {
-			return 'var(--ob-accent-deep, #0a3d2c)';
+			return 'var(--ob-accent-deep, #353535)';
 		}
 		if ( $likelihood >= 45 ) {
-			return '#7a5c12';
+			return '#616161';
 		}
-		return '#8a8f98';
+		return '#8f8f8f';
 	}
 
 	/**

@@ -188,7 +188,7 @@ final class Admin_Review {
 			foreach ( $rows as $row ) {
 				echo '<tr>';
 				echo '<td><strong>' . esc_html( $row['name'] ) . '</strong>';
-				echo $row['provisional'] ? ' <span style="color:#996800;">⚠ provisional</span>' : '';
+				echo $row['provisional'] ? ' <span style="color:#727272;">⚠ provisional</span>' : '';
 				echo '<br /><span class="description">' . esc_html( $row['role'] ) . '</span></td>';
 				echo '<td>' . esc_html( $row['death_date'] ?: '— missing —' ) . ( '' !== $row['age'] ? '<br /><span class="description">age ' . esc_html( $row['age'] ) . '</span>' : '' ) . '</td>';
 				echo '<td>' . esc_html( $row['cause'] ) . '</td>';
