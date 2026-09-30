@@ -1885,10 +1885,10 @@ a.ob-pick__name:hover {
    #8fd3b6 — mint text is banned, most of all on gold. The gold CTA buttons
    are excluded: light text on gold is unreadable, so they keep their dark
    ink from obitleague.css. */
-.ob-hero a:not(.ob-btn):not(.ob-hero__cta) {
+.ob-hero a:not(.ob-btn):not(.ob-hero__cta):not(.ob-season-toggle__option) {
 	color: #a9c9b4 !important;
 }
-.ob-hero a:not(.ob-btn):not(.ob-hero__cta):hover {
+.ob-hero a:not(.ob-btn):not(.ob-hero__cta):not(.ob-season-toggle__option):hover {
 	color: #fff !important;
 }
 /* Ink law for the hero CTA row: dark gold ink and white ghost, immune to
