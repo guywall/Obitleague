@@ -1054,6 +1054,16 @@ img.ob-profile__avatar--img {
 .ob-side-editor ul li {
 	margin: 6px 0;
 }
+/* Picker results: name row and disambiguation row are separate lines, with
+   a Wikipedia/Wikidata identity link beside the choose button. */
+.ob-main-results li.ob-pick-result-item,
+.ob-side-editor ul li.ob-pick-result-item {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 8px 12px;
+	align-items: center;
+	margin: 6px 0;
+}
 .ob-pick-result,
 .ob-wikidata-search {
 	width: 100%;
@@ -1064,11 +1074,50 @@ img.ob-profile__avatar--img {
 	color: var(--ob-ink);
 	text-align: left;
 	cursor: pointer;
+	font: inherit;
+}
+.ob-pick-result__name {
+	display: block;
+	font-weight: 700;
+	color: var(--ob-ink);
+}
+.ob-pick-result__meta {
+	display: block;
+	margin-top: 3px;
+	color: var(--ob-muted);
+	font-size: 0.76rem;
+	font-weight: 500;
+	overflow-wrap: anywhere;
 }
 .ob-pick-result:hover,
 .ob-wikidata-search:hover {
 	border-color: var(--ob-accent);
 	background: #f4f8f4;
+}
+.ob-pick-result__wiki {
+	justify-self: end;
+	padding: 8px 12px;
+	border: 1px solid var(--ob-line);
+	border-radius: 8px;
+	background: #fff;
+	color: var(--ob-accent-deep, #0a3d2c);
+	font-size: 0.78rem;
+	font-weight: 700;
+	text-decoration: none;
+	white-space: nowrap;
+}
+.ob-pick-result__wiki:hover {
+	border-color: var(--ob-accent);
+	background: #f4f8f4;
+}
+@media (max-width: 560px) {
+	.ob-main-results li.ob-pick-result-item,
+	.ob-side-editor ul li.ob-pick-result-item {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.ob-pick-result__wiki {
+		justify-self: start;
+	}
 }
 .ob-pick-result small,
 .ob-main-picks small,
@@ -1101,6 +1150,10 @@ img.ob-profile__avatar--img {
 	border: 1px solid var(--ob-line);
 	border-radius: 8px;
 	background: #fff;
+	color: var(--ob-ink);
+	font: inherit;
+	font-size: 0.82rem;
+	font-weight: 600;
 	cursor: pointer;
 }
 .ob-main-actions {
@@ -1146,6 +1199,55 @@ img.ob-profile__avatar--img {
 .ob-btn--secondary:hover {
 	color: #fff;
 	background: #0d4633;
+}
+/*
+ * Colour law: the Elementor kit and theme globals style every bare <button>
+ * element and out-specify the single-class .ob-btn rules, which has produced
+ * green-on-green and mint-on-yellow buttons across the site. These doubled
+ * declarations win the cascade regardless of what the kit emits: primary is
+ * always gold on dark green, secondary always white on dark green.
+ */
+.ob-btn.ob-btn {
+	background: #f0c75e !important;
+	color: #07281c !important;
+}
+.ob-btn.ob-btn:hover {
+	background: #e6b93f !important;
+	color: #07281c !important;
+}
+.ob-btn--secondary.ob-btn--secondary {
+	background: #0a3d2c !important;
+	color: #fff !important;
+}
+.ob-btn--secondary.ob-btn--secondary:hover {
+	background: #0d4633 !important;
+	color: #fff !important;
+}
+.ob-btn--danger.ob-btn--danger {
+	background: var(--ob-rose, #b3452f) !important;
+	color: #fff !important;
+}
+.ob-btn--danger.ob-btn--danger:hover {
+	background: #8f3523 !important;
+	color: #fff !important;
+}
+/* The header search button is a deliberate ghost on the dark header; keep it
+   from being dragged back to gold by the law above. */
+.ob-header__search .ob-btn.ob-btn {
+	background: rgba(255, 255, 255, 0.1) !important;
+	color: #fff !important;
+}
+.ob-header__search .ob-btn.ob-btn:hover {
+	background: rgba(255, 255, 255, 0.18) !important;
+	color: #fff !important;
+}
+/* Disabled buttons must never keep a clickable look. */
+.ob-btn.ob-btn:disabled,
+.ob-btn--secondary.ob-btn--secondary:disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
+	transform: none;
+	box-shadow: none;
 }
 .ob-join-msg {
 	min-height: 1.4em;

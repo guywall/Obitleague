@@ -17,11 +17,30 @@
 		if(source==='wikidata'&&person.qid)bits.push(person.qid);
 		return bits.join(' · ');
 	}
+	function identityLink(person,source){
+		var enwiki=person.enwiki||'';
+		if(enwiki)return {href:'https://en.wikipedia.org/wiki/'+encodeURIComponent(enwiki.replace(/ /g,'_')),label:'View on Wikipedia'};
+		if(source==='wikidata'&&person.url)return {href:person.url,label:'View on Wikidata'};
+		return null;
+	}
 	function createResult(person,source,onAdd){
-		var li=document.createElement('li'),button=document.createElement('button'),detail=document.createElement('small');
-		button.type='button';button.className='ob-pick-result';button.textContent=person.name+(person.description?' — '+person.description:'');
-		detail.textContent=disambiguation(person,source);button.appendChild(detail);
-		button.addEventListener('click',function(){onAdd(person,button);});li.appendChild(button);return li;
+		var li=document.createElement('li'),button=document.createElement('button');
+		var name=document.createElement('span'),meta=document.createElement('small');
+		li.className='ob-pick-result-item';
+		button.type='button';button.className='ob-pick-result';
+		name.className='ob-pick-result__name';name.textContent=person.name;
+		meta.className='ob-pick-result__meta';meta.textContent=disambiguation(person,source);
+		button.append(name,meta);
+		button.addEventListener('click',function(){onAdd(person,button);});
+		li.appendChild(button);
+		var ref=identityLink(person,source);
+		if(ref){
+			var link=document.createElement('a');
+			link.className='ob-pick-result__wiki';link.href=ref.href;link.target='_blank';link.rel='noopener noreferrer';
+			link.textContent=ref.label;
+			li.appendChild(link);
+		}
+		return li;
 	}
 	function mountEditor(editor,kind,data,canEdit){
 		var picks=(data.pick_details||[]).slice(),version=data.expected_version||1;
