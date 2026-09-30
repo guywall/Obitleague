@@ -114,8 +114,14 @@ final class Shortcodes {
 	/* ---------- blocks ---------- */
 
 	public static function hero( $atts = array() ): string {
-		$season = self::season();
-		$out    = '<section class="ob-hero ob-anim"><span class="ob-hero__kicker">Season ' . (int) $season . ' · In play</span>';
+		$season  = self::season();
+		$in_play = method_exists( Pick_Stats::class, 'season_in_play' ) ? (int) Pick_Stats::season_in_play() : $season;
+		// The badge in the header shows the in-play season; the kicker must
+		// tell the same story, naming the entry season only when it differs.
+		$kicker  = $in_play === $season
+			? 'Season ' . $in_play . ' · In play'
+			: 'Season ' . $in_play . ' in play · picking for ' . $season;
+		$out    = '<section class="ob-hero ob-anim"><span class="ob-hero__kicker">' . esc_html( $kicker ) . '</span>';
 		$out   .= '<h1>Pick ten lives. Follow the year.</h1>';
 		$out   .= '<p>Every confirmed, editor-approved death of a picked figure scores points — younger lives score more: max(1, 100 − age).</p>';
 		$out   .= '<div class="ob-hero__cta">';

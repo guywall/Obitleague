@@ -37,6 +37,10 @@ body.ob-on .elementor-location-footer {
 body.ob-on {
 	margin: 0;
 }
+/* The open menu sheet owns scrolling while it is up. */
+body.ob-menu-open {
+	overflow: hidden;
+}
 .elementor-section.elementor-section-boxed > .elementor-container {
 	max-width: 1140px;
 }
@@ -72,6 +76,13 @@ body.ob-on {
 }
 .ob-skip:focus {
 	left: 0;
+}
+
+/* The Elementor header-footer template prints its own skip link inside the
+   page template; ours is the first tab stop in the document, so the
+   duplicate is silenced rather than removed from the theme. */
+body.ob-on a.skip-link.screen-reader-text {
+	display: none !important;
 }
 
 
@@ -313,6 +324,13 @@ body.ob-on {
 	position: relative;
 }
 
+/* The panel wraps search + menu + join CTA. On desktop it contributes no box
+   of its own (children stay inline in the header row); on phones it becomes
+   the fixed dropdown sheet. */
+.ob-header__panel.ob-header__panel {
+	display: contents;
+}
+
 .ob-header__item.ob-header__item {
 	position: relative;
 	display: inline-flex;
@@ -324,10 +342,15 @@ body.ob-on {
 .ob-header__item.ob-header__item:focus-within > .ob-header__sub {
 	opacity: 1;
 	visibility: visible;
-	transform: translateY(0);
+	transform: translate(-50%, 0);
 }
 
 .ob-header__chev {
+	appearance: none;
+	border: 0;
+	cursor: pointer;
+	font: inherit;
+	padding: 0;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -347,11 +370,12 @@ body.ob-on {
 	color: #07281c;
 }
 
+/* Centered under the parent link and clamped to the viewport, so the panel
+   can never spill off-screen for items near either edge. */
 .ob-header__sub {
 	position: absolute;
 	top: 100%;
-	left: 0;
-	right: 0;
+	left: 50%;
 	margin-top: 6px;
 	padding: 14px 16px 18px;
 	border-radius: 14px;
@@ -360,17 +384,17 @@ body.ob-on {
 	box-shadow: 0 24px 40px rgba(4, 22, 15, 0.45);
 	opacity: 0;
 	visibility: hidden;
-	transform: translateY(-4px);
+	transform: translate(-50%, -4px);
 	transition: opacity 0.2s var(--ob-ease), transform 0.2s var(--ob-ease), visibility 0.2s;
-	min-width: 680px;
-	max-width: 880px;
+	min-width: min(680px, calc(100vw - 48px));
+	max-width: calc(100vw - 48px);
 }
 
 .ob-header__item.is-open > .ob-header__sub,
 .ob-header__sub:hover {
 	opacity: 1;
 	visibility: visible;
-	transform: translateY(0);
+	transform: translate(-50%, 0);
 }
 
 .ob-header__sub-grid {
@@ -493,75 +517,179 @@ body.ob-on {
 	}
 }
 
+/* Mobile: the top row keeps its exact height whether the menu is open or
+   not — the menu is a fixed overlay sheet, so nothing reflows underneath. */
 @media (max-width: 1023px) {
-	.ob-header__inner {
-		flex-wrap: wrap;
+	.ob-header.ob-header {
+		position: sticky;
 	}
 
-	.ob-header__search {
-		order: 3;
-		width: 100%;
-		margin-left: 0;
+	.ob-header__inner.ob-header__inner {
+		padding: 0 14px;
+		gap: 6px;
 	}
 
-	.ob-header__search input {
-		width: 100%;
-	}
-
-	.ob-header__actions {
+	.ob-header__search.ob-header__search {
 		display: none;
 	}
 
-	.ob-header.is-open .ob-header__actions {
-		display: flex;
-		flex-direction: column;
-		align-items: stretch;
-		gap: 4px;
-		padding: 8px 0 12px;
+	.ob-header__actions.ob-header__actions {
+		display: none;
 	}
 
 	.ob-header.ob-header .ob-header__toggle {
 		display: inline-flex;
+		flex: 0 0 auto;
+		margin-left: auto;
 	}
 
-	.ob-header.ob-header:not(.is-open) .ob-header__actions {
+	/* The dropdown sheet: full-width panel hanging off the sticky bar. */
+	.ob-header.ob-header .ob-header__panel {
 		display: none;
+		position: fixed;
+		top: var(--ob-header-h, 66px);
+		left: 0;
+		right: 0;
+		bottom: 0;
+		z-index: 119;
+		flex-direction: column;
+		overflow-y: auto;
+		overscroll-behavior: contain;
+		-webkit-overflow-scrolling: touch;
+		padding: 6px 14px 30px;
+		background: linear-gradient(165deg, #0a3d2c, #07281c 75%);
+		box-shadow: 0 30px 50px rgba(4, 22, 15, 0.55);
 	}
 
-	.ob-header__mobile-join {
+	.ob-header.ob-header.is-open .ob-header__panel {
+		display: flex;
+	}
+
+	.ob-header.ob-header .ob-header__search {
+		display: flex;
+		padding: 8px 0 12px;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+		margin-bottom: 8px;
+	}
+
+	.ob-header.ob-header .ob-header__search input {
+		width: 100%;
+		min-height: 44px;
+	}
+
+	.ob-header.ob-header .ob-header__search .ob-btn {
+		flex: 0 0 auto;
+	}
+
+	/* Menu links: full-width rows, one tap target each, hairline separators. */
+	.ob-header.ob-header .ob-header__actions {
+		display: flex;
+		flex-direction: column;
+		align-items: stretch;
+		gap: 0;
+		padding: 0;
+		margin: 0;
+	}
+
+	.ob-header.ob-header .ob-header__actions > .ob-header__link {
+		width: 100%;
+		min-height: 50px;
+		padding: 12px 2px;
+		font-size: 1.02rem;
+		border-radius: 0;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+	}
+
+	/* Mega item: link and its toggle share one row; the accordion sits below. */
+	.ob-header.ob-header .ob-header__item {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 44px;
+		align-items: center;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+	}
+
+	.ob-header.ob-header .ob-header__item > .ob-header__link {
+		min-height: 50px;
+		padding: 12px 2px;
+		font-size: 1.02rem;
+		border-radius: 0;
+	}
+
+	.ob-header.ob-header .ob-header__item > .ob-header__sub {
+		grid-column: 1 / -1;
+	}
+
+	.ob-header.ob-header .ob-header__chev {
+		width: 44px;
+		height: 44px;
+		border-radius: 10px;
+		font-size: 0.9rem;
+		margin-left: 8px;
+		flex: 0 0 auto;
+		transition: transform 0.2s var(--ob-ease), background 0.2s;
+	}
+
+	.ob-header.ob-header .ob-header__item.is-open > .ob-header__chev {
+		transform: rotate(180deg);
+	}
+
+	.ob-header.ob-header .ob-header__mobile-join {
 		display: block;
-		padding: 10px 0 14px;
+		padding: 16px 0 6px;
 	}
 
-	.ob-header__mobile-join .ob-header__cta {
+	.ob-header.ob-header .ob-header__mobile-join .ob-header__cta {
 		display: flex;
 		justify-content: center;
 		width: 100%;
 	}
 
-	.ob-header__sub {
+	/* Accordions replace the desktop hover mega. */
+	.ob-header.ob-header .ob-header__sub {
 		position: static;
 		min-width: 0;
 		max-width: 100%;
 		box-shadow: none;
-		border-color: rgba(255, 255, 255, 0.08);
+		background: transparent;
+		border: 0;
+		border-radius: 0;
+		padding: 0 0 6px;
 		transform: none;
 		opacity: 1;
 		visibility: visible;
-		margin-top: 4px;
+		margin-top: 0;
 		display: none;
 	}
 
-	.ob-header__item.is-open > .ob-header__sub {
+	.ob-header.ob-header .ob-header__item.is-open > .ob-header__sub {
 		display: block;
+	}
+
+	.ob-header.ob-header .ob-header__sub a {
+		display: block;
+		min-height: 44px;
+		padding: 10px 0 10px 16px;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 	}
 
 	.ob-header__sub-grid {
 		grid-template-columns: 1fr;
+		gap: 10px;
 	}
 
 	.ob-header__sub .ob-header__picks-row {
 		grid-template-columns: 1fr;
+	}
+}
+
+/* Very narrow phones: brand shrinks before it can crowd the toggle. */
+@media (max-width: 359px) {
+	.ob-header.ob-header .ob-header__season {
+		display: none;
+	}
+
+	.ob-header.ob-header .ob-header__name {
+		font-size: 1.02rem;
 	}
 }
 

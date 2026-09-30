@@ -41,25 +41,8 @@ public static function print_base_style_tag(): void {
 }
 
 private static function base_style(): string {
-	return <<<CSS
-.ob-header:focus-within .ob-header__toggle,
-.ob-header__search input,
-.ob-header__search input::placeholder,
-.ob-header__search input:focus,
-.ob-header__link,
-.ob-header__cta,
-.ob-header__chev,
-.ob-header__sub a,
-.ob-header__sub a .ob-header__meta,
-.ob-header__picks-item,
-.ob-header__picks-item strong,
-.ob-header__sub h4,
-.ob-header__item:hover > .ob-header__chev,
-.ob-header__item.is-open > .ob-header__chev
-{
-	/* mirrored from chrome.css header rules */
-}
-CSS;
+	// The header is styled entirely by chrome.css; nothing to inject here.
+	return '';
 }
 
 public static function render(): void {
@@ -121,6 +104,11 @@ public static function render(): void {
 			<span class="ob-header__name">Obitleague</span>				<span class="ob-header__season" title="<?php echo esc_attr( Season_Switcher::season_story() ); ?>"><?php echo esc_html( (string) Pick_Stats::season_in_play() ); ?></span>
 		</a>
 
+		<button class="ob-header__toggle" type="button" aria-expanded="false" aria-controls="ob-header-menu" aria-label="<?php esc_attr_e( 'Menu', 'obitleague' ); ?>">
+			<span></span><span></span><span></span>
+		</button>
+
+		<nav class="ob-header__panel" id="ob-header-menu" aria-label="Site menu">
 		<div class="ob-header__search">
 			<?php if ( $search_url ) : ?>
 			<form class="ob-header__search-form" method="get" action="<?php echo esc_url( $search_url ); ?>" role="search" aria-label="Search people">
@@ -151,7 +139,7 @@ public static function render(): void {
 				<?php if ( $mega && ! empty( $mega_columns ) ) : ?>
 					<div class="ob-header__item">
 						<a class="ob-header__link" href="<?php echo esc_url( $url ?: '#' ); ?>"><?php echo esc_html( $label ); ?></a>
-						<span class="ob-header__chev" aria-hidden="true">⌵</span>
+						<button class="ob-header__chev" type="button" aria-expanded="false" aria-label="<?php echo esc_attr( sprintf( __( 'Toggle %s submenu', 'obitleague' ), $label ) ); ?>">⌵</button>
 						<div class="ob-header__sub" data-ob-mega>
 							<div class="ob-header__sub-grid">
 								<?php foreach ( $mega_columns as $col ) : ?>
@@ -216,16 +204,13 @@ public static function render(): void {
 			<?php endif; ?>
 		</div>
 
-		<button class="ob-header__toggle" type="button" aria-expanded="false" aria-controls="ob-header-menu" aria-label="<?php esc_attr_e( 'Menu', 'obitleague' ); ?>">
-			<span></span><span></span><span></span>
-		</button>
+		<?php if ( ! $logged_in ) : ?>
+		<div class="ob-header__mobile-join">
+			<a class="ob-header__cta" href="<?php echo esc_url( $cta_url ); ?>"><?php echo esc_html( $cta_label ); ?></a>
+		</div>
+		<?php endif; ?>
+		</nav>
 	</div>
-
-	<?php if ( ! $logged_in ) : ?>
-	<div class="ob-header__mobile-join">
-		<a class="ob-header__cta" href="<?php echo esc_url( $cta_url ); ?>"><?php echo esc_html( $cta_label ); ?></a>
-	</div>
-	<?php endif; ?>
 </header>
 <?php
 	}

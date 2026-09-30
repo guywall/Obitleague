@@ -5,49 +5,88 @@ function onHeader(){
 	var header = document.querySelector('[data-ob-header]');
 	if(!header){ return; }
 
+	var inner  = header.querySelector('.ob-header__inner');
 	var toggle = header.querySelector('.ob-header__toggle');
+	var panel  = header.querySelector('.ob-header__panel');
+
+	function barHeight(){
+		return inner ? inner.offsetHeight : 66;
+	}
+
+	function syncHeight(){
+		header.style.setProperty('--ob-header-h', barHeight() + 'px');
+	}
+
+	function setOpen(open){
+		header.classList.toggle('is-open', open);
+		if(toggle){ toggle.setAttribute('aria-expanded', open ? 'true' : 'false'); }
+		document.body.classList.toggle('ob-menu-open', open);
+		if(open){ syncHeight(); }
+	}
+
 	if(toggle){
 		toggle.addEventListener('click', function(){
-			var open = header.classList.toggle('is-open');
-			toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+			setOpen(!header.classList.contains('is-open'));
 		});
 	}
 
+	// Mega items: chevron is a real toggle (the accordion on phones); on
+	// desktop the hover/focus CSS does the work and these are no-ops.
 	var items = header.querySelectorAll('.ob-header__item');
 	for(var i=0;i<items.length;i++){
 		(function(item){
-			var chev = item.querySelector('.ob-header__chev');
 			var sub  = item.querySelector('[data-ob-mega]');
 			if(!sub){ return; }
 
-			function open(){
-				if(window.innerWidth < 1024){
+			var chev = item.querySelector('.ob-header__chev');
+			if(chev){
+				chev.addEventListener('click', function(){
+					var open = item.classList.toggle('is-open');
+					chev.setAttribute('aria-expanded', open ? 'true' : 'false');
+					if(window.innerWidth < 1024){ syncHeight(); }
+				});
+			}
+
+			function hoverOpen(){
+				if(window.matchMedia('(min-width: 1024px)').matches){
 					item.classList.add('is-open');
 				}
 			}
-			function close(){
-				if(window.innerWidth < 1024){
+			function hoverClose(){
+				if(window.matchMedia('(min-width: 1024px)').matches){
 					item.classList.remove('is-open');
 				}
 			}
 
-			item.addEventListener('mouseenter', open);
-			item.addEventListener('focusin', open);
-			item.addEventListener('mouseleave', close);
-			item.addEventListener('focusout', close);
-
-			sub.addEventListener('mouseenter', open);
-			sub.addEventListener('focusin', open);
-			sub.addEventListener('mouseleave', close);
-			sub.addEventListener('focusout', close);
-
+			item.addEventListener('mouseenter', hoverOpen);
+			item.addEventListener('focusin', hoverOpen);
+			item.addEventListener('mouseleave', hoverClose);
+			item.addEventListener('focusout', hoverClose);
+			sub.addEventListener('mouseenter', hoverOpen);
+			sub.addEventListener('mouseleave', hoverClose);
 		})(items[i]);
 	}
 
+	// Close after choosing a destination, and on Escape.
+	if(panel){
+		panel.addEventListener('click', function(event){
+			if(event.target.closest('a')){ setOpen(false); }
+		});
+	}
+	document.addEventListener('keydown', function(event){
+		if(event.key === 'Escape' && header.classList.contains('is-open')){
+			setOpen(false);
+			if(toggle){ toggle.focus(); }
+		}
+	});
+
 	window.addEventListener('resize', function(){
 		if(window.innerWidth >= 1024){
-			header.classList.remove('is-open');
-			if(toggle){ toggle.setAttribute('aria-expanded','false'); }
+			setOpen(false);
+			var open = header.querySelectorAll('.ob-header__item.is-open');
+			for(var j=0;j<open.length;j++){ open[j].classList.remove('is-open'); }
+		} else if(header.classList.contains('is-open')){
+			syncHeight();
 		}
 	});
 }

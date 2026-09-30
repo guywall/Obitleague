@@ -27,7 +27,7 @@ defined( 'ABSPATH' ) || exit;
 
 /* Constants. */
 if ( ! defined( 'OBITLEAGUE_VERSION' ) ) {
-	define( 'OBITLEAGUE_VERSION', '0.14.1' );
+	define( 'OBITLEAGUE_VERSION', '0.14.2' );
 }
 if ( ! defined( 'OBITLEAGUE_DB_VERSION' ) ) {
 	define( 'OBITLEAGUE_DB_VERSION', '0.7.0' );
