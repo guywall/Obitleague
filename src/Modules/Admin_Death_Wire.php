@@ -45,6 +45,7 @@ final class Admin_Death_Wire {
 		add_action( 'admin_post_obitleague_death_wire_phrase_toggle', array( self::class, 'handle_phrase_toggle' ) );
 		add_action( 'admin_post_obitleague_death_wire_phrase_remove', array( self::class, 'handle_phrase_remove' ) );
 		add_action( 'admin_post_obitleague_death_wire_reclassify', array( self::class, 'handle_reclassify' ) );
+		add_action( 'admin_post_obitleague_death_wire_pause', array( self::class, 'handle_discovery_pause' ) );
 	}
 
 	public static function menu(): void {
@@ -171,6 +172,8 @@ final class Admin_Death_Wire {
 		submit_button( 'Run the wire now', 'primary', 'submit', false );
 		echo '</form>';
 
+		self::render_pause_control();
+
 		$stories = self::season_stories( 80 );
 		$cloud   = self::wordcloud( $stories );
 		if ( $cloud ) {
@@ -210,41 +213,122 @@ final class Admin_Death_Wire {
 		echo '</div>';
 	}
 
+	/** True while discovery and the shared Wikimedia queue are paused. */
+	private static function discovery_paused(): bool {
+		return \Obitleague\Modules\Discovery_Service::rate_limit_pause_until() > time();
+	}
+
+	/** Pause / resume discovery + the shared Wikimedia queue. */
+	public static function handle_discovery_pause(): void {
+		self::must( 'obitleague_death_wire_pause' );
+		$pause_until = (int) ( $_POST['pause_until'] ?? 0 );
+		if ( $pause_until > time() ) {
+			update_option( 'obitleague_discovery_pause_until', $pause_until, false );
+			wp_safe_redirect( self::back( 'Discovery and the Wikimedia queue are paused until ' . gmdate( 'Y-m-d H:i', $pause_until ) . ' UTC. Nothing queued is lost; wire checks wait too.' ) );
+		} else {
+			delete_option( 'obitleague_discovery_pause_until' );
+			wp_safe_redirect( self::back( 'Discovery and the Wikimedia queue are running again.' ) );
+		}
+		exit;
+	}
+
+	private static function render_pause_control(): void {
+		$paused = self::discovery_paused();
+		echo '<h2>Discovery</h2>';
+		echo '<p>Catalogue Discovery and the wire\'s Wikipedia confirmation pass share the same Wikimedia request queue and the same pause. Pausing stops new queue processing entirely — nothing queued is lost, and pending wire checks resume when it lifts.</p>';
+		if ( $paused ) {
+			$until = \Obitleague\Modules\Discovery_Service::rate_limit_pause_until();
+			echo '<p><strong>Paused until ' . esc_html( gmdate( 'Y-m-d H:i', $until ) ) . ' UTC.</strong></p>';
+			self::action_button( 'obitleague_death_wire_pause', 'Resume discovery', 'secondary', array( 'pause_until' => 0 ) );
+		} else {
+			self::action_button( 'obitleague_death_wire_pause', 'Pause discovery (24h)', 'secondary', array( 'pause_until' => time() + DAY_IN_SECONDS ) );
+			echo ' ';
+			self::action_button( 'obitleague_death_wire_pause', 'Pause discovery (7d)', 'secondary', array( 'pause_until' => time() + 7 * DAY_IN_SECONDS ) );
+		}
+	}
+
 	/* ------------------------------ stories -------------------------- */
+
+	/**
+	 * The story buckets and their WHERE fragments. The pending bucket is
+	 * strictly death signals not yet swept: not_death stories with an empty
+	 * wire_state are simply uninteresting and never shown as pending.
+	 */
+	private static function story_buckets(): array {
+		$signals = \Obitleague\Domain\Feed_Classifier::DEATH_SIGNALS;
+		$in      = implode( ',', array_fill( 0, count( $signals ), '%s' ) );
+		return array(
+			'pending'   => array(
+				'label' => 'Awaiting decision',
+				'where' => "i.wire_state = '' AND i.classification IN ({$in})",
+				'params' => $signals,
+			),
+			'attached'  => array( 'label' => 'Attached', 'where' => "i.wire_state = 'attached'", 'params' => array() ),
+			'dismissed' => array( 'label' => 'Dismissed', 'where' => "i.wire_state = 'dismissed'", 'params' => array() ),
+			'discarded' => array( 'label' => 'Auto-discarded', 'where' => "i.wire_state IN ('discarded','duplicate')", 'params' => array() ),
+			'not_death' => array( 'label' => 'Not death stories', 'where' => "i.wire_state = '' AND i.classification = 'not_death'", 'params' => array() ),
+			'check_queued' => array( 'label' => 'Queued for check', 'where' => "i.wire_state = 'check_queued'", 'params' => array() ),
+			'all'       => array( 'label' => 'Everything', 'where' => '1=1', 'params' => array() ),
+		);
+	}
 
 	private static function render_stories(): void {
 		global $wpdb;
-		$signals = \Obitleague\Domain\Feed_Classifier::DEATH_SIGNALS;
-		$in      = implode( ',', array_fill( 0, count( $signals ), '%s' ) );
 		$filter  = (string) ( $_GET['state'] ?? 'pending' );
+		$buckets = self::story_buckets();
+		if ( ! isset( $buckets[ $filter ] ) ) {
+			$filter = 'pending';
+		}
 		$season_start = Pick_Stats::season_in_play() . '-01-01 00:00:00';
 
-		$where   = "i.published_at >= %s";
-		$params  = array( $season_start );
-		$show_all = 'all' === $filter;
-		if ( ! $show_all ) {
-			if ( 'pending' === $filter ) {
-				$where  .= " AND i.wire_state = '' AND i.classification IN ({$in})";
-				$params  = array_merge( $params, $signals );
+		// Live counts per bucket, from one grouped query.
+		$signals = \Obitleague\Domain\Feed_Classifier::DEATH_SIGNALS;
+		$in      = implode( ',', array_fill( 0, count( $signals ), '%s' ) );
+		$state_rows = (array) $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT i.wire_state, i.classification, COUNT(*) AS n
+				 FROM {$wpdb->prefix}obitleague_feed_items i
+				 WHERE i.published_at >= %s GROUP BY i.wire_state, i.classification",
+				$season_start
+			)
+		);
+		$counts = array_fill_keys( array_keys( $buckets ), 0 );
+		foreach ( $state_rows as $row ) {
+			$state = '' !== (string) $row->wire_state ? (string) $row->wire_state : '';
+			$class = (string) $row->classification;
+			$n     = (int) $row->n;
+			if ( '' === $state ) {
+				$counts['pending']  += in_array( $class, $signals, true ) ? $n : 0;
+				$counts['not_death'] += 'not_death' === $class ? $n : 0;
 			} else {
-				$where  .= ' AND i.wire_state = %s';
-				$params[] = $filter;
+				if ( isset( $counts[ $state ] ) ) {
+					$counts[ $state ] += $n;
+				}
+				if ( 'discarded' === $state || 'duplicate' === $state ) {
+					$counts['discarded'] = $counts['discarded']; // already counted above when set
+				}
+			}
+			$counts['all'] += $n;
+		}
+		// 'discarded' bucket counts both discarded and duplicate states.
+		$counts['discarded'] = 0;
+		foreach ( $state_rows as $row ) {
+			if ( in_array( (string) $row->wire_state, array( 'discarded', 'duplicate' ), true ) ) {
+				$counts['discarded'] += (int) $row->n;
 			}
 		}
 
 		echo '<div class="ob-dw__filters">';
-		foreach ( array(
-			'pending'    => 'Awaiting decision',
-			'attached'   => 'Attached',
-			'dismissed'  => 'Dismissed',
-			'discarded'  => 'Auto-discarded',
-			'all'        => 'Everything',
-		) as $slug => $label ) {
+		foreach ( $buckets as $slug => $bucket ) {
 			$url    = admin_url( 'admin.php?page=' . self::PAGE . '&tab=stories&state=' . $slug );
 			$active = $slug === $filter ? ' ob-dw__filter--active' : '';
-			echo '<a class="ob-dw__filter' . esc_attr( $active ) . '" href="' . esc_url( $url ) . '">' . esc_html( $label ) . '</a>';
+			echo '<a class="ob-dw__filter' . esc_attr( $active ) . '" href="' . esc_url( $url ) . '">' . esc_html( (string) $bucket['label'] ) . ' <strong>(' . (int) $counts[ $slug ] . ')</strong></a>';
 		}
 		echo '</div>';
+
+		$bucket  = $buckets[ $filter ];
+		$where   = 'i.published_at >= %s AND ' . $bucket['where'];
+		$params  = array_merge( array( $season_start ), $bucket['params'] );
 
 		$rows = (array) $wpdb->get_results(
 			$wpdb->prepare(
@@ -257,10 +341,10 @@ final class Admin_Death_Wire {
 			)
 		);
 
-		echo '<p class="description">' . esc_html( (string) count( $rows ) ) . ' stories shown · sorted by obituary likelihood. Open any story for its excerpt, wordcloud and extracted details.</p>';
+		echo '<p class="description">' . esc_html( (string) count( $rows ) ) . ' shown of ' . (int) $counts[ $filter ] . ' · sorted by obituary likelihood. Open any story for its excerpt, wordcloud and extracted details.</p>';
 		echo '<div class="ob-admin-table-scroll"><table class="widefat striped ob-dw__storytable"><thead><tr><th>Parsed</th><th>Story</th><th>Source</th><th>Likelihood</th><th>State</th><th>Actions</th></tr></thead><tbody>';
 		if ( ! $rows ) {
-			echo '<tr><td colspan="6">Nothing here. The sweep processes stories above the discard line on its own schedule.</td></tr>';
+			echo '<tr><td colspan="6">Nothing in this bucket.</td></tr>';
 		}
 		foreach ( $rows as $story ) {
 			$likelihood = Death_Wire::likelihood_pct( (int) $story->classification_score );
@@ -621,12 +705,17 @@ final class Admin_Death_Wire {
 	/* Form plumbing                                                       */
 	/* ------------------------------------------------------------------ */
 
-	/** One nonce-checked POST button rendered inline. */
+	/** One nonce-checked POST button rendered inline. Preserves the tab and state filters across the redirect. */
 	private static function action_button( string $action, string $label, string $class, array $fields = array(), string $confirm = '' ): void {
 		$onsubmit = '' !== $confirm ? ' onsubmit="return confirm(\'' . esc_js( $confirm ) . '\')"' : '';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline"' . $onsubmit . '>';
 		wp_nonce_field( $action );
 		echo '<input type="hidden" name="action" value="' . esc_attr( $action ) . '" />';
+		echo '<input type="hidden" name="tab" value="' . esc_attr( (string) ( $_GET['tab'] ?? 'overview' ) ) . '" />';
+		$state = (string) ( $_GET['state'] ?? '' );
+		if ( '' !== $state ) {
+			echo '<input type="hidden" name="state" value="' . esc_attr( $state ) . '" />';
+		}
 		foreach ( $fields as $key => $value ) {
 			echo '<input type="hidden" name="' . esc_attr( (string) $key ) . '" value="' . esc_attr( (string) $value ) . '" />';
 		}
@@ -644,10 +733,14 @@ final class Admin_Death_Wire {
 	}
 
 	private static function back( string $notice, string $error = '' ): string {
-		$tab = (string) ( $_POST['tab'] ?? '' );
+		$tab  = (string) ( $_POST['tab'] ?? '' );
+		$state = (string) ( $_POST['state'] ?? '' );
 		$url = admin_url( 'admin.php?page=' . self::PAGE );
 		if ( in_array( $tab, self::TABS, true ) ) {
 			$url .= '&tab=' . $tab;
+		}
+		if ( '' !== $state ) {
+			$url .= '&state=' . rawurlencode( $state );
 		}
 		if ( '' !== $notice ) {
 			$url = add_query_arg( 'notice', rawurlencode( $notice ), $url );

@@ -203,6 +203,40 @@ final class Jobs {
 			if ( $exists ) {
 				continue;
 			}
+			// Cross-source dedup: the same headline syndicated across one
+			// outlet's desk feeds (BBC World, BBC England, BBC Showbiz…) is
+			// the same story. The first ingest wins; later copies are stored
+			// with wire_state 'duplicate' so the sweep never touches them
+			// and the audit trail shows why they exist.
+			$dupe_title = trim( (string) $item['title'] );
+			if ( '' !== $dupe_title ) {
+				$dupe = (int) $wpdb->get_var(
+					$wpdb->prepare(
+						"SELECT id FROM {$table} WHERE title = %s LIMIT 1",
+						$dupe_title
+					)
+				);
+				if ( $dupe ) {
+					$wpdb->insert(
+						$table,
+						array(
+							'source_id'    => $source_id,
+							'guid'         => $item['guid'],
+							'url'          => $item['url'],
+							'title'        => $item['title'],
+							'description'  => mb_substr( wp_strip_all_tags( (string) ( $item['text'] ?? '' ) ), 0, 2000 ),
+							'classification' => 'not_death',
+							'classification_score' => 0,
+							'matched_cues' => '',
+							'wire_state'   => 'duplicate',
+							'published_at' => gmdate( 'Y-m-d H:i:s', (int) strtotime( $item['date'] ) ),
+							'retrieved_at' => current_time( 'mysql', true ),
+						),
+						array( '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s' )
+					);
+					continue;
+				}
+			}
 			// The classifier runs on the merged built-in + managed phrase
 		// tables; managed-phrase hits feed the per-phrase statistics.
 			$verdict = \Obitleague\Domain\Wire_Phrases::classify(

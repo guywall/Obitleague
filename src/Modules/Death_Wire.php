@@ -351,7 +351,8 @@ final class Death_Wire {
 		if ( ! $items ) {
 			// Sweep complete: rewind for the next round of feed polls.
 			update_option( self::WIRE_CURSOR_OPTION, 0, false );
-			return array( 'ok' => true, 'note' => 'Wire sweep complete.' );
+			$stranded = self::requeue_stranded_checks();
+			return array( 'ok' => true, 'note' => 'Wire sweep complete.' . ( $stranded > 0 ? " {$stranded} stranded check(s) re-run." : '' ) );
 		}
 
 		$stats = self::fresh_stats( 'wire' );
@@ -367,8 +368,7 @@ final class Death_Wire {
 					array( '%s' ),
 					array( '%d' )
 				);
-				++$stats['discarded_low_likelihood'];
-				continue;
+				++$stats['discarded_low_likelihood'];				continue;
 			}
 			$source_name = (string) ( $item->source_name ?: 'News feed' );
 			$source_url  = (string) $item->url;
@@ -384,6 +384,33 @@ final class Death_Wire {
 		}
 		self::save_stats( $stats );
 		return array( 'ok' => true, 'items' => count( $items ) );
+	}
+
+	/**
+	 * A story whose queued 'death_wire_check' has completed (done or failed)
+	 * but which still reads 'check_queued' was stranded — an older bug let
+	 * the same enwiki title dedupe many stories onto one queue row that ran
+	 * once. Re-run the attach for each stranded story so a real outcome
+	 * (attached, no_anchor, dismissed…) replaces the parked state.
+	 *
+	 * @return int Number of stranded stories re-run.
+	 */
+	private static function requeue_stranded_checks(): int {
+		global $wpdb;
+		$rows = (array) $wpdb->get_results(
+			"SELECT i.id, i.title, i.url, s.name AS source_name
+			 FROM {$wpdb->prefix}obitleague_feed_items i
+			 JOIN {$wpdb->prefix}obitleague_sources s ON s.id = i.source_id
+			 WHERE i.wire_state = 'check_queued' LIMIT 200"
+		);
+		$ran = 0;
+		foreach ( $rows as $row ) {
+			$stats = self::fresh_stats( 'wire' );
+			self::attach( (string) $row->title, (string) $row->url, (string) ( $row->source_name ?: 'News feed' ), (int) $row->id, $stats );
+			self::save_stats( $stats );
+			++$ran;
+		}
+		return $ran;
 	}
 
 	/**
@@ -575,8 +602,23 @@ final class Death_Wire {
 			$t = trim( $m[1] );
 		}
 		$t = preg_replace( '/\s*\.{3,}$/u', '', $t ) ?? $t;
+		// Obituary-desk suffixes: "Mighty Sparrow obituary" names Mighty
+		// Sparrow, not a person called "Mighty Sparrow obituary".
+		$t = preg_replace( '/\s+\b(obituary|obit|tribute|appreciation)\b\s*:?.*$/iu', '', $t ) ?? $t;
 		$t = trim( $t );
 		if ( '' === $t || mb_strlen( $t ) > 191 ) {
+			return null;
+		}
+		// A group is a name, not a sentence: general-news headlines
+		// ("UK diesel price hits all-time high, RAC says") produce sentence
+		// fragments that Wikipedia search happily mis-anchors to some
+		// unrelated article. Refuse anything that reads like prose — more
+		// than a handful of words, or still carrying desk furniture.
+		$words = preg_split( '/\s+/u', $t ) ?: array();
+		if ( count( $words ) > 7 ) {
+			return null;
+		}
+		if ( preg_match( '/\b(says|warns|hits|review|price|ban|named|pictures|heartbroken|slams|urges|faces|amid)\b/iu', $t ) ) {
 			return null;
 		}
 		return $t;
