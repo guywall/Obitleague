@@ -672,6 +672,20 @@ body.ob-on a.skip-link.screen-reader-text {
 		display: block;
 	}
 
+	/* The tap leaves the pointer over the row, so the desktop hover rule
+	   (0,5,0 with its pseudo-class) would otherwise drag the open accordion
+	   off-screen with the centring transform. Outrank it and pin the
+	   accordion geometry; hover alone must not reveal anything, which the
+	   display:none above still guarantees. */
+	.ob-header.ob-header .ob-header__item.ob-header__item:hover > .ob-header__sub,
+	.ob-header.ob-header .ob-header__item.ob-header__item:focus-within > .ob-header__sub,
+	.ob-header.ob-header .ob-header__sub:hover {
+		position: static;
+		transform: none;
+		opacity: 1;
+		visibility: visible;
+	}
+
 	.ob-header.ob-header .ob-header__sub a {
 		display: block;
 		min-height: 44px;
