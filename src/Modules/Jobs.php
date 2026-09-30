@@ -203,15 +203,18 @@ final class Jobs {
 			if ( $exists ) {
 				continue;
 			}
-			$verdict = Feed_Classifier::classify(
-			(string) $item['title'],
-			(string) ( $item['text'] ?? '' ),
-			array(
-				'source_name' => (string) ( $source->name ?? '' ),
-				'source_url'  => (string) ( $source->feed_url ?? '' ),
-				'categories'  => (array) ( $item['categories'] ?? array() ),
-			)
-		);
+			// The classifier runs on the merged built-in + managed phrase
+		// tables; managed-phrase hits feed the per-phrase statistics.
+			$verdict = \Obitleague\Domain\Wire_Phrases::classify(
+				(string) $item['title'],
+				(string) ( $item['text'] ?? '' ),
+				array(
+					'source_name' => (string) ( $source->name ?? '' ),
+					'source_url'  => (string) ( $source->feed_url ?? '' ),
+					'categories'  => (array) ( $item['categories'] ?? array() ),
+				)
+			);
+			\Obitleague\Domain\Wire_Phrases::note_hits( (array) $verdict['matched'], (array) $verdict['negative'], (array) $verdict['excluded'] );
 			$cues    = array_merge(
 				(array) $verdict['matched'],
 				array_map( static fn ( string $cue ): string => '−' . $cue, (array) $verdict['negative'] ),
@@ -224,13 +227,14 @@ final class Jobs {
 					'guid'         => $item['guid'],
 					'url'          => $item['url'],
 					'title'        => $item['title'],
+					'description'  => mb_substr( wp_strip_all_tags( (string) ( $item['text'] ?? '' ) ), 0, 2000 ),
 					'classification' => $verdict['classification'],
 					'classification_score' => (int) $verdict['score'],
 					'matched_cues' => mb_substr( implode( ', ', $cues ), 0, 191 ),
 					'published_at' => gmdate( 'Y-m-d H:i:s', (int) strtotime( $item['date'] ) ),
 					'retrieved_at' => current_time( 'mysql', true ),
 				),
-				array( '%d', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s' )
+				array( '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s' )
 			);
 			if ( 1 === (int) $wpdb->rows_affected ) {
 				++$new;

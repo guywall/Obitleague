@@ -88,6 +88,8 @@ final class Setup {
 		$sources = "{$wpdb->prefix}obitleague_sources";
 		// Raw feed items kept for review and dedup (retained 30 days).
 		$feed_items = "{$wpdb->prefix}obitleague_feed_items";
+		// Editor-managed death-wire phrases (weights, dampeners, exclusions).
+		$wire_phrases = "{$wpdb->prefix}obitleague_wire_phrases";
 		// Private league identity, membership and entry data.
 		$leagues = "{$wpdb->prefix}obitleague_leagues";
 		$members = "{$wpdb->prefix}obitleague_league_members";
@@ -169,6 +171,7 @@ final class Setup {
 			guid VARCHAR(191) NOT NULL,
 			url TEXT NULL,
 			title TEXT NULL,
+			description TEXT NULL,
 			classification VARCHAR(20) NOT NULL DEFAULT 'not_candidate',
 			classification_score SMALLINT NOT NULL DEFAULT 0,
 			matched_cues VARCHAR(191) NOT NULL DEFAULT '',
@@ -179,6 +182,26 @@ final class Setup {
 			UNIQUE KEY source_guid (source_id, guid),
 			KEY classification (classification),
 			KEY wire_state (wire_state)
+		) {$charset};";
+
+		// Managed wire phrases. kind: strong (death phrase), soft (dampener),
+		// exclude (hard exclusion), confirm (attribution bonus). enabled rows
+		// merge over the built-in tables at runtime; weights mirror the
+		// built-in defaults so an editor-added phrase behaves identically.
+		$sql[] = "CREATE TABLE {$wire_phrases} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			phrase VARCHAR(120) NOT NULL,
+			kind VARCHAR(12) NOT NULL DEFAULT 'strong',
+			weight_title SMALLINT NOT NULL DEFAULT 0,
+			weight_body SMALLINT NOT NULL DEFAULT 0,
+			enabled TINYINT(1) NOT NULL DEFAULT 1,
+			hits BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			last_hit_at DATETIME NULL,
+			created_by BIGINT UNSIGNED NULL,
+			created_at DATETIME NOT NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY phrase (phrase),
+			KEY kind_enabled (kind, enabled)
 		) {$charset};";
 
 		$sql[] = "CREATE TABLE {$leagues} (

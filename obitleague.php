@@ -31,7 +31,7 @@ if ( ! defined( 'OBITLEAGUE_VERSION' ) ) {
 	define( 'OBITLEAGUE_VERSION', '0.15.1' );
 }
 if ( ! defined( 'OBITLEAGUE_DB_VERSION' ) ) {
-	define( 'OBITLEAGUE_DB_VERSION', '0.7.1' );
+	define( 'OBITLEAGUE_DB_VERSION', '0.8.0' );
 }
 if ( ! defined( 'OBITLEAGUE_FILE' ) ) {
 	define( 'OBITLEAGUE_FILE', __FILE__ );

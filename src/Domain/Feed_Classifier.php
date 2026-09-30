@@ -163,6 +163,26 @@ final class Feed_Classifier {
 
 	private function __construct() {}
 
+	/** Built-in strong death phrases: phrase => [title weight, body weight]. */
+	public static function builtin_strong_phrases(): array {
+		return self::STRONG_PHRASES;
+	}
+
+	/** Built-in soft negative dampeners: phrase => [title weight, body weight]. */
+	public static function builtin_soft_negatives(): array {
+		return self::SOFT_NEGATIVES;
+	}
+
+	/** Built-in hard exclusion phrases (list). */
+	public static function builtin_hard_exclusions(): array {
+		return self::HARD_EXCLUSIONS;
+	}
+
+	/** Built-in confirmation attribution phrases (list). */
+	public static function builtin_confirmation_phrases(): array {
+		return self::CONFIRMATION_PHRASES;
+	}
+
 	/**
 	 * Classify one feed item.
 	 *
@@ -172,13 +192,20 @@ final class Feed_Classifier {
 	 *   source_name => string, source_url => string, categories => string[].
 	 *   A source or category that marks the item as obituary-desk content
 	 *   receives a large confidence boost and the OBITUARY genre.
+	 * @param array|null $tables Optional runtime phrase tables —
+	 *   array{strong:array<string,array<int,int>>,soft:array<string,array<int,int>>,exclude:string[],confirm:string[]} —
+	 *   merged over the built-ins by Wire_Phrases. Null uses the built-ins.
 	 * @return array{classification:string, score:int, matched:string[], negative:string[], excluded:string[]}
 	 */
-	public static function classify( string $title, string $text = '', array $context = array() ): array {
+	public static function classify( string $title, string $text = '', array $context = array(), ?array $tables = null ): array {
+		$strong    = $tables['strong'] ?? self::STRONG_PHRASES;
+		$excl_table = $tables['exclude'] ?? self::HARD_EXCLUSIONS;
+		$soft      = $tables['soft'] ?? self::SOFT_NEGATIVES;
+		$confirm_cues = $tables['confirm'] ?? self::CONFIRMATION_PHRASES;
 		$title_lc = mb_strtolower( $title );
 		$body_lc  = mb_strtolower( trim( preg_replace( '/\s+/u', ' ', strip_tags( $text ) ) ?? '' ) );
 
-		$excluded = self::cues_present( self::HARD_EXCLUSIONS, $title_lc . "\n" . $body_lc );
+		$excluded = self::cues_present( $excl_table, $title_lc . "\n" . $body_lc );
 		if ( $excluded ) {
 			return array(
 				'classification' => self::NOT_DEATH,
@@ -199,9 +226,9 @@ final class Feed_Classifier {
 		// genre words (mourns, tribute…) the soft negatives look for.
 		$title_lc_orig = $title_lc;
 		$body_lc_orig  = $body_lc;
-		$phrases = self::phrases_by_length( self::STRONG_PHRASES );
+		$phrases = self::phrases_by_length( $strong );
 		foreach ( $phrases as $phrase ) {
-			$weights = self::STRONG_PHRASES[ $phrase ];
+			$weights = $strong[ $phrase ];
 			$in_text = false;
 			if ( str_contains( $title_lc, $phrase ) ) {
 				$score   += $weights[0];
@@ -228,7 +255,7 @@ final class Feed_Classifier {
 
 		// Attribution to family/agent/representative raises confidence.
 		$confirmation = self::cues_present(
-			self::CONFIRMATION_PHRASES,
+			$confirm_cues,
 			mb_strtolower( $title . "\n" . trim( preg_replace( '/\s+/u', ' ', strip_tags( $text ) ) ?? '' ) )
 		);
 		if ( $confirmation ) {
@@ -248,8 +275,8 @@ final class Feed_Classifier {
 		// a death phrase — "Tributes paid as X dies aged 80" is an announce-
 		// ment, not a tribute piece. Body-level dampeners always apply.
 		$negative = array();
-		foreach ( self::phrases_by_length( self::SOFT_NEGATIVES ) as $phrase ) {
-			$weights = self::SOFT_NEGATIVES[ $phrase ];
+		foreach ( self::phrases_by_length( $soft ) as $phrase ) {
+			$weights = $soft[ $phrase ];
 			$hit     = false;
 			if ( ! $title_phrase && str_contains( $title_lc_orig, $phrase ) ) {
 				$score  -= $weights[0];
