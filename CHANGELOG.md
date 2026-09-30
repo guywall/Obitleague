@@ -5,6 +5,17 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Fixed — Cache-buster and plugin header repaired
+
+- **Stylesheets could keep serving stale cached copies after a deploy.**
+  The `Version:` plugin header said 0.14.1 while the `OBITLEAGUE_VERSION`
+  constant (the value appended to every asset URL as the cache-buster) had
+  drifted to 0.14.4 in 5cad5c3 without touching the header. Both now read
+  0.14.5 — never served before, so every browser fetches the fixed CSS.
+  Also repaired the plugin header itself: the line break after
+  `Requires PHP: 8.2` had been swallowed into a tab, leaving `Author:`
+  unparsed by WordPress.
+
 ### Fixed — The death wire now actually runs
 
 - **The Wikipedia "Deaths in 2026" pass and the RSS wire sweep were never
