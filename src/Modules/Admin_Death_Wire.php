@@ -602,11 +602,24 @@ final class Admin_Death_Wire {
 			echo '<p class="description">This feed item carried no summary text.</p>';
 		}
 
-		/* Mini wordcloud for the article: title + excerpt + any cached article text. */
-		$cloud = self::story_cloud( (string) $story->title, $excerpt, (string) $story->url );
-		if ( $cloud ) {
-			echo '<h3>Story wordcloud</h3>';
-			self::render_cloud( $cloud, true );
+		/* Article facts: cached article body → detected facts + phrases.
+		 * The wordcloud is built inside Story_Facts but never shown — it is
+		 * an extraction tool; the modal outputs only what it detected. */
+		$article = '' !== (string) $story->url ? Death_Wire::article_text( (string) $story->url ) : '';
+		$facts   = \Obitleague\Domain\Story_Facts::parse( (string) $story->title, $excerpt . "\n" . $article );
+		if ( '' !== $article ) {
+			echo '<h3>Article</h3>';
+			echo '<blockquote class="ob-dw-modal__excerpt">' . esc_html( wp_html_excerpt( $article, 1200, '…' ) ) . '</blockquote>';
+		}
+
+		/* Recurring phrases — the piece's stock wording. */
+		if ( $facts['phrases'] ) {
+			echo '<h3>Recurring phrases</h3>';
+			echo '<p class="ob-dw__cloud ob-dw__cloud--mini">';
+			foreach ( $facts['phrases'] as $phrase => $count ) {
+				echo '<span style="margin-right:10px">' . esc_html( (string) $phrase ) . ' <small>' . (int) $count . '</small></span>';
+			}
+			echo '</p>';
 		}
 
 		/* Extracted details. */
@@ -618,6 +631,18 @@ final class Admin_Death_Wire {
 		self::detail_row( 'Matched phrases', '' !== $cues ? $cues : '—' );
 		self::detail_row( 'Wire outcome', '' !== (string) $story->wire_state ? (string) $story->wire_state : 'not swept yet' );
 		self::detail_row( 'Headline subject', (string) ( Death_Wire::match_group( (string) $story->title ) ?? '—' ) );
+		if ( '' !== $facts['birth'] ) {
+			self::detail_row( 'Date of birth (from article)', $facts['birth'] );
+		}
+		if ( '' !== $facts['death'] ) {
+			self::detail_row( 'Date of death (from article)', $facts['death'] );
+		}
+		if ( '' !== $facts['age'] ) {
+			self::detail_row( 'Age (from article)', $facts['age'] );
+		}
+		if ( '' !== $facts['cause'] ) {
+			self::detail_row( 'Cause of death (from article)', $facts['cause'] );
+		}
 		echo '<dt>Record match</dt><dd>';
 		if ( $match ) {
 			echo '<a href="' . esc_url( (string) get_edit_post_link( $match['post_id'] ) ) . '">' . esc_html( $match['name'] ) . '</a> (record #' . (int) $match['post_id'] . ')';
@@ -629,6 +654,12 @@ final class Admin_Death_Wire {
 			echo '<dt>Original article</dt><dd><a href="' . esc_url( (string) $story->url ) . '" rel="noopener" target="_blank">' . esc_html( wp_html_excerpt( (string) $story->url, 90, '…' ) ) . '</a></dd>';
 		}
 		echo '</dl>';
+
+		/* Lead biography — the one-glance summary of who this is about. */
+		if ( '' !== $facts['bio'] ) {
+			echo '<h3>Biography (from the article)</h3>';
+			echo '<p class="ob-dw-modal__bio">' . esc_html( $facts['bio'] ) . '</p>';
+		}
 
 		echo '</div>';
 
@@ -659,23 +690,9 @@ final class Admin_Death_Wire {
 	}
 
 	/**
-	 * Mini wordcloud for one story: title + excerpt, plus the fetched
-	 * article text when the wire has already cached it (never fetched live
-	 * here — the modal must render instantly).
-	 *
-	 * @return array<string,int> word => count, most frequent first.
-	 */
-	private static function story_cloud( string $title, string $excerpt, string $url = '' ): array {
-		$cached_article = '';
-		if ( '' !== $url ) {
-			$cached_article = (string) get_transient( 'obit_article_' . md5( $url ) );
-		}
-		return self::wordcloud( array( (object) array( 'title' => $title, 'description' => $excerpt . ' ' . $cached_article ) ), 18 );
-	}
-
-	/**
-	 * Aggregate wordcloud, minus stopwords. Small N is fine: this is a
-	 * season dashboard and a story panel, not a corpus tool.
+	 * Aggregate wordcloud for the season overview, minus stopwords. Small
+	 * N is fine: this is a season dashboard, not a corpus tool; story
+	 * modals build their richer cloud through Story_Facts instead.
 	 *
 	 * @param object[] $stories Each with ->title and optionally ->description.
 	 * @param int      $cap     Maximum words returned.

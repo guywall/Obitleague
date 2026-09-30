@@ -217,6 +217,15 @@
 	line-height: 1.65;
 }
 
+.ob-dw-modal__bio {
+	margin: 0;
+	padding: 10px 14px;
+	border-left: 3px solid var(--obad-ink, #1a1a1a);
+	background: #f0f0f1;
+	font-size: 13.5px;
+	line-height: 1.65;
+}
+
 .ob-dw-modal__details {
 	display: grid;
 	grid-template-columns: 170px 1fr;

@@ -5,6 +5,24 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Added — Story facts in the death-wire modal: dates, cause and biography from the article
+
+- **The story modal now reads the article, not just the RSS summary.**
+  Opening a story fetches the article text (through the wire's cached,
+  bounded fetch — one polite request per story per 12-hour window) and
+  runs it through the new pure-domain `Story_Facts` extractor.
+- **What the modal reports, when the article supports it:** date of birth
+  (exact Y-m-d, or a bare year at year precision — never upgraded), date
+  of death, age (stated, or computed from exact birth+death dates),
+  cause of death ("died of/following …", trimmed at clause joins),
+  recurring phrases (bigrams/trigrams that appear more than once), and
+  the lead biography sentence(s) as a one-glance summary. Everything the
+  article doesn't say comes back empty — the extractor never guesses.
+- **The wordcloud itself is no longer shown in the modal.** It remains
+  the extraction machinery inside `Story_Facts`/`Wordcloud` (same-name
+  disambiguation, phrase detection); the modal outputs only what was
+  detected. Covered by the new `Scenario_Story_Facts` suite.
+
 ### Added — Data sources admin screen: queue visibility and sync controls
 
 - **New “Data sources” screen** under the Obitleague review menu, one
