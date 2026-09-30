@@ -63,12 +63,16 @@ final class Scenario_Dates {
 	public function test_entry_deadline_is_gmt_midnight_london( Runner $t ): void {
 		$deadline = Time::entry_deadline( 2027 );
 		$t->check( 'Europe/London' === $deadline->getTimezone()->getName(), __METHOD__, 'deadline is Europe/London' );
-		$t->check( '2027-01-01 00:00' === $deadline->format( 'Y-m-d H:i' ), __METHOD__, 'deadline is 1 January 00:00' );
+		$t->check( '2027-12-31 23:59' === $deadline->format( 'Y-m-d H:i' ), __METHOD__, 'rolling entry: deadline is 31 December 23:59' );
+		$t->check( '2027-01-01 00:00' === Time::season_start( 2027 )->format( 'Y-m-d H:i' ), __METHOD__, 'season start is 1 January 00:00' );
 	}
 
 	public function test_writes_must_commit_strictly_before_deadline( Runner $t ): void {
-		$t->check( Time::is_entry_open( 2027, new \DateTimeImmutable( '2026-12-31T23:59:59+00:00' ) ), __METHOD__, 'one second before deadline is open' );
-		$t->check( ! Time::is_entry_open( 2027, new \DateTimeImmutable( '2027-01-01T00:00:00+00:00' ) ), __METHOD__, 'at the deadline is closed' );
+		// Rolling entry: open all year, until the instant the season ends.
+		$t->check( Time::is_entry_open( 2027, new \DateTimeImmutable( '2026-12-31T23:59:59+00:00' ) ), __METHOD__, 'open a year early' );
+		$t->check( Time::is_entry_open( 2027, new \DateTimeImmutable( '2027-06-15T12:00:00+00:00' ) ), __METHOD__, 'open mid-season' );
+		$t->check( Time::is_entry_open( 2027, new \DateTimeImmutable( '2027-12-31T23:59:58+00:00' ) ), __METHOD__, 'one second before the close is open' );
+		$t->check( ! Time::is_entry_open( 2027, new \DateTimeImmutable( '2027-12-31T23:59:59+00:00' ) ), __METHOD__, 'at the close is closed' );
 	}
 
 	public function test_settlement_closes_new_awards_after_31_january( Runner $t ): void {

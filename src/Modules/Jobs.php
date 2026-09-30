@@ -23,6 +23,7 @@ final class Jobs {
 	private const HOOK_OUTBOX_TICK = 'obitleague_outbox_tick';
 	private const HOOK_STANDINGS_REBUILD = 'obitleague_standings_rebuild';
 	private const HOOK_WIKI_QUEUE  = 'obitleague_wiki_queue_tick';
+	private const HOOK_DISCOVERY_TICK    = 'obitleague_discovery_tick';
 
 	private function __construct() {}
 
@@ -39,12 +40,16 @@ final class Jobs {
 		add_action( self::HOOK_OUTBOX_TICK, array( self::class, 'outbox_tick' ) );
 		add_action( self::HOOK_STANDINGS_REBUILD, array( self::class, 'rebuild_standings' ), 10, 2 );
 		add_action( self::HOOK_WIKI_QUEUE, array( self::class, 'run_wiki_queue' ) );
+		add_action( self::HOOK_DISCOVERY_TICK, array( self::class, 'run_discovery_tick' ) );
 		add_action( 'obitleague_main_user_backfill', array( Main_League_Service::class, 'run_user_backfill' ), 10, 2 );
 
 		// Self-healing schedule: upgrades on existing installs never run
-		// activate(), so the tick is (re)armed here on every request.
+		// activate(), so the ticks are (re)armed here on every request.
 		if ( ! \wp_next_scheduled( self::HOOK_WIKI_QUEUE ) ) {
 			\wp_schedule_event( time() + 120, 'obitleague_1min', self::HOOK_WIKI_QUEUE );
+		}
+		if ( ! \wp_next_scheduled( self::HOOK_DISCOVERY_TICK ) ) {
+			\wp_schedule_event( time() + 300, 'hourly', self::HOOK_DISCOVERY_TICK );
 		}
 	}
 
@@ -263,5 +268,13 @@ final class Jobs {
 	/** Process stored Wikimedia requests serially every minute. */
 	public static function run_wiki_queue(): void {
 		Wiki_Request_Queue::process( 3 );
+	}
+
+	/** Hourly automatic Discovery batch: the catalogue fills itself. */
+	public static function run_discovery_tick(): void {
+		$result = Discovery_Service::run_automatic_batch();
+		if ( is_wp_error( $result ) ) {
+			error_log( 'Obitleague discovery tick: ' . $result->get_error_message() );
+		}
 	}
 }

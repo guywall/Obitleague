@@ -28,12 +28,14 @@ final class Season_Boundary {
 		$this->first_season = $first_season;
 	}
 
-	/** 00:00 Europe/London on 1 January of the season year. */
+	/** The instant entries must commit strictly before (see Deadline_Policy). */
 	public function entry_deadline( int $season ): \DateTimeImmutable {
-		return new \DateTimeImmutable(
-			sprintf( 'first day of January %04d 00:00:00', $season ),
-			new \DateTimeZone( self::LONDON )
-		);
+		return Deadline_Policy::entry_deadline( $season );
+	}
+
+	/** 00:00 Europe/London on 1 January of the season year. */
+	public function season_start( int $season ): \DateTimeImmutable {
+		return Deadline_Policy::season_start( $season );
 	}
 
 	/** 23:59:59 Europe/London on 31 January following the season. */

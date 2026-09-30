@@ -39,6 +39,9 @@ final class Setup {
 		if ( ! \wp_next_scheduled( 'obitleague_wiki_queue_tick' ) ) {
 			\wp_schedule_event( time() + 120, 'obitleague_1min', 'obitleague_wiki_queue_tick' );
 		}
+		if ( ! \wp_next_scheduled( 'obitleague_discovery_tick' ) ) {
+			\wp_schedule_event( time() + 300, 'hourly', 'obitleague_discovery_tick' );
+		}
 
 		flush_rewrite_rules();
 	}
@@ -57,7 +60,7 @@ final class Setup {
 	}
 
 	public static function deactivate(): void {
-		foreach ( array( 'obitleague_feed_poll', 'obitleague_profile_refresh', 'obitleague_outbox_tick', 'obitleague_standings_rebuild', 'obitleague_main_user_backfill', 'obitleague_wiki_queue_tick' ) as $hook ) {
+		foreach ( array( 'obitleague_feed_poll', 'obitleague_profile_refresh', 'obitleague_outbox_tick', 'obitleague_standings_rebuild', 'obitleague_main_user_backfill', 'obitleague_wiki_queue_tick', 'obitleague_discovery_tick' ) as $hook ) {
 			$timestamp = \wp_next_scheduled( $hook );
 			while ( false !== $timestamp ) {
 				\wp_unschedule_event( $timestamp, $hook );
@@ -88,6 +91,11 @@ final class Setup {
 		$entries = "{$wpdb->prefix}obitleague_entries";
 		$revisions = "{$wpdb->prefix}obitleague_entry_revisions";
 		$picks = "{$wpdb->prefix}obitleague_entry_picks";
+		// Agents: AI competitors as ordinary participant accounts plus metadata.
+		$agents = "{$wpdb->prefix}obitleague_agents";
+		$agent_tokens = "{$wpdb->prefix}obitleague_agent_tokens";
+		// Official-agent execution ledger (model provenance per season).
+		$agent_runs = "{$wpdb->prefix}obitleague_agent_runs";
 		// Editorial review cases and the notification outbox.
 		$cases = "{$wpdb->prefix}obitleague_review_cases";
 		$outbox = "{$wpdb->prefix}obitleague_outbox";
@@ -225,6 +233,69 @@ final class Setup {
 			PRIMARY KEY  (id),
 			KEY entry_kind (entry_id, kind),
 			KEY kind_entry_id (kind, entry_id, id)
+		) {$charset};";
+
+		// AI competitor metadata. The agent's participant identity is the
+		// linked user_id; competition data lives in the standard tables.
+		$sql[] = "CREATE TABLE {$agents} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			user_id BIGINT UNSIGNED NOT NULL,
+			slug VARCHAR(120) NOT NULL,
+			name VARCHAR(120) NOT NULL,
+			description TEXT NULL,
+			category VARCHAR(20) NOT NULL DEFAULT 'community',
+			model VARCHAR(120) NOT NULL DEFAULT '',
+			model_verified TINYINT(1) NOT NULL DEFAULT 0,
+			provider VARCHAR(120) NOT NULL DEFAULT '',
+			operator_label VARCHAR(191) NOT NULL DEFAULT '',
+			operator_user_id BIGINT UNSIGNED NULL,
+			participation VARCHAR(20) NOT NULL DEFAULT 'byoai',
+			website VARCHAR(255) NOT NULL DEFAULT '',
+			status VARCHAR(12) NOT NULL DEFAULT 'pending',
+			created_at DATETIME NOT NULL,
+			updated_at DATETIME NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY user_id (user_id),
+			UNIQUE KEY slug (slug),
+			KEY status (status)
+		) {$charset};";
+
+		// Scoped API tokens for external agents. Only hashes are stored;
+		// plaintext prefixes support display and lookup, never authentication.
+		$sql[] = "CREATE TABLE {$agent_tokens} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			agent_id BIGINT UNSIGNED NOT NULL,
+			token_hash CHAR(64) NOT NULL,
+			token_prefix VARCHAR(12) NOT NULL DEFAULT '',
+			label VARCHAR(120) NOT NULL DEFAULT '',
+			status VARCHAR(12) NOT NULL DEFAULT 'active',
+			created_at DATETIME NOT NULL,
+			last_used_at DATETIME NULL,
+			revoked_at DATETIME NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY token_hash (token_hash),
+			KEY agent_status (agent_id, status)
+		) {$charset};";
+
+		// Official-agent runs: which adapter/model/prompt produced each
+		// season's selections, with bounded metadata and errors. Never
+		// overwritten — a model change is a new run row.
+		$sql[] = "CREATE TABLE {$agent_runs} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			agent_id BIGINT UNSIGNED NOT NULL,
+			season SMALLINT UNSIGNED NOT NULL,
+			status VARCHAR(12) NOT NULL DEFAULT 'started',
+			adapter VARCHAR(20) NOT NULL DEFAULT '',
+			model VARCHAR(120) NOT NULL DEFAULT '',
+			prompt_version VARCHAR(8) NOT NULL DEFAULT '1',
+			picks_json LONGTEXT NULL,
+			meta_json LONGTEXT NULL,
+			error_text TEXT NULL,
+			created_at DATETIME NOT NULL,
+			finished_at DATETIME NULL,
+			PRIMARY KEY  (id),
+			KEY agent_season (agent_id, season, status),
+			KEY season_status (season, status)
 		) {$charset};";
 
 		$sql[] = "CREATE TABLE {$picks} (

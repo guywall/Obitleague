@@ -27,6 +27,20 @@ $entry = $wpdb->get_row(
 		$entry_id
 	)
 );
+
+/*
+ * Rolling-entry privacy: a submitted team stays amendable until the entry
+ * window for its season closes, so its picks are public only once the whole
+ * window has closed. The deadline policy returns the v1 instant (1 January)
+ * for pre-flag seasons, so historic team pages behave exactly as before.
+ */
+$picks_public = ! \Obitleague\Domain\Deadline_Policy::is_entry_open( (int) ( $entry->league_season ?? 0 ), \Obitleague\Support\Time::now() );
+$is_owner   = get_current_user_id() && (int) $entry->user_id === get_current_user_id();
+$is_admin   = current_user_can( 'manage_options' );
+if ( ! $picks_public && ! $is_owner && ! $is_admin ) {
+	wp_safe_redirect( home_url( '/standings/' ) );
+	exit;
+}
 if ( ! $entry ) {
 	wp_safe_redirect( home_url( '/standings/' ) );
 	exit;

@@ -41,6 +41,7 @@ require_once __DIR__ . '/Scenario_Review.php';
 require_once __DIR__ . '/Scenario_Campaign.php';
 require_once __DIR__ . '/Scenario_Roles.php';
 require_once __DIR__ . '/Scenario_Discovery.php';
+require_once __DIR__ . '/Scenario_Agents.php';
 
 // Domain tests must never depend on WordPress; each scenario pulls only
 // pure-domain files.
@@ -102,4 +103,5 @@ $runner->run( Scenario_Review::class );
 $runner->run( Scenario_Campaign::class );
 $runner->run( Scenario_Roles::class );
 $runner->run( Scenario_Discovery::class );
+$runner->run( Scenario_Agents::class );
 exit( $runner->summary() );

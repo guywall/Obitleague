@@ -119,6 +119,13 @@ final class Outbox_Service {
 				continue;
 			}
 
+			// Rolling entry: a selection scores only for a death after the
+			// team's own submission instant. Entries submitted under v1 read
+			// a season-start floor, so their scoring is exactly as before.
+			if ( $death_at < Entry_Service::submission_floor( (int) $pick->entry_id, $season ) ) {
+				continue;
+			}
+
 			if ( ! Deadline_Policy::accepts_new_awards( $season, $approved_at, (int) \Obitleague\Support\Options::get( 'first_season', 2027 ) ) ) {
 				continue; // Settled or pre-game season: archive updates, no new award.
 			}

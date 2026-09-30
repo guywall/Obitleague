@@ -3,7 +3,9 @@
  * Time helpers.
  *
  * Every deadline and boundary is computed in Europe/London regardless of
- * server or user timezone, as required by ruleset v1.
+ * server or user timezone, as required by the ruleset. The instants
+ * themselves are single-sourced in Deadline_Policy so the rolling-entry
+ * ruleset cannot drift between call sites.
  *
  * @package Obitleague
  */
@@ -11,6 +13,8 @@
 declare( strict_types = 1 );
 
 namespace Obitleague\Support;
+
+use Obitleague\Domain\Deadline_Policy;
 
 final class Time {
 
@@ -27,25 +31,24 @@ final class Time {
 		return new \DateTimeImmutable( 'now', new \DateTimeZone( 'UTC' ) );
 	}
 
-	/** 00:00 Europe/London on 1 January of the season year. */
+	/** The instant entries must commit strictly before (see Deadline_Policy). */
 	public static function entry_deadline( int $season ): \DateTimeImmutable {
-		return new \DateTimeImmutable(
-			sprintf( 'first day of January %04d 00:00:00', $season ),
-			self::london()
-		);
+		return Deadline_Policy::entry_deadline( $season );
+	}
+
+	/** 00:00 Europe/London on 1 January of the season year. */
+	public static function season_start( int $season ): \DateTimeImmutable {
+		return Deadline_Policy::season_start( $season );
 	}
 
 	/** 23:59:59 Europe/London on 31 January following the season. */
 	public static function settlement_instant( int $season ): \DateTimeImmutable {
-		return new \DateTimeImmutable(
-			sprintf( 'last day of January %04d 23:59:59', $season + 1 ),
-			self::london()
-		);
+		return Deadline_Policy::settlement_instant( $season );
 	}
 
 	/** True while picks may still be submitted or replaced for the season. */
 	public static function is_entry_open( int $season, ?\DateTimeImmutable $now = null ): bool {
-		return ( $now ?? self::now() ) < self::entry_deadline( $season );
+		return Deadline_Policy::is_entry_open( $season, $now ?? self::now() );
 	}
 
 	/**

@@ -95,6 +95,12 @@ add_action(
 		Obitleague\Modules\Admin_Game::boot();
 		Obitleague\Modules\Admin_Stats::boot();
 		Obitleague\Modules\Demo_Accounts_Admin::boot();
+		Obitleague\Modules\Admin_Agents::boot();
+		Obitleague\Modules\Agent_Pages::boot();
+		Obitleague\Modules\Rest_Agents::boot();
+		Obitleague\Modules\Mcp_Server::boot();
+		Obitleague\Modules\A2A::boot();
+		Obitleague\Modules\Agent_Orchestrator::boot();
 		Obitleague\Modules\Front_Templates::boot();
 		Obitleague\Modules\Site_Chrome::boot();
 		Obitleague\Modules\Header::boot();

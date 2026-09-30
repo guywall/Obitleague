@@ -124,4 +124,12 @@ final class Entry_Rules {
 			'scoring_picks' => $scoring,
 		);
 	}
+
+	/**
+	 * Submission-instant scoring floor for a pick, per the deadline policy:
+	 * the earliest death instant this submission may score.
+	 */
+	public static function death_scores_for_pick( int $season, \DateTimeImmutable $submitted_at ): \DateTimeImmutable {
+		return Deadline_Policy::death_scores_for_pick( $season, $submitted_at );
+	}
 }

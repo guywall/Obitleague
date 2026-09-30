@@ -21,6 +21,28 @@ use Obitleague\Domain\Value\Ruleset;
 
 final class Entry_Service {
 
+	/**
+	 * Earliest death instant the entry's competing revision may score.
+	 *
+	 * With rolling entry a team's picks score only for deaths after its own
+	 * submission instant; `submitted_at` on the competing revision is that
+	 * instant, recorded server-side in UTC at commit time. Revisions written
+	 * before the column was stamped (v1 entries) read as 1 January 00:00:00 —
+	 * the season start — which keeps their scoring exactly as it was.
+	 */
+	public static function submission_floor( int $entry_id, int $season ): \DateTimeImmutable {
+		$revision = self::submitted_revision( $entry_id );
+		$raw = $revision ? (string) $revision->submitted_at : '';
+		if ( '' === $raw || '0000-00-00 00:00:00' === $raw ) {
+			return Deadline_Policy::season_start( $season );
+		}
+		try {
+			return new \DateTimeImmutable( $raw, new \DateTimeZone( 'UTC' ) );
+		} catch ( \Exception ) {
+			return Deadline_Policy::season_start( $season );
+		}
+	}
+
 	private function __construct() {}
 
 	/** Get or create the caller's entry for a league+season. */
@@ -221,6 +243,7 @@ final class Entry_Service {
 		// An amendment rewrites the team's picks, so the cached distribution
 		// behind person-page pick counts is now stale.
 		Pick_Stats::flush();
+		Vs_Stats::flush( (int) $entry->season );
 
 		return array(
 			'revision_id'      => $revision_id,
@@ -331,6 +354,7 @@ final class Entry_Service {
 			// The pick distribution behind person-page pick counts is cached;
 			// a new submitted team changes them.
 			Pick_Stats::flush();
+			Vs_Stats::flush( (int) $entry->season );
 
 			return new Submission_Receipt(
 				$receipt_id,
@@ -341,6 +365,8 @@ final class Entry_Service {
 				$normalised,
 				Ruleset::VERSION,
 				$txn_started,
+				// Receipt deadline is the instant this submission beat: 31 Dec
+				// under rolling entry, 1 Jan for pre-flag submissions.
 				Deadline_Policy::entry_deadline( (int) $entry->season )
 			);
 		} catch ( \Throwable $exception ) {
