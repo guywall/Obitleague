@@ -21,6 +21,7 @@ final class Shortcodes {
 
 	public static function boot(): void {
 		add_action( 'wp_enqueue_scripts', array( self::class, 'assets' ) );
+		add_action( 'template_redirect', array( self::class, 'redirect_catalogue_search' ), 5 );
 		$tags = array(
 			'obitleague_hero'         => 'hero',
 			'obitleague_stats'        => 'stats',
@@ -39,6 +40,28 @@ final class Shortcodes {
 
 	public static function assets(): void {
 		wp_register_style( 'obitleague', OBITLEAGUE_DIR_URL . 'assets/obitleague.css', array(), OBITLEAGUE_VERSION );
+	}
+
+	/**
+	 * The header search form submits ?s= to the people page, but WordPress
+	 * hijacks any ?s= into the search template (a 404 there). Translate it
+	 * into the catalogue's ?q= browse instead.
+	 */
+	public static function redirect_catalogue_search(): void {
+		$s = isset( $_GET['s'] ) ? sanitize_text_field( (string) $_GET['s'] ) : '';
+		if ( '' === $s ) {
+			return;
+		}
+		// Match on the request path: with ?s= present WordPress has already
+		// resolved the request into the search/404 template by the time
+		// template_redirect fires, so conditional tags cannot be trusted.
+		$search_url = self::people_search_url();
+		$search_path = (string) parse_url( (string) $search_url, PHP_URL_PATH );
+		$request_path = (string) parse_url( (string) ( $_SERVER['REQUEST_URI'] ?? '' ), PHP_URL_PATH );
+		if ( '' !== $search_path && rtrim( $request_path, '/' ) === rtrim( $search_path, '/' ) ) {
+			wp_safe_redirect( add_query_arg( array( 'q' => $s ), $search_url ), 302 );
+			exit;
+		}
 	}
 
 	private static function style(): string {
@@ -312,27 +335,249 @@ final class Shortcodes {
 	}
 
 	public static function people( $atts = array() ): string {
-		$a     = shortcode_atts( array( 'living' => '1', 'per_page' => 12 ), $atts, 'obitleague_people' );
-		$alive = '1' === (string) $a['living'];
-		$q     = new \WP_Query(
-			array(
-				'post_type'      => Catalogue::POST_TYPE,
-				'post_status'    => 'publish',
-				'posts_per_page' => min( 48, max( 4, (int) $a['per_page'] ) ),
-				'meta_query'     => $alive
-					? array( array( 'key' => 'obit_death_date', 'compare' => 'NOT EXISTS' ) )
-					: array( array( 'key' => 'obit_death_date', 'value' => '', 'compare' => '!=' ) ),
-				'orderby'        => 'title',
-				'order'          => 'ASC',
+		$a = shortcode_atts( array( 'living' => '1', 'per_page' => 24 ), $atts, 'obitleague_people' );
+		// The living/deceased toggle also comes from the query string — the
+		// People mega-menu links advertise /people/?living=0 for the archive.
+		$qs_living = isset( $_GET['living'] ) ? sanitize_text_field( (string) $_GET['living'] ) : '';
+		$alive     = in_array( $qs_living, array( '0', '1' ), true ) ? ( '1' === $qs_living ) : ( '1' === (string) $a['living'] );
+
+		// Browse controls: search term, sort order, letter jump-to, page.
+		$search = isset( $_GET['q'] ) ? sanitize_text_field( (string) $_GET['q'] ) : '';
+		$sort   = isset( $_GET['sort'] ) ? sanitize_key( (string) $_GET['sort'] ) : '';
+		$letter = isset( $_GET['letter'] ) ? strtoupper( sanitize_text_field( (string) $_GET['letter'] ) ) : '';
+		// Canonical /page/N/ URLs carry the number in the query vars, not $_GET.
+		$paged = max( 1, (int) ( $_GET['paged'] ?? ( get_query_var( 'paged' ) ?: 1 ) ) );
+		if ( ! in_array( $sort, array( 'name', 'newest', 'oldest', 'most_picked' ), true ) ) {
+			$sort = 'name';
+		}
+		$per_page = min( 48, max( 4, (int) $a['per_page'] ) );
+
+		// Query-string filters advertised by the People/Picks mega menu.
+		$occupation = isset( $_GET['occupation'] ) ? sanitize_text_field( (string) $_GET['occupation'] ) : '';
+		$birth_year = isset( $_GET['birth_year'] ) ? sanitize_text_field( (string) $_GET['birth_year'] ) : '';
+		$age_band   = isset( $_GET['age'] ) ? sanitize_text_field( (string) $_GET['age'] ) : '';
+
+		$meta_query = array();
+		if ( $alive ) {
+			$meta_query[] = array( 'key' => 'obit_death_date', 'compare' => 'NOT EXISTS' );
+		} else {
+			$meta_query[] = array( 'key' => 'obit_death_date', 'value' => '', 'compare' => '!=' );
+		}
+
+		// Occupation filter via taxonomy term slug; occupations live in the
+		// obit_occupation taxonomy, so this is a real tax_query.
+		$tax_query = array();
+		if ( '' !== $occupation ) {
+			$term = get_term_by( 'slug', $occupation, Catalogue::TAX_OCCUPATION );
+			if ( $term && ! is_wp_error( $term ) ) {
+				$tax_query[] = array(
+					'taxonomy' => Catalogue::TAX_OCCUPATION,
+					'field'    => 'slug',
+					'terms'    => $term->slug,
+				);
+			}
+		}
+
+		// Birth-year filter.
+		if ( preg_match( '/^\d{4}$/', $birth_year ) ) {
+			$meta_query[] = array(
+				'key'     => 'obit_birth_date',
+				'value'   => $birth_year,
+				'compare' => 'LIKE',
+			);
+		}
+
+		// Age band filter: living figures only. Ages are not stored as meta, so
+		// filter on the birth-year window each band implies (today minus age).
+		if ( $alive && preg_match( '/^(under|over)-(\d+)$|^(\d{2})$/', $age_band, $m ) ) {
+			$now_year = (int) current_time( 'Y' );
+			$age_meta = array();
+			if ( isset( $m[1] ) && 'under' === $m[1] ) {
+				// Younger than N: born in (now - N + 1) or later.
+				$age_meta[] = array( 'key' => 'obit_birth_date', 'value' => (string) ( $now_year - (int) $m[2] + 1 ), 'compare' => '>=' );
+			} elseif ( isset( $m[1] ) && 'over' === $m[1] ) {
+				// Age N or older: born strictly before (now - N + 1), which
+				// keeps the whole boundary year (stored dates are 'YYYY…').
+				$age_meta[] = array( 'key' => 'obit_birth_date', 'value' => (string) ( $now_year - (int) $m[2] + 1 ), 'compare' => '<' );
+			} elseif ( isset( $m[3] ) ) {
+				// Bare band: ages N through N+9.
+				$age_meta[] = array( 'key' => 'obit_birth_date', 'value' => (string) ( $now_year - (int) $m[3] - 9 ), 'compare' => '>=' );
+				$age_meta[] = array( 'key' => 'obit_birth_date', 'value' => (string) ( $now_year - (int) $m[3] + 1 ), 'compare' => '<' );
+			}
+			if ( $age_meta ) {
+				$meta_query[] = $age_meta;
+			}
+		}
+
+		// Letter jump-to: anchor to titles starting with the chosen letter.
+		if ( preg_match( '/^[A-Z]$/', $letter ) ) {
+			$meta_query[] = array(
+				'key'     => 'obit_sort_name',
+				'value'   => '^' . $letter,
+				'compare' => 'REGEXP',
+			);
+		}
+		// Free-text search across the precomputed lowercase sort name.
+		if ( '' !== $search ) {
+			$meta_query[] = array(
+				'key'     => 'obit_sort_name',
+				'value'   => mb_strtolower( $search ),
+				'compare' => 'LIKE',
+			);
+		}
+
+		// Sorting: name (default), birth date, or seasonal pick popularity.
+		$orderby = 'title';
+		$order   = 'ASC';
+		if ( in_array( $sort, array( 'newest', 'oldest' ), true ) ) {
+			$orderby = 'meta_value_num';
+			$order   = 'newest' === $sort ? 'DESC' : 'ASC';
+		}
+
+		$query_args = array(
+			'post_type'      => Catalogue::POST_TYPE,
+			'post_status'    => 'publish',
+			'posts_per_page' => $per_page,
+			'paged'          => $paged,
+			'meta_query'     => $meta_query,
+			'tax_query'      => $tax_query,
+			'orderby'        => $orderby,
+			'order'          => $order,
+		);
+		if ( in_array( $sort, array( 'newest', 'oldest' ), true ) ) {
+			$query_args['meta_key'] = 'obit_birth_year_num';
+		}
+		$q = new \WP_Query( $query_args );
+
+		// Most-picked sorts the whole matching set by seasonal pick count —
+		// not just the loaded page — then slices the requested page.
+		if ( 'most_picked' === $sort ) {
+			$set_args                = $query_args;
+			$set_args['posts_per_page'] = 2000;
+			$set_args['fields']      = 'ids';
+			unset( $set_args['paged'], $set_args['orderby'], $set_args['order'], $set_args['meta_key'] );
+			$set_query = new \WP_Query( $set_args );
+			$all_ids   = array_map( 'intval', (array) $set_query->posts );
+			$pick_counts = Pick_Stats::pick_counts_by_uuid( (int) self::season() );
+			usort(
+				$all_ids,
+				static function ( int $a_id, int $b_id ) use ( $pick_counts ): int {
+					$a_uuid = (string) get_post_meta( $a_id, 'obit_uuid', true );
+					$b_uuid = (string) get_post_meta( $b_id, 'obit_uuid', true );
+					return ( $pick_counts[ $b_uuid ] ?? 0 ) <=> ( $pick_counts[ $a_uuid ] ?? 0 ) || ( $a_id <=> $b_id );
+				}
+			);
+			$offset      = ( $paged - 1 ) * $per_page;
+			$q->posts    = array_map( 'get_post', array_slice( $all_ids, $offset, $per_page ) );
+			$q->found_posts = count( $all_ids );
+			$q->max_num_pages = (int) ceil( count( $all_ids ) / $per_page );
+		}
+		$active_filters = array();
+		if ( '' !== $occupation ) {
+			$active_filters[] = array( 'label' => 'occupation: ' . esc_html( $occupation ), 'remove' => remove_query_arg( array( 'occupation' ) ) );
+		}
+		if ( preg_match( '/^\d{4}$/', $birth_year ) ) {
+			$active_filters[] = array( 'label' => 'born in ' . esc_html( $birth_year ), 'remove' => remove_query_arg( array( 'birth_year' ) ) );
+		}
+		if ( '' !== $age_band ) {
+			$active_filters[] = array( 'label' => 'age ' . esc_html( $age_band ), 'remove' => remove_query_arg( array( 'age' ) ) );
+		}
+		if ( '' !== $search ) {
+			$active_filters[] = array( 'label' => 'search: ' . esc_html( $search ), 'remove' => remove_query_arg( array( 'q' ) ) );
+		}
+		if ( preg_match( '/^[A-Z]$/', $letter ) ) {
+			$active_filters[] = array( 'label' => 'letter ' . esc_html( $letter ), 'remove' => remove_query_arg( array( 'letter' ) ) );
+		}
+
+		$out = '<div class="ob-people__toolbar">';
+
+		// Free-text search across the catalogue. Hidden inputs preserve the
+		// other browse controls through the GET submission.
+		$toolbar_hidden = array(
+			'living'     => $alive ? '1' : '0',
+			'occupation' => $occupation,
+			'birth_year' => $birth_year,
+			'age'        => $age_band,
+			'sort'       => 'name' !== $sort ? $sort : '',
+			'letter'     => preg_match( '/^[A-Z]$/', $letter ) ? $letter : '',
+		);
+		$out .= '<form class="ob-people__search ob-filters" method="get" action="' . esc_url( (string) get_permalink() ) . '" role="search" aria-label="Search the people catalogue">';
+		foreach ( $toolbar_hidden as $hidden_key => $hidden_value ) {
+			if ( '' !== (string) $hidden_value ) {
+				$out .= '<input type="hidden" name="' . esc_attr( (string) $hidden_key ) . '" value="' . esc_attr( (string) $hidden_value ) . '" />';
+			}
+		}
+		$out .= '<input type="search" name="q" value="' . esc_attr( $search ) . '" placeholder="Search people…" aria-label="Search people" />';
+		$out .= '<button type="submit">Search</button>';
+		if ( '' !== $search ) {
+			$out .= '<a class="ob-people__filter-clear" href="' . esc_url( remove_query_arg( array( 'q', 'paged' ) ) ) . '">Reset</a>';
+		}
+		$out .= '</form>';
+
+		// Sort selector as links so pagination and filters stay URL-driven.
+		$out .= '<nav class="ob-people__sorts" aria-label="Sort people">';
+		foreach ( array( 'name' => 'A–Z', 'most_picked' => 'Most picked', 'newest' => 'Youngest', 'oldest' => 'Oldest' ) as $sort_key => $sort_label ) {
+			$href    = 'name' === $sort_key ? remove_query_arg( array( 'sort', 'paged' ) ) : add_query_arg( array( 'sort' => $sort_key, 'paged' => false ) );
+			$current = 'name' === $sort_key ? 'name' === $sort : $sort_key === $sort;
+			$out    .= '<a class="ob-people__sort' . ( $current ? ' is-active' : '' ) . '" href="' . esc_url( $href ) . '"' . ( $current ? ' aria-current="true"' : '' ) . '>' . esc_html( $sort_label ) . '</a>';
+		}
+		$out .= '</nav>';
+		$out .= '</div>';
+
+		if ( $active_filters ) {
+			$out .= '<div class="ob-people__filters"><span class="ob-people__filter-label">Filtering by:</span>';
+			foreach ( $active_filters as $f ) {
+				$out .= '<span class="ob-people__filter">' . esc_html( $f['label'] ) . ' <a class="ob-people__filter-remove" href="' . esc_url( $f['remove'] ) . '">&times;</a></span>';
+			}
+			$out .= ' <a class="ob-people__filter-clear" href="' . esc_url( remove_query_arg( array( 'occupation', 'birth_year', 'age', 'living', 'q', 'sort', 'letter', 'paged' ) ) ) . '">Clear filters</a></div>';
+		}
+
+		// Letter jump-to: only letters actually present in the current scope
+		// (living vs deceased) are clickable.
+		global $wpdb;
+		$letter_scope_sql = $alive
+			? "AND NOT EXISTS (SELECT 1 FROM {$wpdb->postmeta} dd WHERE dd.post_id = p.ID AND dd.meta_key = 'obit_death_date' AND dd.meta_value != '')"
+			: "AND EXISTS (SELECT 1 FROM {$wpdb->postmeta} dd WHERE dd.post_id = p.ID AND dd.meta_key = 'obit_death_date' AND dd.meta_value != '')";
+		$available_letters = array_values(
+			array_filter(
+				array_map( 'strtoupper', (array) $wpdb->get_col(
+					"SELECT DISTINCT UPPER( LEFT( m.meta_value, 1 ) ) FROM {$wpdb->postmeta} m
+					 JOIN {$wpdb->posts} p ON p.ID = m.post_id
+					 WHERE p.post_type = 'obit_person' AND p.post_status = 'publish'
+					   AND m.meta_key = 'obit_sort_name'
+					   {$letter_scope_sql}"
+				) ),
+				static fn ( $c ): bool => is_string( $c ) && preg_match( '/^[A-Z]$/', $c ) === 1
 			)
 		);
-		$out = '<div class="ob-people">';
+		if ( count( $available_letters ) > 1 ) {
+			$out .= '<nav class="ob-people__letters" aria-label="Jump to names starting with a letter">';
+			$out .= '<a class="ob-people__letter' . ( '' === $letter ? ' is-active' : '' ) . '" href="' . esc_url( remove_query_arg( array( 'letter', 'paged' ) ) ) . '">All</a>';
+			foreach ( range( 'A', 'Z' ) as $l ) {
+				if ( in_array( $l, $available_letters, true ) ) {
+					$out .= '<a class="ob-people__letter' . ( $letter === $l ? ' is-active' : '' ) . '" href="' . esc_url( add_query_arg( array( 'letter' => $l, 'paged' => false ) ) ) . '">' . $l . '</a>';
+				} else {
+					$out .= '<span class="ob-people__letter is-empty" aria-hidden="true">' . $l . '</span>';
+				}
+			}
+			$out .= '</nav>';
+		}
+
+		if ( ! $q->have_posts() ) {
+			$empty = '' !== $search || '' !== $letter || '' !== $occupation || '' !== $birth_year || '' !== $age_band
+				? 'No people match those filters. Clear a filter or try a different search.'
+				: 'No profiles yet — the catalogue fills as figures are imported and approved.';
+			return self::style() . $out . '<section class="ob-card"><p><em>' . esc_html( $empty ) . '</em></p></section>';
+		}		$out .= '<div class="ob-people">';
 		foreach ( $q->posts as $post ) {
 			[ $birth, $death ] = self::person_bits( (int) $post->ID );
 			$out .= '<div class="ob-person' . ( $death ? ' ob-person--dead' : '' ) . ' ob-anim">';
+			// Whole-tile click target: covers the card so image, role, and
+			// everything else navigate to the profile, not just the name.
+			$out .= '<a class="ob-person__overlay-link" href="' . esc_url( (string) get_permalink( $post ) ) . '" tabindex="-1" aria-hidden="true"></a>';
 			$image = (string) get_post_meta( $post->ID, People_Sync::META_IMAGE_URL, true );
 			if ( '' !== $image ) {
-				$out .= '<img class="ob-person__avatar ob-person__avatar--img" src="' . esc_url( $image ) . '" alt="" loading="lazy" />'; 
+				$out .= '<img class="ob-person__avatar ob-person__avatar--img" src="' . esc_url( $image ) . '" alt="" loading="lazy" />';
 			} else {
 				$out .= '<span class="ob-person__avatar" aria-hidden="true">' . esc_html( mb_substr( (string) get_the_title( $post ), 0, 1 ) ) . '</span>';
 			}
@@ -346,9 +591,45 @@ final class Shortcodes {
 			$out .= '<p class="ob-person__dates">';
 			$out .= $birth ? esc_html( 'b. ' . $birth->label() ) : '';
 			$out .= $death ? esc_html( ' · d. ' . $death->label() ) : '';
-			$out .= '</p></div>';
+			$out .= '</p>';
+			$out .= '<a class="ob-person__cta" href="' . esc_url( (string) get_permalink( $post ) ) . '">View profile →</a>';
+			$out .= '</div>';
 		}
 		$out .= '</div>';
+
+		// Pagination: window of page links with first/last, prev/next, and a count.
+		$total_pages = (int) $q->max_num_pages;
+		if ( $total_pages > 1 ) {
+			$base = remove_query_arg( 'paged' );
+			$out .= '<nav class="ob-people__pagination" aria-label="Browse pages">';
+			$out .= '<span class="ob-people__count">' . esc_html( number_format_i18n( (int) $q->found_posts ) ) . ' people · page ' . esc_html( number_format_i18n( $paged ) ) . ' of ' . esc_html( number_format_i18n( $total_pages ) ) . '</span>';
+			$out .= '<span class="ob-people__links">';
+			if ( $paged > 1 ) {
+				$out .= '<a class="ob-page-link" rel="prev" href="' . esc_url( add_query_arg( 'paged', $paged - 1, $base ) ) . '">&larr; Previous</a>';
+			}
+			$window_start = max( 1, $paged - 2 );
+			$window_end   = min( $total_pages, $paged + 2 );
+			if ( $window_start > 1 ) {
+				$out .= '<a class="ob-page-link" href="' . esc_url( $base ) . '">1</a>';
+				if ( $window_start > 2 ) {
+					$out .= '<span class="ob-page-gap">…</span>';
+				}
+			}
+			for ( $p = $window_start; $p <= $window_end; ++$p ) {
+				$href = 1 === $p ? $base : add_query_arg( 'paged', $p, $base );
+				$out .= '<a class="ob-page-link' . ( $p === $paged ? ' is-current' : '' ) . '" href="' . esc_url( $href ) . '"' . ( $p === $paged ? ' aria-current="page"' : '' ) . '>' . esc_html( number_format_i18n( $p ) ) . '</a>';
+			}
+			if ( $window_end < $total_pages ) {
+				if ( $window_end < $total_pages - 1 ) {
+					$out .= '<span class="ob-page-gap">…</span>';
+				}
+				$out .= '<a class="ob-page-link" href="' . esc_url( add_query_arg( 'paged', $total_pages, $base ) ) . '">' . esc_html( number_format_i18n( $total_pages ) ) . '</a>';
+			}
+			if ( $paged < $total_pages ) {
+				$out .= '<a class="ob-page-link" rel="next" href="' . esc_url( add_query_arg( 'paged', $paged + 1, $base ) ) . '">Next &rarr;</a>';
+			}
+			$out .= '</span></nav>';
+		}
 		return self::style() . $out;
 	}
 
@@ -458,6 +739,20 @@ final class Shortcodes {
 				'order'          => 'DESC',
 			)
 		);
+		// The Hits/Misses chips are real filters: keep only the matching rows
+		// from the loaded page and adjust the pager so the count stays honest.
+		if ( '' !== $pick_filter ) {
+			$kept = array();
+			foreach ( (array) $q->posts as $post ) {
+				$uuid = (string) get_post_meta( (int) $post->ID, 'obit_uuid', true );
+				$is_picked = '' !== $uuid && isset( $picked[ $uuid ] );
+				if ( ( 'picked' === $pick_filter ) === $is_picked ) {
+					$kept[] = $post;
+				}
+			}
+			$q->posts       = $kept;
+			$q->post_count  = count( $kept );
+		}
 		$out = self::style();
 		$out .= '<div class="ob-people__toolbar ob-deaths-index__filters">';
 		$base_url = remove_query_arg( array( 'pick', 'paged' ) );
