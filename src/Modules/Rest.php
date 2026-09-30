@@ -99,6 +99,7 @@ final class Rest {
 				'age' => $age,
 				'occupations' => People_Sync::occupation_labels( $post_id ),
 				'role' => (string) get_post_meta( $post_id, 'obit_role', true ),
+				'enwiki' => (string) get_post_meta( $post_id, 'obit_enwiki', true ),
 				'selectable' => Catalogue::is_selectable( $post_id, self::current_season() ),
 			);
 		}

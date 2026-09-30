@@ -61,6 +61,38 @@ final class Shortcodes {
 		return $latest > 0 ? $latest : League_Service::current_season();
 	}
 
+	/**
+	 * Which people were on submitted teams in one season, keyed by person
+	 * UUID with the number of teams holding them. Powers the hit/miss split
+	 * on the death surfaces: a confirmed death is a "hit" when picked, a
+	 * "miss" when nobody chose them. Cached per request.
+	 *
+	 * @return array<string,int>
+	 */
+	public static function picked_uuids( int $season ): array {
+		static $cache = array();
+		if ( isset( $cache[ $season ] ) ) {
+			return $cache[ $season ];
+		}
+		global $wpdb;
+		$rows = (array) $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT p.person_uuid AS uuid, COUNT(DISTINCT r.entry_id) AS teams
+				 FROM {$wpdb->prefix}obitleague_entry_picks p
+				 JOIN {$wpdb->prefix}obitleague_entry_revisions r ON r.id = p.revision_id AND r.kind = 'submitted'
+				 JOIN {$wpdb->prefix}obitleague_entries e ON e.id = r.entry_id AND e.state = 'submitted' AND e.season = %d
+				 GROUP BY p.person_uuid",
+				$season
+			)
+		);
+		$out = array();
+		foreach ( $rows as $row ) {
+			$out[ (string) $row->uuid ] = (int) $row->teams;
+		}
+		$cache[ $season ] = $out;
+		return $out;
+	}
+
 	/** Submitted entry id per user in one league+season (for team links). */
 	public static function people_search_url(): string {
 		$search_page_id = (int) get_option( 'obitleague_people_search_page', 0 );
@@ -141,8 +173,35 @@ final class Shortcodes {
 		$picks    = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . $wpdb->prefix . 'obitleague_entry_picks p JOIN ' . $wpdb->prefix . "obitleague_entry_revisions r ON r.id = p.revision_id AND r.kind = 'submitted'" );
 		$points   = (int) $wpdb->get_var( 'SELECT COALESCE(SUM(award_delta), 0) FROM ' . $wpdb->prefix . 'obitleague_awards WHERE award_delta > 0' );
 
+		// Season-scoped hit/miss split: how many of this season's confirmed
+		// deaths sat on submitted teams, and how many nobody chose.
+		$picked = self::picked_uuids( $season );
+		$hits   = 0;
+		if ( $picked ) {
+			$placeholders = implode( ',', array_fill( 0, count( $picked ), '%s' ) );
+			$hits         = (int) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT COUNT(DISTINCT pm.post_id) FROM {$wpdb->postmeta} pm
+					 JOIN {$wpdb->posts} p ON p.ID = pm.post_id AND p.post_type = 'obit_person' AND p.post_status = 'publish'
+					 JOIN {$wpdb->postmeta} d ON d.post_id = p.ID AND d.meta_key = 'obit_death_date' AND d.meta_value LIKE %s
+					 WHERE pm.meta_key = 'obit_uuid' AND pm.meta_value IN ({$placeholders})",
+					array_merge( array( $season . '%' ), array_keys( $picked ) )
+				)
+			);
+		}
+		$season_deaths = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$wpdb->posts} p JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = 'obit_death_date' AND m.meta_value LIKE %s
+				 WHERE p.post_type = 'obit_person' AND p.post_status = 'publish'",
+				$season . '%'
+			)
+		);
+		$misses = max( 0, $season_deaths - $hits );
+
 		$tiles = array(
 			array( $deaths, 'Confirmed deaths' ),
+			array( $hits, 'Hits in ' . $season ),
+			array( $misses, 'Misses in ' . $season ),
 			array( $points, 'Points awarded' ),
 			array( $picks, 'Picks on teams' ),
 			array( $players, 'Players' ),
@@ -174,6 +233,7 @@ final class Shortcodes {
 				'date_query'     => array(),
 			)
 		);
+		$picked = self::picked_uuids( $season );
 
 		$out = '<section class="ob-card ob-anim ob-deaths-card ob-deaths-card--bare">';
 		if ( ! $query->have_posts() ) {
@@ -186,6 +246,11 @@ final class Shortcodes {
 			$out  .= '<div class="ob-death">';
 			$out  .= '<span class="ob-death__date">' . ( $death ? esc_html( $death->label() ) : '—' ) . '</span>';
 			$out  .= '<span><span class="ob-death__name"><a href="' . esc_url( (string) get_permalink( $post ) ) . '">' . esc_html( get_the_title( $post ) ) . '</a></span>';
+			$uuid         = (string) get_post_meta( (int) $post->ID, 'obit_uuid', true );
+			$picked_teams = isset( $picked[ $uuid ] ) ? (int) $picked[ $uuid ] : 0;
+			$out         .= $picked_teams > 0
+				? '<span class="ob-badge ob-badge--hit">Hit</span>'
+				: '<span class="ob-badge ob-badge--miss">Miss</span>';
 			if ( null !== $age ) {
 				$out .= '<span class="ob-badge ob-badge--brass">age ' . esc_html( (string) $age ) . ' · ' . esc_html( (string) \Obitleague\Domain\Value\Ruleset::points_for_age( (int) $age ) ) . ' pts</span>';
 			}
@@ -368,6 +433,9 @@ final class Shortcodes {
 		if ( '' !== $search ) {
 			$meta_query[] = array( 'key' => 'obit_sort_name', 'value' => mb_strtolower( $search ), 'compare' => 'LIKE' );
 		}
+		$picked      = self::picked_uuids( $season );
+		$filter      = isset( $_GET['pick'] ) ? sanitize_key( (string) $_GET['pick'] ) : '';
+		$pick_filter = in_array( $filter, array( 'picked', 'missed' ), true ) ? $filter : '';
 		$q = new \WP_Query(
 			array(
 				'post_type'      => Catalogue::POST_TYPE,
@@ -381,6 +449,18 @@ final class Shortcodes {
 			)
 		);
 		$out = self::style();
+		$out .= '<div class="ob-people__toolbar ob-deaths-index__filters">';
+		$base_url = remove_query_arg( array( 'pick', 'paged' ) );
+		foreach ( array(
+			''       => 'All',
+			'picked' => 'Hits',
+			'missed' => 'Misses',
+		) as $value => $label ) {
+			$href   = '' === $value ? $base_url : add_query_arg( 'pick', $value, $base_url );
+			$active = $pick_filter === $value ? ' is-active' : '';
+			$out   .= '<a class="ob-chip' . $active . '" href="' . esc_url( $href ) . '">' . esc_html( $label ) . '</a>';
+		}
+		$out .= '</div>';
 		$out .= '<div class="ob-people__toolbar">';
 		$out .= '<form class="ob-people__search ob-filters" method="get" role="search" aria-label="Search the obituaries">';
 		$out .= '<input type="search" name="q" value="' . esc_attr( $search ) . '" placeholder="Search the obituaries…" aria-label="Search the obituaries" />';
@@ -389,9 +469,20 @@ final class Shortcodes {
 			$out .= '<a class="ob-people__filter-clear" href="' . esc_url( remove_query_arg( array( 'q', 'paged' ) ) ) . '">Reset</a>';
 		}
 		$out .= '</form></div>';
-		$out .= '<p class="ob-people__count ob-deaths-index__count">' . esc_html( number_format_i18n( (int) $q->found_posts ) ) . ' confirmed deaths in ' . esc_html( (string) $season ) . '</p>';
+		$hits = 0;
+		foreach ( (array) $q->posts as $post ) {
+			$uuid = (string) get_post_meta( (int) $post->ID, 'obit_uuid', true );
+			if ( '' !== $uuid && isset( $picked[ $uuid ] ) ) {
+				++$hits;
+			}
+		}
+		$misses_on_page = max( 0, count( (array) $q->posts ) - $hits );
+		$out .= '<p class="ob-people__count ob-deaths-index__count">' . esc_html( number_format_i18n( (int) $q->found_posts ) ) . ' confirmed deaths in ' . esc_html( (string) $season ) . ' &middot; ' . esc_html( number_format_i18n( $hits ) ) . ' on teams (hits) &middot; ' . esc_html( number_format_i18n( $misses_on_page ) ) . ' unpicked on this page (misses)</p>';
 		if ( ! $q->have_posts() ) {
-			$out .= '<section class="ob-card"><p><em>No confirmed deaths recorded for ' . esc_html( (string) $season ) . ' yet.</em></p></section>';
+			$message = '' !== $pick_filter
+				? ( 'picked' === $pick_filter ? 'No hits recorded for ' : 'No misses recorded for ' ) . esc_html( (string) $season ) . ' yet.'
+				: 'No confirmed deaths recorded for ' . esc_html( (string) $season ) . ' yet.';
+			$out .= '<section class="ob-card"><p><em>' . esc_html( $message ) . '</em></p></section>';
 			return $out;
 		}
 		$out .= '<div class="ob-people ob-people--archive ob-deaths-index">';
@@ -408,6 +499,11 @@ final class Shortcodes {
 				$out .= '<span class="ob-person__avatar" aria-hidden="true">' . esc_html( mb_substr( (string) get_the_title( $post ), 0, 1 ) ) . '</span>';
 			}
 			$out .= '<span class="ob-person__status">In memoriam</span>';
+			$uuid         = (string) get_post_meta( $post_id, 'obit_uuid', true );
+			$picked_teams = isset( $picked[ $uuid ] ) ? (int) $picked[ $uuid ] : 0;
+			$out         .= $picked_teams > 0
+				? '<span class="ob-badge ob-badge--hit">Hit &middot; ' . esc_html( number_format_i18n( $picked_teams ) ) . ' team' . ( 1 === $picked_teams ? '' : 's' ) . '</span>'
+				: '<span class="ob-badge ob-badge--miss">Miss</span>';
 			$out .= '<p class="ob-person__name"><a href="' . esc_url( (string) get_permalink( $post ) ) . '">' . esc_html( get_the_title( $post ) ) . '</a></p>';
 			$out .= '<p class="ob-person__role">' . esc_html( (string) get_post_meta( $post_id, 'obit_role', true ) ) . '</p>';
 			$out .= '<p class="ob-person__dates">';

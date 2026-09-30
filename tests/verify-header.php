@@ -19,7 +19,7 @@ foreach ( $primary as $item ) {
 		$primary_labels[] = (string) $item['label'];
 	}
 }
-foreach ( array( 'People', 'Picks', 'Standings', 'Stats' ) as $label ) {
+foreach ( array( 'People', 'Teams', 'Obituaries', 'Standings', 'Stats' ) as $label ) {
 	if ( ! in_array( $label, $primary_labels, true ) ) {
 		$failures[] = 'Header primary links should include ' . $label;
 	}
@@ -49,10 +49,13 @@ try {
 	if ( str_contains( $html, 'wp-login.php' ) ) {
 		$failures[] = 'Player header must link to branded sign-in rather than the WordPress login screen';
 	}
-	foreach ( array( 'People', 'Picks', 'Standings', 'Stats' ) as $label ) {
+	foreach ( array( 'People', 'Teams', 'Obituaries', 'Standings', 'Stats' ) as $label ) {
 		if ( ! str_contains( $html, '>' . $label . '</a>' ) ) {
 			$failures[] = 'Header navigation should include ' . $label;
 		}
+	}
+	if ( ! str_contains( $html, 'pick=missed' ) ) {
+		$failures[] = 'Obituaries submenu should expose the misses view (?pick=missed)';
 	}
 } catch ( Throwable $error ) {
 	ob_end_clean();

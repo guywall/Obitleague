@@ -399,6 +399,44 @@
 	background: var(--ob-rose-soft);
 	color: var(--ob-rose);
 }
+.ob-badge--hit {
+	background: var(--ob-brass-soft);
+	color: #7a5c12;
+}
+.ob-badge--miss {
+	background: var(--ob-card, #fff);
+	color: var(--ob-muted, #6b7280);
+	border: 1px dashed var(--ob-line, #d1d5db);
+}
+
+/* Hit/miss filter pills on the obituaries index. */
+.ob-chip {
+	display: inline-flex;
+	align-items: center;
+	padding: 5px 14px;
+	border-radius: 999px;
+	border: 1px solid var(--ob-line);
+	background: var(--ob-card);
+	color: var(--ob-muted, #6b7280);
+	font-size: 0.8rem;
+	font-weight: 700;
+	text-decoration: none;
+}
+.ob-chip:hover {
+	border-color: var(--ob-accent);
+	color: var(--ob-accent-deep, #3d2c1e);
+}
+.ob-chip.is-active {
+	background: var(--ob-accent);
+	border-color: var(--ob-accent);
+	color: #fff;
+}
+.ob-deaths-index__filters {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-bottom: 10px;
+}
 
 /* ---------- people grid ---------- */
 .ob-people {
