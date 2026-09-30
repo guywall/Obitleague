@@ -329,7 +329,11 @@ final class Widget_ObHeader extends \Elementor\Widget_Base {
 				<a class="ob-header__link" href="<?php echo esc_url( wp_logout_url( home_url( '/' ) ) ); ?>">Log out</a>
 			<?php else : ?>
 				<a class="ob-header__link" href="<?php echo esc_url( $signin_url ); ?>">Sign in</a>
-				<a class="ob-header__cta" href="<?php echo esc_url( $cta_url ); ?>"><?php echo esc_html( $cta_label ); ?></a>
+				<?php
+				// One CTA only: the .ob-header__cta in .ob-header__mobile-join
+				// below. A second copy here rendered two stacked
+				// "Choose your team" buttons in the mobile menu sheet.
+				?>
 			<?php endif; ?>
 		</div>
 

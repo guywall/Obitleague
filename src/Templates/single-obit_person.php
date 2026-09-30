@@ -40,6 +40,27 @@ $birth = '' !== $birth_raw ? Import_Service::parse_partial( $birth_raw ) : null;
 $death = '' !== $death_raw ? Import_Service::parse_partial( $death_raw ) : null;
 $is_dead = null !== $death;
 
+// Red flag: a death dated after today cannot be true. Show a loud banner
+// and withhold the scoring card until the record is corrected.
+$future_death = false;
+try {
+	if ( $is_dead ) {
+		// The stored value may be partial; judge it on its earliest possible day.
+		$earliest = $death->interpretations()[0] ?? null;
+		if ( null !== $earliest ) {
+			$future_death = \Obitleague\Domain\Review_Rules::is_future_death_date(
+				array(
+					'y' => (int) $earliest->format( 'Y' ),
+					'm' => (int) $earliest->format( 'n' ),
+					'd' => (int) $earliest->format( 'j' ),
+				)
+			);
+		}
+	}
+} catch ( \Throwable ) {
+	$future_death = false;
+}
+
 $age_at_death = null;
 $age_now      = null;
 try {
@@ -70,6 +91,25 @@ $potential_tip    = null !== $age_now ? sprintf( 'If they died today: points = m
 get_header();
 ?>
 <main class="obitleague-person ob-page">
+
+	<?php if ( $future_death ) : ?>
+		<section class="ob-card ob-future-death" role="alert">
+			<h2 class="ob-future-death__title">🚩 Impossible death date</h2>
+			<p class="ob-future-death__text">
+				<?php
+				echo esc_html( sprintf(
+					/* translators: 1: person name, 2: the recorded death date. */
+					__( 'This record claims %1$s died on %2$s — a date that has not happened yet. A death cannot occur in the future, so this record is wrong and scores nothing until it is corrected.', 'obitleague' ),
+					$name,
+					$death ? $death->label() : (string) $death_raw
+				) );
+				?>
+			</p>
+			<p class="ob-future-death__text ob-future-death__text--minor">
+				<?php esc_html_e( 'Editors: re-check the sources and correct the death date in Obitleague → Review or on the person record.', 'obitleague' ); ?>
+			</p>
+		</section>
+	<?php endif; ?>
 
 	<section class="ob-profile ob-anim<?php echo $is_dead ? ' ob-profile--memoriam' : ''; ?>">
 		<div class="ob-profile__id">
@@ -167,7 +207,9 @@ get_header();
 		</div>
 
 		<aside class="ob-profile__side">
-			<?php if ( $is_dead && null !== $points ) : ?>
+			<?php if ( $future_death ) : ?>
+				<?php // Impossible record: no scoring card at all. ?>
+			<?php elseif ( $is_dead && null !== $points ) : ?>
 				<section class="ob-card ob-scorecard ob-scorecard--setted">
 					<span class="ob-scorecard__kicker">Season <?php echo esc_html( (string) $season ); ?> scoring</span>
 					<span class="ob-scorecard__points" role="img" tabindex="0" title="<?php echo esc_attr( $points_tooltip ); ?>" aria-label="<?php echo esc_attr( $points . ' points; ' . $points_tooltip ); ?>"><?php echo esc_html( (string) $points ); ?></span>

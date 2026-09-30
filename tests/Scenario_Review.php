@@ -61,6 +61,37 @@ final class Scenario_Review {
 		$t->check( 1 === count( $problems ), __METHOD__, 'disclosed cause without wording refused' );
 	}
 
+	public function test_future_death_dates_are_red_flagged( Runner $t ): void {
+		$year  = (int) gmdate( 'Y' );
+		$month = (int) gmdate( 'n' );
+		$day   = (int) gmdate( 'j' );
+
+		// Tomorrow is impossible, whatever the real date is.
+		$tomorrow = gmdate( 'Y-m-d', gmmktime( 0, 0, 0, $month, $day + 1, $year ) );
+		$future   = Review_Rules::approval_problems(
+			array( 'origin_groups' => array( 'a', 'b' ), 'death_date' => array(
+				'y' => (int) substr( $tomorrow, 0, 4 ),
+				'm' => (int) substr( $tomorrow, 5, 2 ),
+				'd' => (int) substr( $tomorrow, 8, 2 ),
+			) )
+		);
+		$t->check( 1 === count( $future ), __METHOD__, 'a death dated tomorrow is refused' );
+		$t->check( str_contains( $future[0] ?? '', 'future' ), __METHOD__, 'the refusal names the future date problem' );
+
+		$t->check( Review_Rules::is_future_death_date( array( 'y' => $year + 1, 'm' => 1, 'd' => 1 ) ), __METHOD__, 'next year is future' );
+		$t->check( Review_Rules::is_future_death_date( array( 'y' => $year, 'm' => 12, 'd' => 31 ) ) === ( $month < 12 || ( 12 === $month && $day < 31 ) ), __METHOD__, '31 December judged against today' );
+
+		// Today is the boundary: a death dated today is publishable, not flagged.
+		$today = Review_Rules::approval_problems(
+			array( 'origin_groups' => array( 'a', 'b' ), 'death_date' => array( 'y' => $year, 'm' => $month, 'd' => $day ) )
+		);
+		$t->check( array() === $today, __METHOD__, 'a death dated today is acceptable' );
+
+		// A past death stays fine.
+		$t->check( ! Review_Rules::is_future_death_date( array( 'y' => 1922, 'm' => 10, 'd' => 21 ) ), __METHOD__, 'a past date is not flagged' );
+		$t->check( ! Review_Rules::is_future_death_date( array() ), __METHOD__, 'no date is not a future-date problem' );
+	}
+
 	public function test_selection_blocking_by_state( Runner $t ): void {
 		$t->check( 'block_selection' === Review_Rules::selection_effect( Review_Rules::PENDING ), __METHOD__, 'unresolved report blocks selection' );
 		$t->check( 'keep_blocked' === Review_Rules::selection_effect( Review_Rules::APPROVED ), __METHOD__, 'approved death keeps person unselectable' );

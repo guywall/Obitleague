@@ -139,10 +139,10 @@ body.ob-on a.skip-link.screen-reader-text {
 }
 
 .ob-header__season.ob-header__season {
-	color: #8fd3b6;
+	color: #a9c9b4;
 	font-size: 0.76rem;
 	font-weight: 700;
-	border: 1px solid rgba(143, 211, 182, 0.35);
+	border: 1px solid rgba(169, 201, 180, 0.35);
 	border-radius: 999px;
 	padding: 2px 9px;
 	margin-left: 6px;
@@ -206,9 +206,11 @@ body.ob-on a.skip-link.screen-reader-text {
 	background: rgba(255, 255, 255, 0.12);
 }
 
+/* Active option on the dark hero: deep green fill with white text. Never
+   gold with mint text — that pairing is banned site-wide. */
 .ob-hero .ob-season-toggle.ob-season-toggle .ob-season-toggle__option.is-active {
-	color: #07281c;
-	background: #f0c75e;
+	color: #fff;
+	background: #0d7d5a;
 }
 
 .ob-header__search.ob-header__search {
@@ -298,26 +300,8 @@ body.ob-on a.skip-link.screen-reader-text {
 	background: rgba(255, 255, 255, 0.14);
 }
 
-.ob-header__cta.ob-header__cta {
-	color: var(--ob-green-ink);
-	background: #f0c75e;
-	text-decoration: none;
-	font-weight: 800;
-	font-size: 0.85rem;
-	padding: 9px 12px;
-	border-radius: 999px;
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-	transition: transform 0.15s var(--ob-ease), box-shadow 0.15s;
-	display: inline-flex;
-	align-items: center;
-	white-space: nowrap;
-}
-
-.ob-header__cta.ob-header__cta:hover {
-	transform: translateY(-1px);
-	box-shadow: 0 6px 14px rgba(0, 0, 0, 0.3);
-	color: var(--ob-green-ink);
-}
+/* The single header CTA (in .ob-header__mobile-join) styles itself from the
+   rules on .ob-header__mobile-join; nothing here so no stray second copy. */
 
 /* ---------- mega menu ---------- */
 .ob-header__menu {
@@ -417,7 +401,7 @@ body.ob-on a.skip-link.screen-reader-text {
 	font-weight: 700;
 	text-transform: uppercase;
 	letter-spacing: 0.1em;
-	color: #8fd3b6;
+	color: #a9c9b4;
 }
 
 .ob-header__sub ul {
@@ -508,9 +492,34 @@ body.ob-on a.skip-link.screen-reader-text {
 	margin-top: 5px;
 }
 
-/* Mobile join CTA lives on its own row inside the dark bar. */
+/* Join CTA lives on its own row inside the panel at every width. One CTA
+   per header, ever: the actions row no longer renders its own copy, so
+   this block is the single "Choose your team" button. Dark ink on gold. */
 .ob-header__mobile-join.ob-header__mobile-join {
-	display: none;
+	display: block;
+	flex: 0 0 auto;
+	padding: 0 0 0 14px;
+}
+
+.ob-header__mobile-join.ob-header__mobile-join .ob-header__cta.ob-header__cta {
+	display: inline-flex;
+	align-items: center;
+	color: var(--ob-green-ink, #07281c);
+	background: #f0c75e;
+	text-decoration: none;
+	font-weight: 800;
+	font-size: 0.85rem;
+	padding: 9px 12px;
+	border-radius: 999px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+	transition: transform 0.15s var(--ob-ease), box-shadow 0.15s;
+	white-space: nowrap;
+}
+
+.ob-header__mobile-join.ob-header__mobile-join .ob-header__cta.ob-header__cta:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 6px 14px rgba(0, 0, 0, 0.3);
+	color: var(--ob-green-ink, #07281c);
 }
 
 .ob-header.is-open .ob-header__toggle span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
@@ -642,7 +651,6 @@ body.ob-on a.skip-link.screen-reader-text {
 	}
 
 	.ob-header.ob-header .ob-header__mobile-join {
-		display: block;
 		padding: 16px 0 6px;
 	}
 
@@ -755,7 +763,7 @@ body.ob-on a.skip-link.screen-reader-text {
 	font-weight: 700;
 	text-transform: uppercase;
 	letter-spacing: 0.1em;
-	color: #8fd3b6;
+	color: #a9c9b4;
 	margin: 4px 0 12px;
 }
 .ob-foot__col a {
@@ -1375,7 +1383,7 @@ img.ob-profile__avatar--img {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	background: linear-gradient(150deg, #e2f2ea, #cfe8dc);
+	background: linear-gradient(150deg, #dcebe1, #cfe8dc);
 	color: var(--ob-accent-deep);
 	font-family: 'Fraunces', Georgia, serif;
 	font-weight: 900;
@@ -1699,7 +1707,7 @@ a.ob-pick__name:hover {
 .ob-forum-note {
 	padding: 12px 16px;
 	border-radius: 10px;
-	background: var(--ob-accent-soft, #e2f2ea);
+	background: var(--ob-accent-soft, #dcebe1);
 	color: var(--ob-green-deep, #0a3d2c);
 	font-weight: 600;
 	font-size: 0.9rem;
@@ -1845,7 +1853,7 @@ a.ob-pick__name:hover {
 	margin: 0 4px 4px 0;
 	padding: 2px 9px;
 	border-radius: 999px;
-	background: var(--ob-accent-soft, #e2f2ea);
+	background: var(--ob-accent-soft, #dcebe1);
 	color: var(--ob-green-deep, #0a3d2c) !important;
 	font-size: 0.7rem;
 	font-weight: 700;
@@ -1873,11 +1881,12 @@ a.ob-pick__name:hover {
 }
 
 /* Links inside dark heroes stay light (the generic content-link rule
-   above would render them near-invisible). The gold CTA buttons are
-   excluded: light text on gold is unreadable, so they keep their dark
+   above would render them near-invisible). Muted sage, not the pale mint
+   #8fd3b6 — mint text is banned, most of all on gold. The gold CTA buttons
+   are excluded: light text on gold is unreadable, so they keep their dark
    ink from obitleague.css. */
 .ob-hero a:not(.ob-btn):not(.ob-hero__cta) {
-	color: #8fd3b6 !important;
+	color: #a9c9b4 !important;
 }
 .ob-hero a:not(.ob-btn):not(.ob-hero__cta):hover {
 	color: #fff !important;
@@ -2154,13 +2163,41 @@ img.ob-page .ob-profile__avatar--img,
 	font-size: 0.74rem;
 	font-weight: 800;
 	letter-spacing: 0.06em;
-	background: #e4f3e9;
-	color: #174d38;
+	background: var(--ob-rose-soft, #f6e3dd);
+	color: var(--ob-rose, #b3452f);
 }
 
 .ob-profile--memoriam .ob-profile__status.ob-profile__status {
 	background: var(--ob-brass-soft);
 	color: #6b5b32;
+}
+
+/* Red flag for an impossible (future) death date. Rose, never mint or gold:
+   it must read as an error, not a status. */
+.ob-page .ob-future-death.ob-future-death {
+	margin: 0 0 22px;
+	padding: 20px 22px;
+	border: 2px solid var(--ob-rose, #b3452f);
+	border-left-width: 8px;
+	background: var(--ob-rose-soft, #f6e3dd);
+	box-shadow: var(--ob-shadow);
+}
+.ob-future-death__title {
+	margin: 0 0 8px;
+	font-family: 'Fraunces', Georgia, serif;
+	font-size: 1.25rem;
+	color: var(--ob-rose, #b3452f);
+}
+.ob-future-death__text {
+	margin: 0 0 8px;
+	font-weight: 600;
+	color: #6d2317;
+}
+.ob-future-death__text--minor {
+	font-weight: 400;
+	font-size: 0.86rem;
+	color: #8e2f25;
+	margin-bottom: 0;
 }
 
 /* Life timeline as a proper horizontal bar, not stacked text. */

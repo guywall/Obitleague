@@ -68,11 +68,44 @@ final class Review_Rules {
 			$problems[] = 'An exact death date is required before points can be awarded (month or year precision stays unapproved for scoring).';
 		}
 
+		// A date of death in the future is impossible: no one can die tomorrow.
+		// Catch it at the domain chokepoint so no approval path (review, REST,
+		// WP-CLI) can publish it, and say plainly what is wrong.
+		if ( self::is_future_death_date( $d ) ) {
+			$problems[] = 'The death date is in the future — no one can die on a date that has not happened. Verify the date before approving.';
+		}
+
 		if ( ! empty( $decision['cause_disclosed'] ) && '' === trim( (string) ( $decision['cause_text'] ?? '' ) ) ) {
 			$problems[] = 'A disclosed cause requires approved cause wording from the source.';
 		}
 
 		return $problems;
+	}
+
+	/**
+	 * A death dated after today (Europe/London) cannot be true. Partial dates
+	 * are judged on their earliest possible interpretation: a claim of
+	 * "October 2026" when only September has begun is still in the future.
+	 *
+	 * @param array{y?:int,m?:int,d?:int}|mixed $date
+	 */
+	public static function is_future_death_date( $date ): bool {
+		if ( ! is_array( $date ) ) {
+			return false;
+		}
+		$y = isset( $date['y'] ) ? (int) $date['y'] : 0;
+		if ( $y <= 0 ) {
+			return false;
+		}
+		$m = isset( $date['m'] ) ? (int) $date['m'] : 1;
+		$d = isset( $date['d'] ) ? (int) $date['d'] : 1;
+		try {
+			$claimed = new \DateTimeImmutable( sprintf( '%04d-%02d-%02d 00:00:00', $y, $m, $d ), new \DateTimeZone( 'Europe/London' ) );
+		} catch ( \Exception ) {
+			return false; // Malformed dates are another rule's problem.
+		}
+		$today = new \DateTimeImmutable( 'today', new \DateTimeZone( 'Europe/London' ) );
+		return $claimed > $today;
 	}
 
 	/** True when the editor-supplied expected revision still governs. */

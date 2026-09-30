@@ -322,7 +322,7 @@ body.ob-admin .tagcloud {
 	vertical-align: middle;
 }
 .ob-admin-pill--green {
-	background: #e2f2ea;
+	background: #dcebe1;
 	color: var(--obad-green-deep);
 }
 .ob-admin-pill--rose {

@@ -12,7 +12,7 @@
 	--ob-line: #dfe3d8;
 	--ob-accent: #0d7d5a;
 	--ob-accent-deep: #0a3d2c;
-	--ob-accent-soft: #e2f2ea;
+	--ob-accent-soft: #dcebe1;
 	--ob-brass: #b98a2f;
 	--ob-brass-soft: #f3e8cf;
 	--ob-rose: #b3452f;
@@ -468,7 +468,7 @@
 	height: 40px;
 	border-radius: 12px;
 	margin: 0 0 10px;
-	background: linear-gradient(150deg, #e2f2ea, #cfe8dc);
+	background: linear-gradient(150deg, #dcebe1, #cfe8dc);
 	color: var(--ob-accent-deep);
 	font-family: 'Fraunces', Georgia, serif;
 	font-weight: 900;

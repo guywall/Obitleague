@@ -5,6 +5,30 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Added — Future death dates are red-flagged (0.15.2)
+
+- **A death dated in the future can no longer be approved.**
+  `Review_Rules::approval_problems()` now rejects any death date after
+  today (Europe/London) — partial dates are judged on their earliest
+  possible interpretation — so no approval path (review screen, REST,
+  WP-CLI) can publish an impossible record.
+- **Person pages show a red-flag banner** for records that already carry
+  a future death date: rose alert, plainly worded ("a date that has not
+  happened yet"), with the scoring card withheld until the record is
+  corrected. Existing bad data stays visible but can never score.
+- **One header CTA.** The actions row no longer renders a second
+  "Choose your team" button; the single CTA in `.ob-header__mobile-join`
+  renders at every width, so the mobile menu sheet no longer stacks two
+  identical gold buttons.
+- **Mint-on-yellow and yellow-on-mint eliminated site-wide.** The pale
+  mint text (`#8fd3b6`) is retired for muted sage on dark surfaces; the
+  season toggle's active option on dark heroes is deep green on white
+  text instead of gold with mint text; the memoriam "Confirmed" pill,
+  generic badges, forum notes and occupation tags no longer sit on
+  `--ob-accent-soft` where a gold context could pair with them — the
+  soft-green token itself is now a greyer sage (`#dcebe1`). Dark green
+  pairings are unchanged.
+
 ### Added — Article signatures create people; corroboration auto-confirms (0.15.1)
 
 - **Obituary-desk articles now create people directly.** When a story from
