@@ -1,5 +1,4 @@
 <?php
-declare( strict_types = 1 );
 
 use Obitleague\Modules\Header;
 use Obitleague\Modules\Shortcodes;
