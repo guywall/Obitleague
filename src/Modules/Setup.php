@@ -434,22 +434,25 @@ final class Setup {
 		) {$charset};";
 
 		// Global Wikimedia request queue: stored outbound requests processed
-		// serially, honouring the shared rate-limit pause.
+		// serially, honouring per-source rate-limit pauses and pacing.
 		$wiki_queue = "{$wpdb->prefix}obitleague_wiki_queue";
 		$sql[] = "CREATE TABLE {$wiki_queue} (
 			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 			request_kind VARCHAR(40) NOT NULL,
 			payload LONGTEXT NULL,
 			dedupe_key VARCHAR(191) NOT NULL DEFAULT '',
+			source VARCHAR(20) NOT NULL DEFAULT 'wikidata',
 			status VARCHAR(12) NOT NULL DEFAULT 'pending',
 			attempts SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+			next_attempt_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:01',
 			last_error TEXT NULL,
 			created_at DATETIME NOT NULL,
 			claimed_at DATETIME NULL,
 			processed_at DATETIME NULL,
 			PRIMARY KEY  (id),
 			KEY kind_status (request_kind, status, id),
-			KEY dedupe (request_kind, dedupe_key, status)
+			KEY dedupe (request_kind, dedupe_key, status),
+			KEY due (status, next_attempt_at, id)
 		) {$charset};";
 
 		foreach ( $sql as $statement ) {

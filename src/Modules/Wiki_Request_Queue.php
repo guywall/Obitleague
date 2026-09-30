@@ -4,9 +4,21 @@
  *
  * Every outbound call to Wikidata/Wikipedia that the plugin defers goes
  * through this table instead of firing inline: the request is stored, then
- * processed serially (oldest first) by the cron tick or on demand, honouring
- * the shared Wikimedia rate-limit pause. Requests made during a cooldown are
- * kept pending — never lost — and run when the pause lifts.
+ * processed serially (oldest first) by the cron tick or on demand.
+ *
+ * Pacing model (per source):
+ * - Each row carries `source` (e.g. 'wikidata', 'enwiki', 'commons') and a
+ *   `next_attempt_at` timestamp. A row is only eligible while now >=
+ *   next_attempt_at.
+ * - A Wikimedia rate-limit response (Retry-After) sets the queue-wide
+ *   next-try timestamp for the affected source to the moment the limit
+ *   lifts; every later retry keeps that timestamp until either the limit
+ *   lifts and requests flow again, or the source hits a rate limit again.
+ * - Between rate limits, rows are spaced by a minimum per-source interval
+ *   so steady-state traffic stays inside Wikimedia's recommended rates.
+ *
+ * Requests made during a cooldown are kept pending — never lost — and run
+ * when the pause lifts.
  *
  * @package Obitleague
  */
@@ -27,6 +39,18 @@ final class Wiki_Request_Queue {
 	private const CRON_BATCH     = 3;
 	private const WALL_BUDGET_S  = 20.0;
 	private const CLAIM_TTL_S    = 900; // 15 min: beyond any handler budget.
+
+	/**
+	 * Minimum gap between two requests to the same source, in seconds, so
+	 * steady-state traffic stays well inside Wikimedia's recommended rate
+	 * (roughly 200 req/s ceiling — we use a fraction of one request/second).
+	 * Sources not listed default to 1.0 s.
+	 */
+	private const SOURCE_MIN_INTERVAL_S = array(
+		'wikidata' => 1.0,
+		'enwiki'   => 1.0,
+		'commons'  => 1.0,
+	);
 
 	/** @var array<string, callable> request_kind => handler( array $payload ): array|\WP_Error */
 	private static array $handlers = array();
@@ -49,20 +73,22 @@ final class Wiki_Request_Queue {
 	 *
 	 * @return int Row id of the pending (or existing) request.
 	 */
-	public static function enqueue( string $kind, array $payload, string $dedupe_key = '' ): int {
+	public static function enqueue( string $kind, array $payload, string $dedupe_key = '', string $source = 'wikidata' ): int {
 		global $wpdb;
 
 		$kind       = substr( sanitize_key( $kind ), 0, 40 );
 		$dedupe_key = substr( trim( $dedupe_key ), 0, 191 );
+		$source     = substr( sanitize_key( $source ), 0, 20 );
 		$table      = $wpdb->prefix . 'obitleague_wiki_queue';
 
 		if ( '' !== $dedupe_key ) {
 			$existing = (int) $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT id FROM {$table} WHERE request_kind = %s AND dedupe_key = %s AND status = %s LIMIT 1",
+					"SELECT id FROM {$table} WHERE request_kind = %s AND dedupe_key = %s AND status IN ( %s, %s ) LIMIT 1",
 					$kind,
 					$dedupe_key,
-					self::STATUS_PENDING
+					self::STATUS_PENDING,
+					self::STATUS_DONE
 				)
 			);
 			if ( $existing > 0 ) {
@@ -73,23 +99,96 @@ final class Wiki_Request_Queue {
 		$wpdb->insert(
 			$table,
 			array(
-				'request_kind' => $kind,
-				'payload'      => wp_json_encode( $payload ),
-				'dedupe_key'   => $dedupe_key,
-				'status'       => self::STATUS_PENDING,
-				'attempts'     => 0,
-				'created_at'   => current_time( 'mysql', true ),
+				'request_kind'    => $kind,
+				'payload'         => wp_json_encode( $payload ),
+				'dedupe_key'      => $dedupe_key,
+				'source'          => $source,
+				'status'          => self::STATUS_PENDING,
+				'attempts'        => 0,
+				'next_attempt_at' => self::next_available_time( $source ),
+				'created_at'      => current_time( 'mysql', true ),
 			),
-			array( '%s', '%s', '%s', '%s', '%d', '%s' )
+			array( '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s' )
 		);
 
 		return (int) $wpdb->insert_id;
 	}
 
 	/**
+	 * Timestamp of the earliest moment the given source may be hit again:
+	 * the later of the source's rate-limit pause (if any) and one minimum
+	 * interval after the last queued request for that source.
+	 */
+	public static function next_available_time( string $source ): string {
+		global $wpdb;
+		$table      = $wpdb->prefix . 'obitleague_wiki_queue';
+		$pause_until = self::source_pause_until( $source );
+
+		$last  = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT MAX(next_attempt_at) FROM {$table} WHERE source = %s AND status IN ( %s, %s )",
+				$source,
+				self::STATUS_PENDING,
+				self::STATUS_PROCESSING
+			)
+		);
+		$gap   = (float) ( self::SOURCE_MIN_INTERVAL_S[ $source ] ?? 1.0 );
+		$candidate = $last ? (string) ( (float) $last + $gap ) : '';
+
+		$now = current_time( 'mysql', true );
+		$out = $now;
+		foreach ( array( gmdate( 'Y-m-d H:i:s', $pause_until ), $candidate ) as $t ) {
+			if ( '' !== $t && $t > $out ) {
+				$out = $t;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Unix timestamp until which the given source is parked by a rate
+	 * limit, 0 when clear. Stored as one option per source so the pause
+	 * applies to direct callers too.
+	 */
+	public static function source_pause_until( string $source ): int {
+		return (int) get_option( 'obitleague_wq_pause_' . $source, 0 );
+	}
+
+	/**
+	 * Record a rate-limit response: park the source until the given
+	 * Retry-After moment, and push every still-pending row for that source
+	 * to the same timestamp. Until the source hits a rate limit again,
+	 * retries keep targeting this moment.
+	 */
+	public static function defer_source( string $source, string $retry_after ): int {
+		global $wpdb;
+		$retry_after = trim( $retry_after );
+		$until       = is_numeric( $retry_after )
+			? time() + max( 5, (int) $retry_after )
+			: ( false !== strtotime( $retry_after ) ? strtotime( $retry_after ) : time() + 60 );
+		$until       = max( time() + 5, (int) $until );
+
+		update_option( 'obitleague_wq_pause_' . $source, $until, false );
+
+		$mysql_until = gmdate( 'Y-m-d H:i:s', $until );
+		$wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$wpdb->prefix}obitleague_wiki_queue
+				 SET next_attempt_at = %s
+				 WHERE source = %s AND status = %s AND next_attempt_at < %s",
+				$mysql_until,
+				substr( sanitize_key( $source ), 0, 20 ),
+				self::STATUS_PENDING,
+				$mysql_until
+			)
+		);
+		return $until;
+	}
+
+	/**
 	 * Process queued requests serially until the batch or wall-clock budget
-	 * is exhausted. A Wikimedia rate-limit pause parks everything: rows stay
-	 * pending and are retried after the pause lifts.
+	 * is exhausted. Rows whose source is rate-limit-parked stay pending and
+	 * are retried after the pause lifts.
 	 *
 	 * @return int Number of requests completed.
 	 */
@@ -97,15 +196,17 @@ final class Wiki_Request_Queue {
 		global $wpdb;
 
 		if ( Discovery_Service::rate_limit_pause_until() > time() ) {
-			return 0; // Cooldown: keep every request queued, run nothing now.
+			return 0; // Shared Wikimedia cooldown: keep every request queued.
 		}
 
 		$table    = $wpdb->prefix . 'obitleague_wiki_queue';
-		// Reclaim rows stuck in 'processing' - a fatal or timeout between the
+		$now_sql  = current_time( 'mysql', true );
+
+		// Reclaim rows stuck in 'processing' — a fatal or timeout between the
 		// claim and the handler finishing would otherwise strand them forever.
 		$wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$wpdb->prefix}obitleague_wiki_queue
+				"UPDATE {$table}
 				 SET status = %s, claimed_at = NULL
 				 WHERE status = %s AND claimed_at IS NOT NULL AND claimed_at < %s",
 				self::STATUS_PENDING,
@@ -120,9 +221,13 @@ final class Wiki_Request_Queue {
 		while ( $done < $max && microtime( true ) < $deadline ) {
 			$row = $wpdb->get_row(
 				$wpdb->prepare(
-					"SELECT id, request_kind, payload, attempts FROM {$table}
-					 WHERE status = %s ORDER BY id ASC LIMIT 1",
-					self::STATUS_PENDING
+					"SELECT id, request_kind, payload, attempts, source
+					 FROM {$table}
+					 WHERE status = %s AND next_attempt_at <= %s
+					 ORDER BY next_attempt_at ASC, id ASC
+					 LIMIT 1",
+					self::STATUS_PENDING,
+					$now_sql
 				)
 			);
 			if ( ! $row ) {
@@ -151,11 +256,19 @@ final class Wiki_Request_Queue {
 			}
 
 			$result = $handler( $payload );
+
 			if ( is_wp_error( $result ) ) {
-				if ( 'obitleague_discovery_paused' === $result->get_error_code() ) {
-					// Cooldown began mid-run: park the request for later.
+				$code = $result->get_error_code();
+				if ( 'obitleague_discovery_paused' === $code || 'obitleague_rate_limited' === $code ) {
+					// Rate limit: park the source until the Retry-After
+					// moment and push every pending row for it out too.
+					$retry = (string) ( $result->get_error_data( $code )['retry_after'] ?? '' );
+					if ( '' === $retry ) {
+						$retry = (string) ( (int) Discovery_Service::rate_limit_pause_until() - time() );
+					}
+					self::defer_source( (string) $row->source, $retry );
 					self::park( (int) $row->id, $result->get_error_message() );
-					break;
+					continue;
 				}
 				if ( ( (int) $row->attempts + 1 ) >= self::MAX_ATTEMPTS ) {
 					self::fail( (int) $row->id, $result->get_error_message() );
@@ -201,13 +314,21 @@ final class Wiki_Request_Queue {
 		}
 		$next = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT id, request_kind, created_at, attempts FROM {$table} WHERE status = %s ORDER BY id ASC LIMIT 1",
+				"SELECT id, request_kind, source, next_attempt_at, attempts FROM {$table} WHERE status = %s ORDER BY next_attempt_at ASC, id ASC LIMIT 1",
 				self::STATUS_PENDING
 			)
 		);
+		$pauses = array();
+		foreach ( array_keys( self::SOURCE_MIN_INTERVAL_S ) as $src ) {
+			$until = self::source_pause_until( $src );
+			if ( $until > time() ) {
+				$pauses[ $src ] = $until;
+			}
+		}
 		return array(
 			'counts' => $counts,
 			'next'   => $next,
+			'pauses' => $pauses,
 		);
 	}
 

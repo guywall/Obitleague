@@ -1,12 +1,18 @@
 <?php
 /**
- * People portrait sync.
+ * People portrait + occupation sync.
  *
- * Pulls portrait candidates (Wikidata P18 → Commons special-file redirect)
- * and applies them as postmeta on person posts. Media licensing per the plan
- * (§6/§7): every displayed portrait carries credit via special:filepath link
- * back to the Commons file page, licence checked editorially at approval.
- * Portraits are optional at launch — cards fall back to monograms.
+ * Every outbound Wikidata call goes through the global Wiki_Request_Queue:
+ * people missing a portrait or occupations are enqueued as enrich_person
+ * requests, and a queue handler applies the fetched entity data to the
+ * post. Nothing here fires HTTP directly, so shared Wikimedia rate-limit
+ * pauses and per-source pacing are honoured automatically, and gaps are
+ * retried until they fill rather than silently dropped.
+ *
+ * Media licensing per the plan (§6/§7): every displayed portrait carries
+ * credit via special:filepath link back to the Commons file page, licence
+ * checked editorially at approval. Portraits are optional — cards fall
+ * back to monograms.
  *
  * Run: wp eval-file tests/sync-portraits.php
  *
@@ -34,6 +40,13 @@ final class People_Sync {
 	/** Keep the derived sort/birth-year meta fresh on every person save. */
 	public static function boot(): void {
 		add_action( 'save_post_' . Catalogue::POST_TYPE, array( self::class, 'compute_sort_meta' ), 20, 1 );
+		add_action( 'obitleague_profile_refresh_tick', array( self::class, 'enqueue_missing' ) );
+		Wiki_Request_Queue::register_handler(
+			'enrich_person',
+			static function ( array $payload ) {
+				return self::handle_enrich( (int) ( $payload['post_id'] ?? 0 ) );
+			}
+		);
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
 			\WP_CLI::add_command(
 				'obitleague backfill-sort-meta',
@@ -42,15 +55,26 @@ final class People_Sync {
 					\WP_CLI::success( "Backfilled browse/sort meta for {$count} people." );
 				}
 			);
+			\WP_CLI::add_command(
+				'obitleague sync-people',
+				static function ( array $args, array $assoc_args ): void {
+					$limit = (int) ( $assoc_args['limit'] ?? 400 );
+					$stats = self::enqueue_missing( $limit );
+					\WP_CLI::success( "Enqueued {$stats['enqueued']} enrichment request(s); {$stats['missing']} people missing data." );
+				}
+			);
 		}
 	}
 
 	/**
-	 * Sync portraits and occupations for all published people (bounded).
-	 * Selects posts missing either field, so re-runs fill gaps in both.
-	 * Returns stats array.
+	 * Enqueue enrichment requests for every published person still missing a
+	 * portrait or occupations. Idempotent per person: while a request for
+	 * one is pending — or a previous one already succeeded — the dedupe key
+	 * keeps it to a single row. Returns stats.
+	 *
+	 * @return array{checked:int, missing:int, enqueued:int}
 	 */
-	public static function sync_all( int $limit = 400 ): array {
+	public static function enqueue_missing( int $limit = 400 ): array {
 		global $wpdb;
 
 		$post_ids = $wpdb->get_col(
@@ -70,30 +94,148 @@ final class People_Sync {
 				$limit
 			)
 		);
-		if ( ! $post_ids ) {
-			$stats = array( 'checked' => 0, 'updated' => 0 );
-			update_option( 'obitleague_people_sync_last_run', array_merge( $stats, array( 'completed_at' => current_time( 'mysql', true ) ) ), false );
-			return $stats;
-		}
-
-		$stats = array( 'checked' => 0, 'updated' => 0 );
-		foreach ( array_chunk( array_map( 'intval', $post_ids ), 50 ) as $chunk ) {
-			$stats['checked'] += count( $chunk );
-			$updated          = self::sync_batch( $chunk );
-			$stats['updated'] += $updated;
-			self::polite_wait();
+		$stats = array( 'checked' => 0, 'missing' => 0, 'enqueued' => 0 );
+		foreach ( array_map( 'intval', (array) $post_ids ) as $post_id ) {
+			++$stats['checked'];
+			$qid = (string) get_post_meta( $post_id, 'obit_qid', true );
+			if ( '' === $qid ) {
+				continue; // No Wikidata id: nothing to fetch.
+			}
+			++$stats['missing'];
+			$existing = (int) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT id FROM {$wpdb->prefix}obitleague_wiki_queue
+					 WHERE request_kind = 'enrich_person' AND dedupe_key = %s AND status IN ( 'pending', 'processing' ) LIMIT 1",
+					self::enrich_dedupe_key( $post_id )
+				)
+			);
+			if ( $existing > 0 ) {
+				continue;
+			}
+			Wiki_Request_Queue::enqueue(
+				'enrich_person',
+				array( 'post_id' => $post_id ),
+				self::enrich_dedupe_key( $post_id ),
+				'wikidata'
+			);
+			++$stats['enqueued'];
 		}
 		update_option( 'obitleague_people_sync_last_run', array_merge( $stats, array( 'completed_at' => current_time( 'mysql', true ) ) ), false );
 		return $stats;
 	}
 
-	/** Sync one batch (up to 50 ids) via one wbgetentities call. */
+	/** Dedupe key for one person's enrichment request. */
+	private static function enrich_dedupe_key( int $post_id ): string {
+		return 'person-' . $post_id;
+	}
+
+	/**
+	 * Queue handler: fetch one entity from Wikidata and apply it to the
+	 * person post. Returns a WP_Error when the queue should retry (with the
+	 * shared rate-limit pause honoured) rather than give up.
+	 *
+	 * @return array{ok:bool, updated:bool}|\WP_Error
+	 */
+	public static function handle_enrich( int $post_id ) {
+		if ( $post_id < 1 || Catalogue::POST_TYPE !== (string) get_post_type( $post_id ) ) {
+			return array( 'ok' => true, 'updated' => false ); // Post gone: nothing to do.
+		}
+		$qid = (string) get_post_meta( $post_id, 'obit_qid', true );
+		if ( '' === $qid ) {
+			return array( 'ok' => true, 'updated' => false );
+		}
+
+		$entities = self::fetch_entities( array( $qid ) );
+		if ( array() === $entities || ! isset( $entities[ $qid ] ) ) {
+			return new \WP_Error( 'obitleague_enrich_http', 'Wikidata returned no usable entity payload; will retry.' );
+		}
+		$updated = self::apply_entity( $post_id, $entities[ $qid ] );
+		return array( 'ok' => true, 'updated' => $updated > 0 );
+	}
+
+	/**
+	 * Apply one Wikidata entity to a person post: occupations (P106), the
+	 * enwiki sitelink, a day-precision death-date refinement for provisional
+	 * records, and the portrait (P18). Returns the number of meta groups
+	 * written.
+	 */
+	public static function apply_entity( int $post_id, array $entity ): int {
+		$updated = 0;
+
+		// Occupations (P106): comma-separated English labels, preferred rank marks the primary.
+		$occ_qids = self::occupation_qids( $entity );
+		self::label_prefetch( $occ_qids );
+		$occ = self::occupations_for( $entity );
+		if ( array() !== $occ ) {
+			update_post_meta( $post_id, self::META_OCCUPATIONS, implode( ', ', $occ['labels'] ) );
+			update_post_meta( $post_id, self::META_OCCUPATION_PRIMARY, $occ['primary'] );
+			update_post_meta( $post_id, self::META_OCCUPATION_QIDS, wp_json_encode( $occ['qids'] ) );
+			// Mirror the labels into the obit_occupation taxonomy so groups of
+			// people can be browsed, queried and output together.
+			self::sync_occupation_terms( $post_id, $occ['labels'] );
+
+			// The public role falls back to the primary Wikidata occupation.
+			$primary = (string) ( $occ['primary'] ?? '' );
+			if ( '' !== $primary && '' === (string) get_post_meta( $post_id, 'obit_role', true ) ) {
+				update_post_meta( $post_id, 'obit_role', $primary );
+			}
+			++$updated;
+		}
+
+		// The English Wikipedia article title (sitelink) fills the
+		// citation/link field the wire leaves empty.
+		$enwiki = self::enwiki_from_entity( $entity );
+		if ( '' !== $enwiki && '' === (string) get_post_meta( $post_id, 'obit_enwiki', true ) ) {
+			update_post_meta( $post_id, 'obit_enwiki', $enwiki );
+		}
+
+		// A day-precision date of death (P570) refines the stored date of
+		// a provisional (wire-published, unconfirmed) record only. Living
+		// records gain deaths through the wire and review, never here, and
+		// confirmed records keep the date their approval decided.
+		$stored_death = (string) get_post_meta( $post_id, 'obit_death_date', true );
+		if ( '' !== $stored_death && Death_Wire::is_provisional( $post_id ) ) {
+			$wd_death = self::death_date_from_entity( $entity );
+			if ( '' !== $wd_death && $wd_death !== $stored_death ) {
+				update_post_meta( $post_id, 'obit_death_date', $wd_death );
+				update_post_meta( $post_id, 'obit_death_precision', 'exact' );
+				Person_Content::regenerate( $post_id );
+			}
+		}
+
+		$url = self::image_url_for( $entity );
+		if ( '' !== $url ) {
+			update_post_meta( $post_id, self::META_IMAGE_URL, $url );
+			update_post_meta( $post_id, self::META_IMAGE_CREDIT, 'Wikimedia Commons via Wikidata (P18)' );
+			++$updated;
+		}
+		return $updated;
+	}
+
+	/**
+	 * Sync portraits and occupations for all published people (bounded).
+	 * Kept as a thin wrapper for existing wp-cli/eval-file callers: it now
+	 * enqueues through the queue rather than fetching directly.
+	 * Returns stats array.
+	 *
+	 * @return array{checked:int, missing:int, enqueued:int}
+	 */
+	public static function sync_all( int $limit = 400 ): array {
+		return self::enqueue_missing( $limit );
+	}	/**
+	 * Sync one batch (up to 50 ids). Legacy direct-fetch path, retained for
+	 * wp-cli/eval-file callers that want a synchronous run; the scheduled
+	 * path goes through the queue instead.
+	 *
+	 * @return int Number of meta groups written.
+	 */
 	public static function sync_batch( array $post_ids ): int {
 		$qids = array();
 		foreach ( $post_ids as $pid ) {
-			$qid = (string) get_post_meta( (int) $pid, 'obit_qid', true );
+			$pid  = (int) $pid;
+			$qid = (string) get_post_meta( $pid, 'obit_qid', true );
 			if ( '' !== $qid ) {
-				$qids[ (int) $pid ] = $qid;
+				$qids[ $pid ] = $qid;
 			}
 		}
 		if ( ! $qids ) {
@@ -105,65 +247,12 @@ final class People_Sync {
 			return 0;
 		}
 
-		// Resolve every occupation QID in this batch up front (batched label lookups).
-		$occ_qids = array();
-		foreach ( $entities as $entity ) {
-			foreach ( self::occupation_qids( $entity ) as $oqid ) {
-				$occ_qids[ $oqid ] = true;
-			}
-		}
-		self::label_prefetch( array_keys( $occ_qids ) );
-
 		$updated = 0;
 		foreach ( $qids as $pid => $qid ) {
 			$entity = $entities[ $qid ] ?? null;
-
-			// Occupations (P106): comma-separated English labels, preferred rank marks the primary.
-			$occ = self::occupations_for( $entity );
-			if ( array() !== $occ ) {
-				update_post_meta( (int) $pid, self::META_OCCUPATIONS, implode( ', ', $occ['labels'] ) );
-				update_post_meta( (int) $pid, self::META_OCCUPATION_PRIMARY, $occ['primary'] );
-				update_post_meta( (int) $pid, self::META_OCCUPATION_QIDS, wp_json_encode( $occ['qids'] ) );
-				// Mirror the labels into the obit_occupation taxonomy so groups of
-				// people can be browsed, queried and output together.
-				self::sync_occupation_terms( (int) $pid, $occ['labels'] );
-
-				// The public role falls back to the primary Wikidata occupation.
-				$primary = (string) ( $occ['primary'] ?? '' );
-				if ( '' !== $primary && '' === (string) get_post_meta( (int) $pid, 'obit_role', true ) ) {
-					update_post_meta( (int) $pid, 'obit_role', $primary );
-				}
-				++$updated;
+			if ( $entity ) {
+				$updated += self::apply_entity( $pid, $entity );
 			}
-
-			// The English Wikipedia article title (sitelink) fills the
-			// citation/link field the wire leaves empty.
-			$enwiki = self::enwiki_from_entity( $entity );
-			if ( '' !== $enwiki && '' === (string) get_post_meta( (int) $pid, 'obit_enwiki', true ) ) {
-				update_post_meta( (int) $pid, 'obit_enwiki', $enwiki );
-			}
-
-			// A day-precision date of death (P570) refines the stored date of
-			// a provisional (wire-published, unconfirmed) record only. Living
-			// records gain deaths through the wire and review, never here, and
-			// confirmed records keep the date their approval decided.
-			$stored_death = (string) get_post_meta( (int) $pid, 'obit_death_date', true );
-			if ( '' !== $stored_death && Death_Wire::is_provisional( (int) $pid ) ) {
-				$wd_death = self::death_date_from_entity( $entity );
-				if ( '' !== $wd_death && $wd_death !== $stored_death ) {
-					update_post_meta( (int) $pid, 'obit_death_date', $wd_death );
-					update_post_meta( (int) $pid, 'obit_death_precision', 'exact' );
-					Person_Content::regenerate( (int) $pid );
-				}
-			}
-
-			$url = self::image_url_for( $entity );
-			if ( '' === $url ) {
-				continue;
-			}
-			update_post_meta( (int) $pid, self::META_IMAGE_URL, $url );
-			update_post_meta( (int) $pid, self::META_IMAGE_CREDIT, 'Wikimedia Commons via Wikidata (P18)' );
-			++$updated;
 		}
 		return $updated;
 	}
@@ -526,6 +615,15 @@ final class People_Sync {
 				)
 			);
 			if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+				// A rate-limit answer parks the wikidata source so every
+				// queued request — this one included — waits until the
+				// Retry-After moment instead of hammering on.
+				if ( ! is_wp_error( $response ) && 429 === (int) wp_remote_retrieve_response_code( $response ) ) {
+					Wiki_Request_Queue::defer_source(
+						'wikidata',
+						(string) wp_remote_retrieve_header( $response, 'retry-after' )
+					);
+				}
 				continue;
 			}
 			$body = json_decode( (string) wp_remote_retrieve_body( $response ), true );

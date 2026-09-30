@@ -5,6 +5,30 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Fixed — Portraits and occupations self-heal through the request queue (db 0.7.2)
+
+- **Why the catalogue filled with "no occupation recorded" and missing
+  portraits:** `People_Sync` was making direct, unqueued HTTP calls to
+  Wikidata, outside the rate-limit queue — and its daily refresh hook
+  was a placeholder that nothing listened to. Anyone created after a
+  failed or paused sync window simply stayed empty forever.
+- **Sync now goes through `Wiki_Request_Queue`** as `enrich_person`
+  requests: one queued request per person, deduplicated, processed
+  serially at a polite fixed rate. Rate-limit answers park the whole
+  wikidata source instead of being silently swallowed.
+- **The queue gained real per-source pacing:** each request carries a
+  `source` and a `next_attempt_at`; a Retry-After response sets that
+  source's next-try timestamp and every pending row for it slides to
+  the same moment — retries keep targeting that time until the source
+  hits a rate limit again. Between limits, requests are spaced by a
+  minimum interval so steady-state traffic stays inside recommended
+  rates. Additive schema change (`source`, `next_attempt_at`),
+  `OBITLEAGUE_DB_VERSION` → `0.7.2`.
+- **The daily profile refresh now actually runs:** it re-enqueues every
+  published person still missing a portrait or occupations, so gaps
+  self-heal within a day instead of persisting. Also available as
+  `wp obitleague sync-people --limit=N`.
+
 ### Added — Git delivery rules and plain-English explainers
 
 - **New rulebook for how work reaches GitHub:** `docs/GIT-WORKFLOW.md`
