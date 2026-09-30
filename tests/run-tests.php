@@ -35,6 +35,7 @@ require_once __DIR__ . '/../src/Domain/Sources.php';
 require_once __DIR__ . '/../src/Domain/Deadline_Policy.php';
 require_once __DIR__ . '/../src/Domain/Discovery_Rules.php';
 require_once __DIR__ . '/../src/Modules/Death_Wire.php';
+require_once __DIR__ . '/../src/Modules/Public_Scope.php';
 
 require_once __DIR__ . '/Scenario_Scoring.php';
 require_once __DIR__ . '/Scenario_Ranking.php';
@@ -53,6 +54,7 @@ require_once __DIR__ . '/Scenario_Roles.php';
 require_once __DIR__ . '/Scenario_Discovery.php';
 require_once __DIR__ . '/Scenario_Agents.php';
 require_once __DIR__ . '/Scenario_Wiring.php';
+require_once __DIR__ . '/Scenario_Public_Scope.php';
 
 // Domain tests must never depend on WordPress; each scenario pulls only
 // pure-domain files.
@@ -121,4 +123,5 @@ $runner->run( Scenario_Roles::class );
 $runner->run( Scenario_Discovery::class );
 $runner->run( Scenario_Agents::class );
 $runner->run( Scenario_Wiring::class );
+$runner->run( Scenario_Public_Scope::class );
 exit( $runner->summary() );

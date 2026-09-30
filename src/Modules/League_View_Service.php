@@ -35,6 +35,11 @@ final class League_View_Service {
 		if ( ! $row ) {
 			return null;
 		}
+		// A hidden league has no public page. Administrators keep access so
+		// the flag can be reviewed and reversed from the admin screens.
+		if ( Public_Scope::is_hidden_league( (int) $row->id ) && ! current_user_can( 'manage_options' ) ) {
+			return null;
+		}
 		$owner = get_userdata( (int) $row->owner_user_id );
 		return array(
 			'id'         => (int) $row->id,

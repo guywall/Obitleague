@@ -98,12 +98,15 @@ final class Shortcodes {
 			return $cache[ $season ];
 		}
 		global $wpdb;
-		$rows = (array) $wpdb->get_results(
+		// Synthetic accounts must not inflate a name's popularity, or turn a
+		// real death into a "hit" that nobody actually picked.
+		$scope = Public_Scope::test_user_exclusion( 'e.user_id' );
+		$rows  = (array) $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT p.person_uuid AS uuid, COUNT(DISTINCT r.entry_id) AS teams
 				 FROM {$wpdb->prefix}obitleague_entry_picks p
 				 JOIN {$wpdb->prefix}obitleague_entry_revisions r ON r.id = p.revision_id AND r.kind = 'submitted'
-				 JOIN {$wpdb->prefix}obitleague_entries e ON e.id = r.entry_id AND e.state = 'submitted' AND e.season = %d
+				 JOIN {$wpdb->prefix}obitleague_entries e ON e.id = r.entry_id AND e.state = 'submitted' AND e.season = %d{$scope}
 				 GROUP BY p.person_uuid",
 				$season
 			)
@@ -151,12 +154,14 @@ final class Shortcodes {
 
 	private static function all_leagues( ?int $season = null ): array {
 		global $wpdb;
+		// Hidden leagues (synthetic test leagues) never reach a public list.
+		$scope = Public_Scope::hidden_league_exclusion( 'l' );
 		if ( $season ) {
 			return (array) $wpdb->get_results(
-				$wpdb->prepare( 'SELECT id, name FROM ' . $wpdb->prefix . 'obitleague_leagues WHERE season = %d ORDER BY name ASC', $season )
+				$wpdb->prepare( 'SELECT l.id, l.name FROM ' . $wpdb->prefix . 'obitleague_leagues l WHERE l.season = %d' . $scope . ' ORDER BY l.name ASC', $season )
 			);
 		}
-		return (array) $wpdb->get_results( 'SELECT id, name FROM ' . $wpdb->prefix . 'obitleague_leagues ORDER BY name ASC' );
+		return (array) $wpdb->get_results( 'SELECT l.id, l.name FROM ' . $wpdb->prefix . 'obitleague_leagues l WHERE 1 = 1' . $scope . ' ORDER BY l.name ASC' );
 	}
 
 	private static function person_bits( int $post_id ): array {
@@ -195,10 +200,20 @@ final class Shortcodes {
 		$not_provisional = "AND NOT EXISTS (SELECT 1 FROM {$wpdb->postmeta} pv WHERE pv.post_id = p.ID AND pv.meta_key = 'obit_death_provisional')";
 		$deaths      = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} p JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = 'obit_death_date' AND m.meta_value != '' WHERE p.post_type = 'obit_person' AND p.post_status = 'publish' {$not_provisional}" );
 		$provisional = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} p JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = 'obit_death_date' AND m.meta_value != '' WHERE p.post_type = 'obit_person' AND p.post_status = 'publish' AND EXISTS (SELECT 1 FROM {$wpdb->postmeta} pv WHERE pv.post_id = p.ID AND pv.meta_key = 'obit_death_provisional')" );
-		$players  = (int) $wpdb->get_var( 'SELECT COUNT(DISTINCT user_id) FROM ' . $wpdb->prefix . 'obitleague_entries' );
-		$leagues  = count( self::all_leagues() );
-		$picks    = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . $wpdb->prefix . 'obitleague_entry_picks p JOIN ' . $wpdb->prefix . "obitleague_entry_revisions r ON r.id = p.revision_id AND r.kind = 'submitted'" );
-		$points   = (int) $wpdb->get_var( 'SELECT COALESCE(SUM(award_delta), 0) FROM ' . $wpdb->prefix . 'obitleague_awards WHERE award_delta > 0' );
+		// Test accounts and hidden leagues are excluded from the public totals
+		// for the same reason they are excluded from the leaderboards.
+		$scope   = Public_Scope::test_user_exclusion( 'e.user_id' );
+		$players = (int) $wpdb->get_var( 'SELECT COUNT(DISTINCT e.user_id) FROM ' . $wpdb->prefix . 'obitleague_entries e WHERE 1 = 1' . $scope );
+		$leagues = count( self::all_leagues() );
+		$picks   = (int) $wpdb->get_var(
+			'SELECT COUNT(*) FROM ' . $wpdb->prefix . 'obitleague_entry_picks p'
+			. ' JOIN ' . $wpdb->prefix . "obitleague_entry_revisions r ON r.id = p.revision_id AND r.kind = 'submitted'"
+			. ' JOIN ' . $wpdb->prefix . 'obitleague_entries e ON e.id = r.entry_id WHERE 1 = 1' . $scope
+		);
+		$points  = (int) $wpdb->get_var(
+			'SELECT COALESCE(SUM(a.award_delta), 0) FROM ' . $wpdb->prefix . 'obitleague_awards a'
+			. ' JOIN ' . $wpdb->prefix . 'obitleague_entries e ON e.id = a.entry_id WHERE a.award_delta > 0' . $scope
+		);
 
 		// Season-scoped hit/miss split: how many of this season's confirmed
 		// deaths sat on submitted teams, and how many nobody chose.

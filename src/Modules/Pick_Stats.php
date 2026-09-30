@@ -236,12 +236,16 @@ final class Pick_Stats {
 		}
 
 		global $wpdb;
-		$rows = $wpdb->get_results(
+		// Synthetic accounts and hidden leagues are excluded everywhere picks
+		// are counted publicly, so popularity read from this cache agrees with
+		// the leaderboards rather than inflating them.
+		$scope = Public_Scope::test_user_exclusion( 'e.user_id' );
+		$rows  = $wpdb->get_results(
 			$wpdb->prepare(
 				'SELECT p.person_uuid AS uuid, COUNT(DISTINCT r.entry_id) AS picks
 				 FROM ' . $wpdb->prefix . 'obitleague_entry_picks p
 				 JOIN ' . $wpdb->prefix . 'obitleague_entry_revisions r ON r.id = p.revision_id AND r.kind = %s
-				 JOIN ' . $wpdb->prefix . 'obitleague_entries e ON e.id = r.entry_id AND e.state = %s AND e.season = %d
+				 JOIN ' . $wpdb->prefix . 'obitleague_entries e ON e.id = r.entry_id AND e.state = %s AND e.season = %d' . $scope . '
 				 GROUP BY p.person_uuid
 				 HAVING picks > 0
 				 ORDER BY picks DESC, p.person_uuid ASC
@@ -266,7 +270,7 @@ final class Pick_Stats {
 		$distribution = array(
 			'teams_total' => (int) $wpdb->get_var(
 				$wpdb->prepare(
-					'SELECT COUNT(*) FROM ' . $wpdb->prefix . 'obitleague_entries WHERE state = %s AND season = %d',
+					'SELECT COUNT(*) FROM ' . $wpdb->prefix . 'obitleague_entries e WHERE e.state = %s AND e.season = %d' . $scope,
 					'submitted',
 					$season
 				)
@@ -284,12 +288,13 @@ final class Pick_Stats {
 	/** Picks per uuid for one season; '' => not counted. Used by browse sorting. */
 	public static function pick_counts_by_uuid( int $season, int $cap = 5000 ): array {
 		global $wpdb;
-		$rows = $wpdb->get_results(
+		$scope = Public_Scope::test_user_exclusion( 'e.user_id' );
+		$rows  = $wpdb->get_results(
 			$wpdb->prepare(
 				'SELECT p.person_uuid AS uuid, COUNT(DISTINCT r.entry_id) AS picks
 				 FROM ' . $wpdb->prefix . 'obitleague_entry_picks p
 				 JOIN ' . $wpdb->prefix . 'obitleague_entry_revisions r ON r.id = p.revision_id AND r.kind = %s
-				 JOIN ' . $wpdb->prefix . 'obitleague_entries e ON e.id = r.entry_id AND e.state = %s AND e.season = %d
+				 JOIN ' . $wpdb->prefix . 'obitleague_entries e ON e.id = r.entry_id AND e.state = %s AND e.season = %d' . $scope . '
 				 GROUP BY p.person_uuid
 				 HAVING picks > 0
 				 ORDER BY picks DESC, p.person_uuid ASC
@@ -315,7 +320,7 @@ final class Pick_Stats {
 				 FROM ' . $wpdb->prefix . 'obitleague_entry_picks p
 				 JOIN ' . $wpdb->prefix . 'obitleague_entry_revisions r ON r.id = p.revision_id AND r.kind = %s
 				 JOIN ' . $wpdb->prefix . 'obitleague_entries e ON e.id = r.entry_id AND e.state = %s AND e.season = %d
-				 WHERE p.person_uuid = %s',
+				 WHERE p.person_uuid = %s' . Public_Scope::test_user_exclusion( 'e.user_id' ),
 				'submitted',
 				'submitted',
 				$season,
@@ -343,7 +348,7 @@ final class Pick_Stats {
 				 JOIN ' . $wpdb->prefix . 'obitleague_entry_revisions r ON r.id = p.revision_id AND r.kind = %s
 				 JOIN ' . $wpdb->prefix . 'obitleague_entries e ON e.id = r.entry_id AND e.state = %s AND e.season = %d
 				 JOIN ' . $wpdb->prefix . 'obitleague_leagues l ON l.id = e.league_id
-				 WHERE p.person_uuid = %s
+				 WHERE p.person_uuid = %s' . Public_Scope::test_user_exclusion( 'e.user_id' ) . Public_Scope::hidden_league_exclusion( 'l' ) . '
 				 GROUP BY l.id, l.name, l.is_main
 				 ORDER BY picks DESC, l.id ASC',
 				'submitted',
@@ -383,7 +388,7 @@ final class Pick_Stats {
 				 JOIN ' . $wpdb->prefix . 'obitleague_entry_revisions r ON r.id = p.revision_id AND r.kind = %s
 				 JOIN ' . $wpdb->prefix . 'obitleague_entries e ON e.id = r.entry_id AND e.state = %s AND e.season = %d
 				 JOIN ' . $wpdb->prefix . 'obitleague_leagues l ON l.id = e.league_id
-				 WHERE p.person_uuid = %s
+				 WHERE p.person_uuid = %s' . Public_Scope::test_user_exclusion( 'e.user_id' ) . Public_Scope::hidden_league_exclusion( 'l' ) . '
 				 ORDER BY l.is_main DESC, e.id ASC
 				 LIMIT %d',
 				'submitted',

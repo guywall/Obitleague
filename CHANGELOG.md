@@ -5,6 +5,38 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Added — Public scope: synthetic leagues and accounts off every public surface
+
+- **The site carried its own build artifacts into public view.** Synthetic
+  leagues ("Testings", "Guy's Test League 2027") and test accounts sat on the
+  front-page leaderboards, the league cards, the team directory and the user
+  sitemap as though they were real players. They are real rows and are kept —
+  hiding, never deleting, is the rule — but they no longer read as players.
+- **One definition of "not public", in `Public_Scope`.** A league is hidden
+  when `obitleague_leagues.is_hidden = 1` (additive schema change, DB
+  `0.8.1`); an account is synthetic when its `obitleague_test_account` user
+  meta is set. Every public read path builds its exclusion from that module —
+  home league cards and season tiles, the overall and per-league standings,
+  pick popularity and the statistics boards, team and league pages, the
+  pick-distribution cache, robots directives and the user sitemap — so there is
+  one rule rather than a filter re-guessed per module. Administrator screens
+  deliberately read unfiltered, so a flag can always be reviewed and reversed.
+- **The standings are rebuilt, not just filtered.** A published generation is
+  itself a public artifact, so `Standings_Service::rebuild()` excludes
+  synthetic accounts at build time and ranks are recomputed over the real
+  field rather than printed around the hidden rows.
+- **Both flags are toggles, and both are audited.** The leagues screen gains a
+  Visibility column with Hide/Restore per league; the users screen gains a
+  "Public surfaces" column, a "Test accounts" view, and the same toggle per
+  account. Every change writes an `obitleague_admin_audit` row.
+- **`tests/flag-qa-rows.php`** flags the known synthetic rows on a live
+  install. It reports by default and writes only with
+  `OBITLEAGUE_QA_APPLY=1`; targets come from a built-in list, optional
+  `OBITLEAGUE_QA_LEAGUES` / `OBITLEAGUE_QA_ACCOUNTS` names, or
+  `OBITLEAGUE_QA_AUTO=1` word-token suggestions. It brings the schema up first
+  and rebuilds the current standings generations afterwards, so one run leaves
+  the published surfaces consistent.
+
 ### Changed — Discarded stories are deleted, not retained
 
 - **Discarded now means discarded.** Below-threshold sweep discards, the

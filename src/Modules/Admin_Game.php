@@ -28,6 +28,7 @@ final class Admin_Game {
 		add_action( 'admin_post_obitleague_admin_delete_team', array( self::class, 'delete_team' ) );
 		add_action( 'admin_post_obitleague_admin_rebuild', array( self::class, 'rebuild_standings' ) );
 		add_action( 'admin_post_obitleague_admin_delete_league', array( self::class, 'delete_league' ) );
+		add_action( 'admin_post_obitleague_admin_toggle_league_hidden', array( self::class, 'toggle_league_hidden' ) );
 		add_action( 'admin_enqueue_scripts', array( self::class, 'admin_assets' ) );
 	}
 
@@ -85,8 +86,9 @@ final class Admin_Game {
 	}
 
 	private static function render_overview(): void {
-		global $wpdb;		$leagues = $wpdb->get_results(
-			'SELECT l.id, l.name, l.season, l.state, l.is_main, l.owner_user_id, l.created_at,
+		global $wpdb;		$hidden_column = Public_Scope::LEAGUE_COLUMN;
+		$leagues = $wpdb->get_results(
+			'SELECT l.id, l.name, l.season, l.state, l.is_main, l.' . $hidden_column . ' AS is_hidden, l.owner_user_id, l.created_at,
 				(SELECT COUNT(*) FROM ' . $wpdb->prefix . 'obitleague_league_members m WHERE m.league_id = l.id) AS member_count,
 				(SELECT COUNT(*) FROM ' . $wpdb->prefix . 'obitleague_entries e WHERE e.league_id = l.id) AS team_count
 			FROM ' . $wpdb->prefix . 'obitleague_leagues l ORDER BY l.id DESC LIMIT 200'
@@ -94,15 +96,24 @@ final class Admin_Game {
 
 		echo '<h2>Leagues</h2>';
 		if ( $leagues ) {
-			echo '<div class="ob-admin-table-scroll"><table class="widefat striped"><thead><tr><th>League</th><th>Season</th><th>State</th><th>Owner</th><th>Members</th><th>Teams</th><th></th></tr></thead><tbody>';
+			echo '<p class="description">Hiding a league removes it from every public surface — the front-page league cards, the league directory and the sitemap. Nothing is deleted, and hidden leagues stay manageable here.</p>';
+			echo '<div class="ob-admin-table-scroll"><table class="widefat striped"><thead><tr><th>League</th><th>Season</th><th>State</th><th>Visibility</th><th>Owner</th><th>Members</th><th>Teams</th><th></th></tr></thead><tbody>';
 			foreach ( $leagues as $league ) {
 				$owner = get_userdata( (int) $league->owner_user_id );				$url = self::url( array( 'league' => (int) $league->id ) );
 				$is_main = (int) $league->is_main === 1;
+				$is_hidden = (int) $league->is_hidden === 1;
 				echo '<tr><td><strong>' . esc_html( (string) $league->name ) . '</strong> <small>#' . (int) $league->id . '</small>' . ( $is_main ? ' <span class="ob-admin-pill">main league</span>' : '' ) . '</td>';
 				echo '<td>' . (int) $league->season . '</td><td>' . esc_html( (string) $league->state ) . '</td>';
+				echo '<td>' . ( $is_hidden ? '<span class="ob-admin-pill">hidden</span>' : 'Public' ) . '</td>';
 				echo '<td>' . esc_html( $owner ? (string) $owner->display_name : 'User #' . (int) $league->owner_user_id ) . '</td>';
 				echo '<td>' . (int) $league->member_count . '</td><td>' . (int) $league->team_count . '</td>';
-				echo '<td><a class="button" href="' . esc_url( $url ) . '">Manage</a></td></tr>';
+				echo '<td><a class="button" href="' . esc_url( $url ) . '">Manage</a> ';
+				echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline-block">';
+				wp_nonce_field( 'obitleague_admin_toggle_league_hidden' );
+				echo '<input type="hidden" name="action" value="obitleague_admin_toggle_league_hidden" />';
+				echo '<input type="hidden" name="league_id" value="' . (int) $league->id . '" />';
+				echo '<input type="hidden" name="hide" value="' . ( $is_hidden ? '0' : '1' ) . '" />';
+				echo '<button type="submit" class="button button-secondary">' . ( $is_hidden ? 'Restore to public' : 'Hide from public' ) . '</button></form></td></tr>';
 			}
 			echo '</tbody></table></div>';
 		} else {
@@ -761,6 +772,20 @@ final class Admin_Game {
 		}
 		self::audit( 'league', $league_id, 'standings_rebuilt', array( 'seasons' => array_map( 'intval', $seasons ) ) );
 		self::redirect( array( 'league' => $league_id, 'notice' => 'Standings rebuilt for ' . count( $seasons ) . ' season(s).' ) );
+	}
+
+	/**
+	 * Hide or restore one league on public surfaces. The row is never touched
+	 * beyond its visibility flag, and every change is audited.
+	 */
+	public static function toggle_league_hidden(): void {
+		self::require_post( 'obitleague_admin_toggle_league_hidden' );
+		$league_id = isset( $_POST['league_id'] ) ? absint( $_POST['league_id'] ) : 0;
+		$hide      = isset( $_POST['hide'] ) && '1' === (string) $_POST['hide'];
+		if ( ! $league_id || ! Public_Scope::set_league_hidden( $league_id, $hide, 'changed in the leagues admin' ) ) {
+			self::redirect( array( 'error' => 'Could not change that league\'s public visibility.' ) );
+		}
+		self::redirect( array( 'notice' => $hide ? 'League hidden from public surfaces.' : 'League restored to public surfaces.' ) );
 	}
 
 	private static function require_post( string $nonce_action ): void {

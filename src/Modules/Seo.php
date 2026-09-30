@@ -87,7 +87,7 @@ final class Seo {
 	 * @return array<string,bool>
 	 */
 	public static function robots( array $robots ): array {
-		if ( self::is_private_route() || self::is_empty_archive() ) {
+		if ( self::is_private_route() || self::is_empty_archive() || self::is_non_public_route() ) {
 			$robots['noindex']  = true;
 			$robots['follow']   = true;
 			$robots['nofollow'] = false;
@@ -109,6 +109,30 @@ final class Seo {
 		}
 		$term = get_queried_object();
 		return $term instanceof \WP_Term && 0 === (int) ( $term->count ?? 0 );
+	}
+
+	/**
+	 * A route the public scope has withdrawn: a hidden league page, or the
+	 * team page of a synthetic test account. Both still resolve for an
+	 * administrator (so the flag can be reviewed) but must not be indexed.
+	 */
+	private static function is_non_public_route(): bool {
+		if ( is_user_logged_in() && current_user_can( 'manage_options' ) ) {
+			return false;
+		}
+		$league_id = (int) get_query_var( 'ob_league_id' );
+		if ( $league_id > 0 && Public_Scope::is_hidden_league( $league_id ) ) {
+			return true;
+		}
+		$entry_id = (int) get_query_var( 'ob_team_id' );
+		if ( $entry_id > 0 ) {
+			global $wpdb;
+			$owner = (int) $wpdb->get_var(
+				$wpdb->prepare( 'SELECT user_id FROM ' . $wpdb->prefix . 'obitleague_entries WHERE id = %d', $entry_id )
+			);
+			return Public_Scope::is_test_user( $owner );
+		}
+		return false;
 	}
 
 	private static function is_private_route(): bool {

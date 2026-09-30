@@ -31,7 +31,7 @@ if ( ! defined( 'OBITLEAGUE_VERSION' ) ) {
 	define( 'OBITLEAGUE_VERSION', '0.15.1' );
 }
 if ( ! defined( 'OBITLEAGUE_DB_VERSION' ) ) {
-	define( 'OBITLEAGUE_DB_VERSION', '0.8.0' );
+	define( 'OBITLEAGUE_DB_VERSION', '0.8.1' );
 }
 if ( ! defined( 'OBITLEAGUE_FILE' ) ) {
 	define( 'OBITLEAGUE_FILE', __FILE__ );
@@ -86,6 +86,7 @@ add_action(
 			Obitleague\Modules\Setup::maybe_upgrade();
 			Obitleague\Modules\Admin_Theme::boot();
 		}
+		Obitleague\Modules\Public_Scope::boot();
 		Obitleague\Modules\Catalogue::boot();
 		Obitleague\Modules\Occupation_Taxonomy::boot();
 		Obitleague\Modules\People_Sync::boot();

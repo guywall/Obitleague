@@ -26,13 +26,16 @@ final class Stats_Service {
 	public static function pick_popularity( int $season, int $limit = 8 ): array {
 		global $wpdb;
 
+		// Test accounts and hidden leagues are withheld from the public boards.
+		$scope = Public_Scope::test_user_exclusion( 'e.user_id' );
+
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT p.person_uuid, COUNT(*) AS picks,
 				        COALESCE(SUM(a.delta), 0) AS points_won
 				 FROM {$wpdb->prefix}obitleague_entry_picks p
 				 JOIN {$wpdb->prefix}obitleague_entry_revisions r ON r.id = p.revision_id AND r.kind = 'submitted'
-				 JOIN {$wpdb->prefix}obitleague_entries e ON e.id = r.entry_id AND e.season = %d AND e.state = 'submitted'
+				 JOIN {$wpdb->prefix}obitleague_entries e ON e.id = r.entry_id AND e.season = %d AND e.state = 'submitted'" . $scope . "
 				 LEFT JOIN (
 				     SELECT pick_slug, entry_id, SUM(award_delta) AS delta
 				     FROM {$wpdb->prefix}obitleague_awards WHERE season = %d
@@ -52,7 +55,9 @@ final class Stats_Service {
 			$card  = League_View_Service::person_card_by_uuid( (string) $row->person_uuid );
 			$awarded = (int) $wpdb->get_var(
 				$wpdb->prepare(
-					'SELECT COALESCE(SUM(award_delta), 0) FROM ' . $wpdb->prefix . 'obitleague_awards WHERE pick_slug = %s AND season = %d AND award_delta > 0',
+					'SELECT COALESCE(SUM(aw.award_delta), 0) FROM ' . $wpdb->prefix . 'obitleague_awards aw'
+					. ' JOIN ' . $wpdb->prefix . 'obitleague_entries e ON e.id = aw.entry_id'
+					. ' WHERE aw.pick_slug = %s AND aw.season = %d AND aw.award_delta > 0' . $scope,
 					(string) $row->person_uuid,
 					$season
 				)
@@ -88,7 +93,7 @@ final class Stats_Service {
 				 JOIN {$wpdb->prefix}obitleague_entries e ON e.user_id = sr.user_id AND e.league_id = sg.league_id
 				       AND e.season = sg.season AND e.state = 'submitted'
 				 JOIN {$wpdb->users} u ON u.ID = sr.user_id
-				 WHERE sg.season = %d AND sg.is_current = 1
+				 WHERE sg.season = %d AND sg.is_current = 1" . Public_Scope::test_user_exclusion( 'sr.user_id' ) . Public_Scope::hidden_league_exclusion( 'lg' ) . "
 				 ORDER BY sr.points DESC, sr.scoring_picks DESC
 				 LIMIT %d",
 				$season,
@@ -129,7 +134,7 @@ final class Stats_Service {
 				 JOIN {$wpdb->prefix}obitleague_entries e ON e.id = a.entry_id AND e.season = %d
 				 JOIN {$wpdb->prefix}obitleague_leagues lg ON lg.id = e.league_id
 				 JOIN {$wpdb->users} u ON u.ID = e.user_id
-				 WHERE a.season = %d AND a.award_delta > 0
+				 WHERE a.season = %d AND a.award_delta > 0" . Public_Scope::test_user_exclusion( 'e.user_id' ) . Public_Scope::hidden_league_exclusion( 'lg' ) . "
 				 ORDER BY a.entry_id ASC, a.created_at ASC",
 				$season,
 				$season
@@ -198,7 +203,8 @@ final class Stats_Service {
 			$wpdb->prepare(
 				"SELECT DATE_FORMAT(a.created_at, '%Y-%m') AS ym, COUNT(*) AS events, SUM(a.award_delta) AS points
 				 FROM {$wpdb->prefix}obitleague_awards a
-				 WHERE a.season = %d AND a.award_delta > 0
+				 JOIN {$wpdb->prefix}obitleague_entries e ON e.id = a.entry_id
+				 WHERE a.season = %d AND a.award_delta > 0" . Public_Scope::test_user_exclusion( 'e.user_id' ) . "
 				 GROUP BY ym ORDER BY ym ASC",
 				$season
 			)

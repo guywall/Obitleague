@@ -61,6 +61,11 @@ final class Standings_Service {
 			 * transaction, so the rebuild still rolls back as one unit.
 			 */
 			$tmp = 'tmp_ob_rank_' . (int) $league_id . '_' . (int) $season;
+			// Test accounts are excluded at build time as well as at read time:
+			// the published generation is itself a public artifact, and a rank
+			// computed over synthetic teams would be wrong even after they were
+			// filtered from the printed table.
+			$scope = Public_Scope::test_user_exclusion( 'e.user_id' );
 			$wpdb->query( "DROP TEMPORARY TABLE IF EXISTS {$tmp}" );
 			$wpdb->query(
 				"CREATE TEMPORARY TABLE {$tmp} AS
@@ -74,8 +79,8 @@ final class Standings_Service {
 					SELECT entry_id, pick_slug, SUM(award_delta) AS points
 					FROM {$awards} WHERE season = " . (int) $season . ' GROUP BY entry_id, pick_slug
 				) a ON a.entry_id = e.id AND a.pick_slug = p.person_uuid
-				WHERE e.league_id = ' . (int) $league_id . " AND e.season = " . (int) $season . "
-				  AND e.state = '" . Entry_Rules::SUBMITTED . "'
+				WHERE e.league_id = ' . (int) $league_id . ' AND e.season = ' . (int) $season . "
+				  AND e.state = '" . Entry_Rules::SUBMITTED . "'" . $scope . "
 				GROUP BY e.id, e.user_id"
 			);
 			$wpdb->query( "ALTER TABLE {$tmp} ADD INDEX ob_rank (points, scoring_picks, user_id)" );
@@ -170,13 +175,14 @@ final class Standings_Service {
 		}
 		$limit = $limit > 0 ? min( 100, max( 1, $limit ) ) : 100;
 		$offset = max( 0, $offset );
-		$rows = $wpdb->get_results(
+		$scope = Public_Scope::test_user_exclusion( 'r.user_id' );
+		$rows  = $wpdb->get_results(
 			$wpdb->prepare(
 				'SELECT r.user_id, r.points, r.scoring_picks, r.rank_pos, u.display_name, e.id AS entry_id, e.team_name
 				 FROM ' . $wpdb->prefix . 'obitleague_standings_rows r
 				 LEFT JOIN ' . $wpdb->users . ' u ON u.ID = r.user_id
 				 LEFT JOIN ' . $wpdb->prefix . 'obitleague_entries e ON e.user_id = r.user_id AND e.league_id = %d AND e.season = %d
-				 WHERE r.generation_id = %d
+				 WHERE r.generation_id = %d' . $scope . '
 				 ORDER BY r.rank_pos ASC, r.user_id ASC LIMIT %d OFFSET %d',
 				$league_id, $season, $generation_id, $limit, $offset
 			)
@@ -210,7 +216,8 @@ final class Standings_Service {
 		if ( ! $generation_id ) {
 			return 0;
 		}
-		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . $wpdb->prefix . 'obitleague_standings_rows WHERE generation_id = %d', $generation_id ) );
+		$scope = Public_Scope::test_user_exclusion( 'r.user_id' );
+		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . $wpdb->prefix . 'obitleague_standings_rows r WHERE r.generation_id = %d' . $scope, $generation_id ) );
 	}
 
 	private static function generation_id( int $league_id, int $season ): int {

@@ -211,6 +211,7 @@ final class Setup {
 			owner_user_id BIGINT UNSIGNED NOT NULL,
 			state VARCHAR(12) NOT NULL DEFAULT 'open',
 			is_main TINYINT(1) NOT NULL DEFAULT 0,
+			is_hidden TINYINT(1) NOT NULL DEFAULT 0,
 			main_season_key SMALLINT UNSIGNED NULL,
 			invite_hash CHAR(64) NULL,
 			invite_expires_at DATETIME NULL,

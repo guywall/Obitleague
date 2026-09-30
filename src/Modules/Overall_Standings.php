@@ -34,13 +34,15 @@ final class Overall_Standings {
 		}
 		$limit = min( 100, max( 1, $limit ) );
 		$offset = max( 0, $offset );
-		$rows = $wpdb->get_results(
+		// Synthetic accounts never appear in the site-wide ranking.
+		$scope = Public_Scope::test_user_exclusion( 'r.user_id' );
+		$rows  = $wpdb->get_results(
 			$wpdb->prepare(
 				'SELECT r.user_id, r.points, r.scoring_picks, r.rank_pos, e.id AS entry_id, e.team_name, u.display_name
 				 FROM ' . $wpdb->prefix . 'obitleague_standings_rows r
 				 JOIN ' . $wpdb->prefix . 'obitleague_entries e ON e.main_season_key = %d AND e.user_id = r.user_id AND e.state = %s
 				 LEFT JOIN ' . $wpdb->users . ' u ON u.ID = r.user_id
-				 WHERE r.generation_id = %d
+				 WHERE r.generation_id = %d' . $scope . '
 				 ORDER BY r.rank_pos ASC, r.user_id ASC LIMIT %d OFFSET %d',
 				$season,
 				'submitted',
@@ -93,7 +95,7 @@ final class Overall_Standings {
 		$limit  = min( 100, max( 1, $limit ) );
 		$offset = max( 0, $offset );
 		$search = trim( $search );
-		$where  = "e.league_id = %d AND e.season = %d AND e.state = 'submitted'";
+		$where  = "e.league_id = %d AND e.season = %d AND e.state = 'submitted'" . Public_Scope::test_user_exclusion( 'e.user_id' );
 		$params = array( $league_id, $season );
 		if ( '' !== $search ) {
 			$where .= ' AND (e.team_name LIKE %s OR u.display_name LIKE %s)';
