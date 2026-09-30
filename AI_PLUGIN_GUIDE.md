@@ -4,6 +4,7 @@
 
 ## Start here on every task
 
+0. Read `START-HERE.md` for the project's git model, then `docs/GIT-WORKFLOW.md` for the delivery rules: approved work is merged fast-forward into `main` and pushed to `origin/main` under human-readable branch names and commit messages; if the user does not answer an approval request within 5 minutes, proceed only when the change is exactly as asked, all checks pass, and it is trivially reversible (see `docs/git-explainers/05-approval.md`). Plain-English explainers for every git concept live in `docs/git-explainers/`.
 1. Read `obitleague.php` for plugin/runtime versions, bootstrap, autoloader, and module boot order.
 2. Read the relevant implementation under `src/Modules/`, `src/Domain/`, `src/Templates/`, or `src/Elementor/`.
 3. Read `docs/RULES.md` and the matching `tests/Scenario_*.php` for game semantics. Pure domain rules in `src/Domain/` and their tests are authoritative over older prose/docs.
@@ -173,6 +174,15 @@ Find the authoritative consumer with a repository search before renaming any mar
 - Keep unrelated user/agent changes untouched. Prefer narrowly scoped diffs, tests, and commits; do not assume multiple Freebuff threads automatically coordinate.
 
 ## Useful checks
+
+### Git delivery checklist (before every push)
+
+1. Rename any auto-generated session branch to `<scope>/<short-topic>` (e.g. `feat/git-workflow-rules`); no UUIDs in shared names.
+2. One logical change per commit; subject line imperative, ≤ 72 chars, no `fix:`-style prefixes; body explains what and why.
+3. Run the checks listed below; do not push with failures.
+4. `git merge --ff-only <branch>` into `main`, then `git push origin main`; never force-push.
+5. Delete the session branch (local and remote) after a successful push.
+6. If the process itself changed, update `docs/GIT-WORKFLOW.md`, `START-HERE.md`, and the relevant file in `docs/git-explainers/` in the same change.
 
 ```bash
 php tests/run-tests.php

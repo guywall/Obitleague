@@ -1,6 +1,6 @@
  START HERE — how this project's Git works (read this first)
 
-Last updated: 2026-09-29
+Last updated: 2026-09-30
 
 # The one rule
 
@@ -20,7 +20,16 @@ exist. If it IS on `main`, it is saved forever.
   finishes, its work is merged into `main` and the sandbox is deleted. A pile
   of them is leftover clutter, NOT missing work.
 
-# If you ever feel lost, do exactly this
+# Start here on a new thread
+
+**AI sessions:** read `AGENTS.md` first — it binds every agent working
+from any folder and points to the rules in order. Then read
+`AI_PLUGIN_GUIDE.md` and `docs/GIT-WORKFLOW.md` — that rulebook governs
+how approved work is named, committed, merged into `main`, and pushed
+to GitHub (including the 5-minute approval rule). Plain-English
+versions: `docs/GIT-EXPLAINED.md` and `docs/git-explainers/`.
+
+# Start here if you feel lost
 
 1. Open a terminal in the project folder.
 2. `git status` — if it says "nothing to commit, working tree clean", all is well.

@@ -5,6 +5,27 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Added — Git delivery rules and plain-English explainers
+
+- **New rulebook for how work reaches GitHub:** `docs/GIT-WORKFLOW.md`
+  now defines the delivery process — session branches renamed to
+  human-readable `<scope>/<topic>` names, plain-sentence commit
+  messages, fast-forward merges into `main`, push of `main` only, and
+  deletion of the session branch afterwards.
+- **5-minute approval rule:** approval requests may proceed on assumed
+  approval after 5 minutes of silence, but only when the change is
+  exactly as asked, all checks pass, and it is trivially reversible.
+- **Plain-English explainers:** `docs/GIT-EXPLAINED.md` and one-page
+  guides per concept under `docs/git-explainers/` (branches, commits,
+  merges, push/origin, approval, deploy) so every git step is
+  understandable without git expertise.
+- **Guidance kept live:** `START-HERE.md` and `AI_PLUGIN_GUIDE.md`
+  now point to the rulebook, and any future change to the process must
+  update the guidance files in the same change.
+- **Any-tool entry point:** root `AGENTS.md` binds every AI agent
+  working from any folder or tool to the same rules, so the directives
+  hold regardless of where a session starts.
+
 ### Added — Future death dates are red-flagged (0.15.2)
 
 - **A death dated in the future can no longer be approved.**
