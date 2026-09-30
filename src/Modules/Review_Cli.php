@@ -54,12 +54,14 @@ final class Review_Cli {
 		$skipped   = 0;
 		$failed    = 0;
 		$attempted = array();
+		$offset    = 0;
 
-		// Cases leave the pending set as they are approved, so every batch is
-		// drawn from the top and already-attempted ids are filtered in memory.
-		// The loop ends when a batch contains nothing unattempted.
+		// In a real run cases leave the pending set as they are approved, so
+		// every batch is drawn from the top and attempted ids are filtered in
+		// memory until a batch yields nothing new. A dry run changes no state,
+		// so it paginates with an offset instead.
 		do {
-			$cases = self::pending_batch( 100, 0 );
+			$cases = self::pending_batch( 100, $dry_run ? $offset : 0 );
 			$fresh = array();
 			foreach ( $cases as $case ) {
 				if ( ! in_array( (int) $case->id, $attempted, true ) ) {
@@ -85,7 +87,7 @@ final class Review_Cli {
 
 				if ( $dry_run ) {
 					++$approved;
-					\WP_CLI::log( sprintf( 'would approve  #%d %s (death %s)', (int) $case->id, (string) $case->person_name, (string) $case->death_date ) );
+					\WP_CLI::log( sprintf( 'would approve  #%d %s (death %04d-%02d-%02d)', (int) $case->id, (string) $case->person_name, $decision['death_date']['y'], $decision['death_date']['m'], $decision['death_date']['d'] ) );
 					continue;
 				}
 
@@ -98,6 +100,7 @@ final class Review_Cli {
 					\WP_CLI::warning( sprintf( 'failed   #%d %s: %s', (int) $case->id, (string) $case->person_name, $e->getMessage() ) );
 				}
 			}
+			$offset += 100;
 		} while ( count( $cases ) === 100 );
 
 		if ( $dry_run ) {
