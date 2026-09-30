@@ -60,6 +60,12 @@ final class Death_Wire {
 					self::cli_run( $args, $assoc_args );
 				}
 			);
+			\WP_CLI::add_command(
+				'obitleague reclassify-feed-items',
+				static function ( array $args, array $assoc_args ): void {
+					self::cli_reclassify( $args, $assoc_args );
+				}
+			);
 		}
 	}
 
@@ -406,6 +412,9 @@ final class Death_Wire {
 				// Known 2026 death: the story is public reporting — attach it.
 				if ( self::attach_source( $found['post_id'], $source_name, $source_url, (string) gmdate( 'Y-m-d H:i:s' ) ) ) {
 					++$stats['sources_attached'];
+					if ( self::maybe_auto_confirm( $found['post_id'] ) ) {
+						++$stats['auto_confirmed'];
+					}
 					return 'attached';
 				}
 				++$stats['source_duplicates'];
@@ -432,8 +441,18 @@ final class Death_Wire {
 			return 'check_queued';
 		}
 
-		// No record yet: anchor to a Wikipedia article, then confirm before
-		// creating anything.
+		// No record yet. An obituary-desk article that signs its piece with
+		// name + exact date of death is evidence enough to create the person
+		// immediately (provisional, unscored, corroboration-pending). The
+		// Wikipedia-anchored path still runs for everything else.
+		$signature = self::signature_from_story( $source_url );
+		if ( null !== $signature ) {
+			$created = self::create_provisional_from_signature( $signature['name'], $signature['death_date'], $source_url, $source_name );
+			if ( $created > 0 ) {
+				++$stats['created_from_article'];
+				return 'created_provisional';
+			}
+		}
 		$enwiki_guess = self::wiki_search_title( $group );
 		if ( '' === $enwiki_guess ) {
 			++$stats['wire_no_anchor'];
@@ -604,8 +623,153 @@ final class Death_Wire {
 		return null;
 	}
 
+	/**
+	 * Re-run the current classifier over stored feed items so their verdicts
+	 * and likelihoods reflect the weighted scoring. Titles keep whatever
+	 * text was stored at ingest; later ingests also carry descriptions.
+	 */
+	public static function cli_reclassify( array $args, array $assoc_args ): void {
+		global $wpdb;
+		$dry_run = (bool) ( $assoc_args['dry-run'] ?? false );
+		$batch   = 500;
+		$offset  = 0;
+		$changed = 0;
+		$total   = 0;
+
+		$sources = array();
+		foreach ( (array) $wpdb->get_results( "SELECT id, name, feed_url FROM {$wpdb->prefix}obitleague_sources" ) as $s ) {
+			$sources[ (int) $s->id ] = $s;
+		}
+
+		do {
+			$rows = (array) $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT i.id, i.source_id, i.title, i.classification, i.classification_score FROM {$wpdb->prefix}obitleague_feed_items i ORDER BY i.id ASC LIMIT %d OFFSET %d",
+					$batch,
+					$offset
+				)
+			);
+			foreach ( $rows as $row ) {
+				++$total;
+				$source  = $sources[ (int) $row->source_id ] ?? null;
+				$verdict = \Obitleague\Domain\Feed_Classifier::classify(
+					(string) $row->title,
+					'',
+					array(
+						'source_name' => (string) ( $source->name ?? '' ),
+						'source_url'  => (string) ( $source->feed_url ?? '' ),
+					)
+				);
+				if ( $verdict['classification'] === (string) $row->classification && (int) $verdict['score'] === (int) $row->classification_score ) {
+					continue;
+				}
+				if ( ! $dry_run ) {
+					$wpdb->update(
+						$wpdb->prefix . 'obitleague_feed_items',
+						array(
+							'classification'       => $verdict['classification'],
+							'classification_score' => (int) $verdict['score'],
+							'matched_cues'         => mb_substr( implode( ', ', (array) $verdict['matched'] ), 0, 191 ),
+						),
+						array( 'id' => (int) $row->id ),
+						array( '%s', '%d', '%s' ),
+						array( '%d' )
+					);
+				}
+				++$changed;
+				\WP_CLI::log( sprintf( '#%d %s/%d -> %s/%d  %s', (int) $row->id, (string) $row->classification, (int) $row->classification_score, $verdict['classification'], (int) $verdict['score'], mb_substr( (string) $row->title, 0, 60 ) ) );
+			}
+			$offset += $batch;
+		} while ( count( $rows ) === $batch );
+
+		\WP_CLI::success( sprintf( '%s: %d of %d stored item(s) reclassified.', $dry_run ? 'Dry run' : 'Done', $changed, $total ) );
+	}
+
 	private static function has_death( int $post_id ): bool {
 		return '' !== (string) get_post_meta( $post_id, 'obit_death_date', true );
+	}
+
+	/** Independent source domains required before an auto-confirm. */
+	public const CORROBORATION_MIN = 2;
+
+	/**
+	 * When a pending case's record carries an exact death date and enough
+	 * independent corroborating source domains (the Wikipedia list plus
+	 * press coverage, or two press outlets), approve the case as the system
+	 * reviewer. Uses the same decide() path as an editor, so the audit
+	 * trail, event and standings updates are identical.
+	 */
+	public static function maybe_auto_confirm( int $post_id ): bool {
+		global $wpdb;
+		$uuid = (string) get_post_meta( $post_id, 'obit_uuid', true );
+		if ( '' === $uuid ) {
+			return false;
+		}
+		$case = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT id, revision FROM {$wpdb->prefix}obitleague_review_cases
+				 WHERE person_uuid = %s AND state = 'pending' ORDER BY id DESC LIMIT 1",
+				$uuid
+			)
+		);
+		if ( ! $case ) {
+			return false;
+		}
+		$exact = Review_Cli::parse_exact_date( (string) get_post_meta( $post_id, 'obit_death_date', true ) );
+		if ( null === $exact ) {
+			return false;
+		}
+
+		$source_rows = (array) $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT s.source_url FROM {$wpdb->prefix}obitleague_death_sources s
+				 JOIN {$wpdb->prefix}obitleague_review_cases c ON c.id = s.case_id
+				 WHERE c.person_uuid = %s",
+				$uuid
+			)
+		);
+		$origins = array();
+		if ( '' !== (string) get_post_meta( $post_id, 'obit_death_wiki_name', true ) || '' !== (string) get_post_meta( $post_id, 'obit_enwiki', true ) ) {
+			$origins[] = 'enwiki-deaths-list';
+		}
+		if ( '' !== (string) get_post_meta( $post_id, 'obit_qid', true ) ) {
+			$origins[] = 'wikidata-P570';
+		}
+		$domains = array();
+		foreach ( $source_rows as $row ) {
+			$domain = \Obitleague\Domain\Sources::registrable_domain( (string) $row->source_url );
+			if ( '' !== $domain ) {
+				$domains[ $domain ] = true;
+			}
+		}
+		$domains = array_keys( $domains );
+		foreach ( $domains as $domain ) {
+			$origins[] = 'press:' . $domain;
+		}
+		if ( count( $origins ) < self::CORROBORATION_MIN ) {
+			return false;
+		}
+
+		try {
+			Review_Service::decide(
+				(int) $case->id,
+				0, // the system, on corroborating evidence
+				\Obitleague\Domain\Review_Rules::APPROVED,
+				array(
+					'origin_groups'      => array_slice( array_unique( $origins ), 0, 4 ),
+					'death_date'         => $exact,
+					'cause_disclosed'    => false,
+					'cause_text'         => '',
+					'official_statement' => false,
+					'reason'             => sprintf( 'Auto-approved: corroborated by %d independent source(s): %s.', count( $domains ) > 0 ? count( $domains ) : count( $origins ), implode( ', ', array_slice( array_merge( array_diff( $origins, array( 'enwiki-deaths-list', 'wikidata-P570' ) ), array( 'enwiki-deaths-list', 'wikidata-P570' ) ), 0, 4 ) ) ),
+				),
+				(int) $case->revision
+			);
+			\Obitleague\Modules\Outbox_Service::process_outbox( 100 );
+			return true;
+		} catch ( \Throwable ) {
+			return false;
+		}
 	}
 
 	/**
@@ -624,6 +788,83 @@ final class Death_Wire {
 	/** Promote a provisional record to a confirmed death. */
 	public static function confirm_provisional( int $post_id ): void {
 		delete_post_meta( $post_id, 'obit_death_provisional' );
+	}
+
+	/** Fetch and parse a story's article for the name + death signature. */
+	private static function signature_from_story( string $source_url ): ?array {
+		$cache_key = 'obit_sig_' . md5( $source_url );
+		$cached    = get_transient( $cache_key );
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+		$parsed = \Obitleague\Domain\Obituary_Article::parse( self::article_text( $source_url ) );
+		if ( '' === $parsed['name'] || '' === $parsed['death_date'] ) {
+			set_transient( $cache_key, array(), HOUR_IN_SECONDS );
+			return null;
+		}
+		set_transient( $cache_key, $parsed, 12 * HOUR_IN_SECONDS );
+		return $parsed;
+	}
+
+	/**
+	 * Create a provisional person from an article signature. Refuses when a
+	 * record with the same name already exists — ambiguous homonyms are the
+	 * editor's problem, not the wire's.
+	 */
+	private static function create_provisional_from_signature( string $name, string $death_date, string $source_url, string $source_name ): int {
+		$existing = get_posts(
+			array(
+				'post_type'      => Catalogue::POST_TYPE,
+				'post_status'    => array( 'publish', 'draft' ),
+				'title'          => $name,
+				'posts_per_page' => 1,
+				'fields'         => 'ids',
+			)
+		);
+		if ( $existing ) {
+			return 0;
+		}
+		try {
+			$post_id = Import_Service::import_person( array( 'name' => $name, 'birth_date' => '', 'death_date' => $death_date, 'provisional' => true ) );
+		} catch ( \Throwable ) {
+			return 0;
+		}
+		self::mark_provisional( $post_id );
+		self::open_case_for( $post_id, 'Obituary desk signature: ' . $source_name . ' records a death on ' . $death_date . '; corroboration pending.' );
+		self::attach_source( $post_id, $source_name, $source_url, (string) gmdate( 'Y-m-d H:i:s' ) );
+		Person_Content::regenerate( $post_id );
+		return $post_id;
+	}
+
+	/** Fetch the visible text of a story's article page (bounded, cache-
+	 * friendly). Used to lift the name + date-of-death signature that
+	 * obituary desks print at the foot of their pieces.
+	 */
+	public static function article_text( string $url ): string {
+		if ( '' === $url || ! str_starts_with( $url, 'http' ) ) {
+			return '';
+		}
+		$response = wp_remote_get(
+			$url,
+			array(
+				'timeout'    => 15,
+				'limit_response_size' => 524288,
+				'user-agent' => self::USER_AGENT,
+			)
+		);
+		if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+			return '';
+		}
+		$html = (string) wp_remote_retrieve_body( $response );
+		// Prefer the <article> element; fall back to the whole body.
+		if ( preg_match( '/<article[^>]*>(.*?)<\/article>/is', $html, $m ) ) {
+			$html = (string) $m[1];
+		}
+		$text = preg_replace( '/<script\b[^>]*>.*?<\/script>/is', ' ', $html ) ?? $html;
+		$text = preg_replace( '/<style\b[^>]*>.*?<\/style>/is', ' ', $text ) ?? $text;
+		$text = preg_replace( '/<[^>]+>/', ' ', $text ) ?? $text;
+		$text = html_entity_decode( $text, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		return trim( preg_replace( '/\s+/u', ' ', $text ) ?? '' );
 	}
 
 	/**
@@ -701,6 +942,7 @@ final class Death_Wire {
 		}
 		$ok = self::attach_source( $post_id, (string) ( $item->source_name ?: 'News feed' ), (string) $item->url, (string) gmdate( 'Y-m-d H:i:s' ) );
 		if ( $ok ) {
+			self::maybe_auto_confirm( $post_id );
 			$wpdb->update(
 				$wpdb->prefix . 'obitleague_feed_items',
 				array( 'wire_state' => 'attached' ),
@@ -999,6 +1241,8 @@ final class Death_Wire {
 		$stats['source_duplicates'] = 0;
 		$stats['checks_queued']     = 0;
 		$stats['discarded_low_likelihood'] = 0;
+		$stats['created_from_article']     = 0;
+		$stats['auto_confirmed']           = 0;
 		$stats['flagged_unconfirmable'] = 0;
 		$stats['flagged_no_anchor'] = 0;
 		$stats['skipped_no_url']    = 0;

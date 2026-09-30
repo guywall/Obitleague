@@ -5,6 +5,32 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Added — Article signatures create people; corroboration auto-confirms (0.15.1)
+
+- **Obituary-desk articles now create people directly.** When a story from
+  an obituary source matches no existing record, the wire fetches the
+  article page and parses the signature obituary desks print at the foot
+  of a piece — name plus exact date of death. Both facts present, the
+  person is created at once as provisional (visible, unscored) with an
+  open review case and the article attached as a source. Existing records
+  are never touched: a name collision is the editor's problem, not the
+  wire's.
+- **Corroboration auto-confirms.** When a pending case's record carries an
+  exact death date and two or more independent origins — the Wikipedia
+  deaths list, Wikidata, or distinct press domains (registrable-domain
+  matching, so two Guardian links count once) — the case is approved
+  through the normal decide() path as the system reviewer, with the
+  evidence named in the audit reason. Attach-time and publish-time
+  source attachments both trigger the check.
+- **`wp obitleague reclassify-feed-items`** re-runs the current weighted
+  classifier over every stored feed item so verdicts and likelihoods
+  reflect the new scoring; `--dry-run` shows the migrations first. The
+  Guardian Obituaries stories that showed 30% under the old cue counter
+  now score 95 under the weighted one.
+- New pure domain classes: `Obituary_Article` (name + death-date
+  signature parsing, both date orders) and `Sources` (registrable-domain
+  extraction), both unit-tested.
+
 ### Changed — Weighted death-detection classifier replaces the cue counter (0.15.0)
 
 - **The RSS classifier is now a weighted death detector, not a keyword
