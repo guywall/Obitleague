@@ -824,6 +824,7 @@ final class Death_Wire {
 		// into one 0–95 scale.
 		$discarded = 0;
 		$kept      = 0;
+		$not_death = 0;
 		if ( $dry_run ) {
 			$below = 0;
 		}
@@ -859,14 +860,28 @@ final class Death_Wire {
 			$offset += $batch;
 		} while ( count( $rows ) === $batch );
 
+		// 3. Mark every never-swept not_death story as discarded. The
+		// classifier has already ruled them out — they only ever appeared
+		// in the audit bucket, never as pending work, so there is nothing
+		// to re-examine before clearing them.
+		if ( $dry_run ) {
+			$not_death = (int) $wpdb->get_var(
+				"SELECT COUNT(*) FROM {$table} WHERE wire_state = '' AND classification = 'not_death'"
+			);
+		} else {
+			$not_death = (int) $wpdb->query(
+				"UPDATE {$table} SET wire_state = 'discarded' WHERE wire_state = '' AND classification = 'not_death'"
+			);
+		}
+
 		if ( $dry_run ) {
 			\WP_CLI::log( sprintf( 'Threshold: %d%%. Pending signals seen: %d; reclassified: %d.', $threshold, $scored, $changed ) );
-			\WP_CLI::log( sprintf( 'Dry run: %d pending signal(s) sit below the %d%% line and would be discarded.', $below, $threshold ) );
+			\WP_CLI::log( sprintf( 'Dry run: %d pending signal(s) below the %d%% line and %d not_death story/stories would be discarded.', $below, $threshold, $not_death ) );
 			\WP_CLI::success( 'No changes made (dry run).' );
 			return;
 		}
 		\WP_CLI::log( sprintf( 'Threshold: %d%%. Pending signals seen: %d; reclassified: %d.', $threshold, $scored, $changed ) );
-		\WP_CLI::success( sprintf( 'Tidy complete: %d pending signal(s) below %d%% discarded; %d remain pending.', $discarded, $threshold, $kept ) );
+		\WP_CLI::success( sprintf( 'Tidy complete: %d pending signal(s) below %d%% and %d not_death story/stories discarded; %d remain pending.', $discarded, $threshold, $not_death, $kept ) );
 	}
 
 	/**
