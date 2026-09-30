@@ -8,7 +8,8 @@
  * core script printing); the theme's own header/footer are hidden via CSS
  * (body.ob-on) so both mechanisms can coexist safely.
  *
- * Fonts: Fraunces (display serif) + Public Sans (UI) from Google Fonts.
+ * Fonts: JetBrains Mono (typewriter body/UI) + Outfit (display titles) from
+ * Google Fonts.
  *
  * @package Obitleague
  */
@@ -42,11 +43,15 @@ final class Site_Chrome {
 		add_action( 'wp_head', array( self::class, 'fonts' ), 2 );
 	}
 
-	/** Display fonts: Fraunces for headings, Public Sans for UI. */
+	/**
+	 * Typewriter body plus a heavier display face for titles. Both are
+	 * variable fonts, so the whole weight range the design uses comes from a
+	 * single family request each.
+	 */
 	public static function fonts(): void {
 		echo "<link rel='preconnect' href='https://fonts.googleapis.com' />\n";
 		echo "<link rel='preconnect' href='https://fonts.gstatic.com' crossorigin />\n";
-		echo "<link href='https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Public+Sans:wght@400;500;600;700;800&display=swap' rel='stylesheet' />\n";
+		echo "<link href='https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300..800&family=Outfit:wght@300..900&display=swap' rel='stylesheet' />\n";
 	}
 
 	public static function render_header(): void {

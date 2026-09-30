@@ -90,7 +90,7 @@ final class Admin_Discovery {
 			$hint    = (string) get_post_meta( $post_id, Import_Service::META_OCCUPATION_HINT, true );
 			$desc    = (string) get_post_meta( $post_id, 'obit_discovery_description', true );
 			$edit    = get_edit_post_link( $post_id, 'raw' );
-			echo '<section style="background:#fff;border:1px solid #c3c4c7;padding:16px;margin:16px 0;max-width:980px">';
+			echo '<section style="background:#ffffff;border:1px solid #c4c4c4;padding:16px;margin:16px 0;max-width:980px">';
 			echo '<h3>' . esc_html( get_the_title( $post_id ) ) . ' <small>· born ' . esc_html( $birth ) . '</small></h3>';
 			if ( $desc ) {
 				echo '<p>' . esc_html( $desc ) . '</p>';

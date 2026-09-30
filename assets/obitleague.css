@@ -1,26 +1,46 @@
 /**
  * Obitleague design system.
- * Editorial obituary aesthetic: deep green, brass, serif display type.
+ *
+ * Monochrome typewriter: one mono family carries all copy, a single
+ * heavier display family carries titles, and every colour is a grey. The
+ * only permitted variation is weight, size and style, so hierarchy is
+ * carried by contrast and space instead of hue.
+ *
  * Mobile-first; scales at 720px and 1024px. Site chrome lives in chrome.css.
  */
 
 :root {
-	--ob-ink: #131c17;
-	--ob-muted: #5f6f66;
-	--ob-paper: #f3f4ef;
+	/* Type: two families, nothing else. */
+	--ob-font-body: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	--ob-font-display: 'Outfit', 'Helvetica Neue', Arial, sans-serif;
+
+	/* Greys only. Ink is near-black, paper is a hair off white so panels
+	   still separate from the sheet behind them. */
+	--ob-ink: #16181b;
+	--ob-ink-soft: #2f343a;
+	--ob-muted: #5c6167;
+	--ob-faint: #8b9098;
+	--ob-paper: #f2f2f0;
 	--ob-card: #ffffff;
-	--ob-line: #dfe3d8;
-	--ob-accent: #0d7d5a;
-	--ob-accent-deep: #0a3d2c;
-	--ob-accent-soft: #e2f2ea;
-	--ob-brass: #b98a2f;
-	--ob-brass-soft: #f3e8cf;
-	--ob-rose: #b3452f;
-	--ob-rose-soft: #f6e3dd;
-	--ob-radius: 14px;
-	--ob-radius-sm: 10px;
-	--ob-shadow: 0 1px 2px rgba(19, 28, 23, 0.05), 0 6px 18px rgba(19, 28, 23, 0.06);
-	--ob-shadow-lift: 0 3px 8px rgba(19, 28, 23, 0.1), 0 14px 34px rgba(19, 28, 23, 0.12);
+	--ob-line: #dededa;
+	--ob-line-soft: #ebebe8;
+	--ob-accent: #2f343a;
+	--ob-accent-deep: #16181b;
+	--ob-accent-soft: #e9e9e6;
+	/* Legacy accent slots, kept as names so the older rules keep working. */
+	--ob-brass: #7c8087;
+	--ob-brass-soft: #ededea;
+	--ob-rose: #3c4147;
+	--ob-rose-soft: #eeeeec;
+	--ob-green: #2f343a;
+	--ob-green-deep: #16181b;
+	--ob-green-ink: #16181b;
+
+	/* Square corners and hairline shadows: this is printed matter, not an app. */
+	--ob-radius: 6px;
+	--ob-radius-sm: 3px;
+	--ob-shadow: 0 1px 2px rgba(22, 24, 27, 0.05);
+	--ob-shadow-lift: 0 2px 8px rgba(22, 24, 27, 0.1);
 	--ob-ease: cubic-bezier(0.22, 1, 0.1, 1);
 }
 
@@ -33,23 +53,28 @@
 }
 
 /* ---------- typography ---------- */
+/* Only two families exist. Weight, size and style do all the differentiating;
+   colour never carries meaning. */
 .ob-heading {
-	font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
-	font-weight: 700;
-	font-size: 1.75rem;
-	letter-spacing: -0.015em;
-	line-height: 1.15;
+	font-family: var(--ob-font-display);
+	font-weight: 800;
+	font-size: 1.9rem;
+	letter-spacing: -0.03em;
+	line-height: 1.1;
 	margin: 34px 0 6px;
 	display: flex;
 	align-items: center;
-	gap: 12px;
+	gap: 14px;
 }
+/* The rule after a heading is the one flourish we allow: a typewriter typing
+   line, so it is a hard hairline rather than a gradient. */
 .ob-heading::after {
 	content: '';
-	height: 2px;
-	width: 42px;
-	border-radius: 2px;
-	background: linear-gradient(90deg, var(--ob-brass), transparent);
+	height: 1px;
+	width: 48px;
+	border-radius: 0;
+	background: var(--ob-ink);
+	opacity: 0.35;
 	flex: 0 0 auto;
 }
 .ob-heading:first-child { margin-top: 8px; }
@@ -61,70 +86,82 @@
 }
 
 /* ---------- hero ---------- */
+/* Flat near-black panel. The only texture is a faint ruled grid, the way a
+   sheet of continuous-feed paper reads under a ribbon. */
 .ob-hero {
 	position: relative;
 	overflow: hidden;
-	border-radius: 20px;
+	border-radius: 0;
 	margin: 22px 0 6px;
-	padding: 52px 34px 50px;
-	background:
-		radial-gradient(900px 420px at 88% -20%, rgba(240, 199, 94, 0.14), transparent 55%),
-		radial-gradient(700px 380px at -10% 110%, rgba(18, 160, 111, 0.25), transparent 60%),
-		linear-gradient(150deg, #0d4633, #07281c 75%);
-	color: #fff;
-	box-shadow: 0 18px 50px rgba(7, 40, 28, 0.35);
+	padding: 56px 34px 54px;
+	background: #16181b;
+	color: #ffffff;
+	box-shadow: none;
 }
 .ob-hero::before {
 	content: '';
 	position: absolute;
 	inset: 0;
-	background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1.4px);
-	background-size: 22px 22px;
+	background-image:
+		repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.055) 0 1px, transparent 1px 28px);
 	pointer-events: none;
 }
 .ob-hero__kicker {
 	position: relative;
 	display: inline-flex;
 	align-items: center;
-	gap: 8px;
-	font-family: 'Public Sans', sans-serif;
-	font-size: 0.72rem;
-	font-weight: 800;
-	letter-spacing: 0.16em;
+	gap: 10px;
+	font-family: var(--ob-font-body);
+	font-size: 0.7rem;
+	font-weight: 500;
+	letter-spacing: 0.22em;
 	text-transform: uppercase;
-	color: #f0c75e;
-	margin: 0 0 14px;
+	color: #8b9098;
+	margin: 0 0 16px;
 }
 .ob-hero__kicker::before {
 	content: '';
-	width: 26px;
+	flex: 0 0 auto;
+	width: 32px;
 	height: 1px;
-	background: #f0c75e;
+	background: #8b9098;
+}
+/* Tracked-out mono wraps early, so on narrow screens the kicker drops the
+   rule and tightens rather than orphaning it beside a short line. */
+@media (max-width: 560px) {
+	.ob-hero__kicker {
+		letter-spacing: 0.16em;
+		gap: 0;
+	}
+
+	.ob-hero__kicker::before {
+		display: none;
+	}
 }
 .ob-hero h1 {
 	position: relative;
-	font-family: 'Fraunces', Georgia, serif;
-	font-weight: 900;
-	font-size: clamp(2.1rem, 6vw, 3.4rem);
-	line-height: 1.04;
-	letter-spacing: -0.02em;
-	margin: 0 0 14px;
+	font-family: var(--ob-font-display);
+	font-weight: 800;
+	font-size: clamp(2.3rem, 6vw, 3.6rem);
+	line-height: 1;
+	letter-spacing: -0.035em;
+	margin: 0 0 16px;
 	max-width: 16ch;
 }
 .ob-hero p {
 	position: relative;
 	margin: 0 0 24px;
-	font-size: 1.02rem;
-	line-height: 1.6;
-	opacity: 0.88;
+	font-size: 0.95rem;
+	line-height: 1.7;
+	color: rgba(255, 255, 255, 0.72);
 	max-width: 58ch;
 }
 .ob-hero__cta {
 	position: relative;
 	display: flex;
 	flex-wrap: wrap;
-	gap: 14px;
-	margin-top: 26px;
+	gap: 12px;
+	margin-top: 28px;
 }
 .ob-hero__cta a {
 	display: inline-flex;
@@ -132,82 +169,81 @@
 	gap: 8px;
 	min-height: 48px;
 	padding: 12px 24px;
-	border-radius: 10px;
-	background: #f0c75e;
-	color: #07281c;
-	font-weight: 800;
-	font-size: 0.95rem;
+	border-radius: 3px;
+	background: #ffffff;
+	color: #16181b;
+	font-weight: 700;
+	font-size: 0.82rem;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
 	text-decoration: none;
-	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
-	transition: transform 0.18s var(--ob-ease), box-shadow 0.18s;
+	border: 1px solid #ffffff;
+	box-shadow: none;
+	transition: background 0.18s var(--ob-ease), color 0.18s;
 }
 .ob-hero__cta a:hover {
-	transform: translateY(-2px);
-	box-shadow: 0 10px 26px rgba(0, 0, 0, 0.34);
-	color: #07281c;
+	transform: none;
+	background: transparent;
+	color: #ffffff;
+	box-shadow: none;
 }
 
 /* ---------- stat tiles ---------- */
 .ob-stats {
 	display: grid;
 	grid-template-columns: repeat(2, 1fr);
-	gap: 14px;
+	gap: 0;
 	margin: 24px 0 8px;
+	border-top: 1px solid var(--ob-ink);
+	border-left: 1px solid var(--ob-line);
 }
 .ob-stat {
 	position: relative;
 	background: var(--ob-card);
 	border: 1px solid var(--ob-line);
-	border-radius: var(--ob-radius);
-	box-shadow: var(--ob-shadow);
-	padding: 20px 16px 18px;
-	text-align: center;
+	border-top: 0;
+	border-left: 0;
+	border-radius: 0;
+	box-shadow: none;
+	padding: 22px 16px 20px;
+	text-align: left;
 	overflow: hidden;
-	transition: transform 0.2s var(--ob-ease), box-shadow 0.2s;
+	transition: background 0.2s var(--ob-ease);
 }
+/* Tiles share one hairline grid, like a boxed table. Hover is a wash, not a
+   lift — nothing on this site floats. */
 .ob-stat:hover {
-	transform: translateY(-2px);
-	box-shadow: var(--ob-shadow-lift);
+	transform: none;
+	box-shadow: none;
+	background: var(--ob-accent-soft);
 }
 .ob-badge--provisional {
-	background: #f4e9c8;
-	color: #7a5c14;
-	border: 1px solid #d9a93c;
+	background: #e9e9e9;
+	color: #3c4147;
+	border: 1px dashed #b0b0b0;
 }
 .ob-person__status--provisional {
-	background: #f4e9c8;
-	color: #7a5c14;
+	background: #e9e9e9;
+	color: #3c4147;
 }
-.ob-stat::before {
-	content: '';
-	position: absolute;
-	top: 0;
-	left: 0;
-	right: 0;
-	height: 3px;
-	background: linear-gradient(90deg, #12a06f, #0a5c40);
-}
-.ob-stat:nth-child(2)::before { background: linear-gradient(90deg, #d9a93c, #b98a2f); }
-.ob-stat:nth-child(3)::before { background: linear-gradient(90deg, #3e7bb6, #2b5d8f); }
-.ob-stat:nth-child(4)::before { background: linear-gradient(90deg, #b3452f, #8f3523); }
-.ob-stat:nth-child(5)::before { background: linear-gradient(90deg, #12a06f, #b98a2f); }
 .ob-stat__num {
 	display: block;
-	font-family: 'Fraunces', Georgia, serif;
-	font-weight: 900;
-	font-size: 2.4rem;
-	line-height: 1.05;
-	color: var(--ob-accent-deep);
+	font-family: var(--ob-font-display);
+	font-weight: 800;
+	font-size: 2.6rem;
+	line-height: 1;
+	letter-spacing: -0.04em;
+	color: var(--ob-ink);
 	font-variant-numeric: tabular-nums;
 }
 .ob-stat__label {
 	display: block;
-	margin-top: 6px;
-	font-size: 0.72rem;
-	font-weight: 700;
+	margin-top: 8px;
+	font-size: 0.68rem;
+	font-weight: 500;
 	color: var(--ob-muted);
 	text-transform: uppercase;
-	letter-spacing: 0.09em;
+	letter-spacing: 0.18em;
 }
 
 /* ---------- cards & grids ---------- */
@@ -224,19 +260,20 @@
 	background: var(--ob-card);
 	border: 1px solid var(--ob-line);
 	border-radius: var(--ob-radius);
-	box-shadow: var(--ob-shadow);
-	padding: 18px 16px;
-	transition: transform 0.2s var(--ob-ease), box-shadow 0.2s;
+	box-shadow: none;
+	padding: 20px 18px;
+	transition: border-color 0.2s;
 }
 .ob-card:hover {
-	box-shadow: var(--ob-shadow-lift);
+	box-shadow: none;
+	border-color: var(--ob-ink-soft);
 }
 .ob-card__title {
-	font-family: 'Fraunces', Georgia, serif;
+	font-family: var(--ob-font-display);
 	font-weight: 700;
-	font-size: 1.12rem;
+	font-size: 1.15rem;
 	margin: 0 0 12px;
-	letter-spacing: -0.01em;
+	letter-spacing: -0.02em;
 }
 
 /* ---------- standings tables ---------- */
@@ -266,13 +303,13 @@
 }
 .ob-table th {
 	text-align: left;
-	font-size: 0.68rem;
-	font-weight: 800;
+	font-size: 0.66rem;
+	font-weight: 500;
 	text-transform: uppercase;
-	letter-spacing: 0.09em;
+	letter-spacing: 0.18em;
 	color: var(--ob-muted);
-	padding: 8px 8px 10px;
-	border-bottom: 2px solid var(--ob-accent-deep);
+	padding: 10px 8px;
+	border-bottom: 1px solid var(--ob-ink);
 }
 .ob-table td {
 	padding: 10px 8px;
@@ -283,7 +320,7 @@
 	transition: background 0.15s;
 }
 .ob-table tbody tr:hover {
-	background: #f7f8f4;
+	background: #f8f8f8;
 }
 .ob-table tr:last-child td {
 	border-bottom: 0;
@@ -294,35 +331,37 @@
 	width: 2.2em;
 }
 .ob-rank--1, .ob-rank--2, .ob-rank--3 {
-	color: #8a6a1d;
+	color: var(--ob-ink);
 }
+/* Podium is expressed with ink density and weight, not gold/silver/bronze:
+   1st is solid, 2nd is outlined, 3rd is faint. */
 .ob-medal {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
 	width: 26px;
 	height: 26px;
-	border-radius: 50%;
+	border-radius: 3px;
 	font-size: 0.78rem;
-	font-weight: 800;
+	font-weight: 500;
 	color: var(--ob-muted);
-	background: #eef0ea;
+	background: transparent;
 	box-shadow: inset 0 0 0 1px var(--ob-line);
 }
 .ob-medal--1 {
-	color: #7a5c12;
-	background: linear-gradient(150deg, #f6df9a, #e3b84f);
-	box-shadow: inset 0 0 0 1px rgba(122, 92, 18, 0.35), 0 2px 6px rgba(185, 138, 47, 0.35);
+	color: #ffffff;
+	background: var(--ob-ink);
+	box-shadow: none;
 }
 .ob-medal--2 {
-	color: #5d6470;
-	background: linear-gradient(150deg, #eef0f4, #c7ccd6);
-	box-shadow: inset 0 0 0 1px rgba(93, 100, 112, 0.35), 0 2px 6px rgba(93, 100, 112, 0.25);
+	color: var(--ob-ink);
+	background: transparent;
+	box-shadow: inset 0 0 0 1.5px var(--ob-ink-soft);
 }
 .ob-medal--3 {
-	color: #7c4a24;
-	background: linear-gradient(150deg, #ecc39a, #cd8f58);
-	box-shadow: inset 0 0 0 1px rgba(124, 74, 36, 0.35), 0 2px 6px rgba(179, 90, 47, 0.3);
+	color: var(--ob-muted);
+	background: #efefef;
+	box-shadow: none;
 }
 .ob-pts {
 	font-weight: 800;
@@ -330,9 +369,9 @@
 }
 .ob-lead {
 	font-weight: 700;
-	border-left: 3px solid var(--ob-brass);
+	border-left: 2px solid var(--ob-ink);
 	padding-left: 8px;
-	margin-left: -11px;
+	margin-left: -10px;
 }
 
 /* ---------- death rows ---------- */
@@ -361,7 +400,7 @@
 	font-weight: 600;
 }
 .ob-death__name {
-	font-family: 'Fraunces', Georgia, serif;
+	font-family: var(--ob-font-display);
 	font-weight: 700;
 	font-size: 1.02rem;
 }
@@ -380,57 +419,65 @@
 	font-size: 0.82rem;
 	margin-top: 2px;
 }
+/* Status tags. With no hue available they separate by fill, border weight
+   and ink density: solid = scored/confirmed, outline = pending, dashed =
+   nothing yet. */
 .ob-badge {
 	display: inline-block;
 	background: var(--ob-accent-soft);
 	color: var(--ob-accent-deep);
-	border-radius: 999px;
-	padding: 3px 10px;
-	font-size: 0.7rem;
-	font-weight: 800;
+	border: 1px solid transparent;
+	border-radius: 3px;
+	padding: 3px 9px;
+	font-size: 0.66rem;
+	font-weight: 500;
+	text-transform: uppercase;
+	letter-spacing: 0.14em;
 	margin-left: 6px;
 	white-space: nowrap;
-	letter-spacing: 0.02em;
 }
 .ob-badge--brass {
-	background: var(--ob-brass-soft);
-	color: #7a5c12;
+	background: #dcdcd8;
+	color: #3c4147;
 }
 .ob-badge--warn {
-	background: var(--ob-rose-soft);
-	color: var(--ob-rose);
+	background: transparent;
+	color: var(--ob-ink);
+	border-color: var(--ob-ink);
 }
 .ob-badge--hit {
-	background: var(--ob-brass-soft);
-	color: #7a5c12;
+	background: var(--ob-ink);
+	color: #ffffff;
 }
 .ob-badge--miss {
-	background: var(--ob-card, #fff);
-	color: var(--ob-muted, #6b7280);
-	border: 1px dashed var(--ob-line, #d1d5db);
+	background: transparent;
+	color: var(--ob-muted);
+	border: 1px dashed var(--ob-line);
 }
 
-/* Hit/miss filter pills on the obituaries index. */
+/* Hit/miss filter chips on the obituaries index. */
 .ob-chip {
 	display: inline-flex;
 	align-items: center;
-	padding: 5px 14px;
-	border-radius: 999px;
+	padding: 6px 14px;
+	border-radius: 3px;
 	border: 1px solid var(--ob-line);
 	background: var(--ob-card);
-	color: var(--ob-muted, #6b7280);
-	font-size: 0.8rem;
-	font-weight: 700;
+	color: var(--ob-muted);
+	font-size: 0.68rem;
+	font-weight: 500;
+	text-transform: uppercase;
+	letter-spacing: 0.14em;
 	text-decoration: none;
 }
 .ob-chip:hover {
-	border-color: var(--ob-accent);
-	color: var(--ob-accent-deep, #3d2c1e);
+	border-color: var(--ob-ink);
+	color: var(--ob-ink);
 }
 .ob-chip.is-active {
-	background: var(--ob-accent);
-	border-color: var(--ob-accent);
-	color: #fff;
+	background: var(--ob-ink);
+	border-color: var(--ob-ink);
+	color: #ffffff;
 }
 .ob-deaths-index__filters {
 	display: flex;
@@ -451,35 +498,37 @@
 	border: 1px solid var(--ob-line);
 	border-radius: var(--ob-radius);
 	padding: 14px 12px 12px;
-	box-shadow: var(--ob-shadow);
-	transition: transform 0.2s var(--ob-ease), box-shadow 0.2s, border-color 0.2s;
+	box-shadow: none;
+	transition: background 0.2s var(--ob-ease), border-color 0.2s;
 	overflow: hidden;
 }
 .ob-person:hover {
-	transform: translateY(-2px);
-	box-shadow: var(--ob-shadow-lift);
-	border-color: #c9d2c4;
+	transform: none;
+	box-shadow: none;
+	border-color: var(--ob-ink);
 }
+/* Monogram tiles are flat ink-grey squares; the dead/living distinction is
+   carried by ink weight alone. */
 .ob-person__avatar {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
 	width: 40px;
 	height: 40px;
-	border-radius: 12px;
+	border-radius: 3px;
 	margin: 0 0 10px;
-	background: linear-gradient(150deg, #e2f2ea, #cfe8dc);
-	color: var(--ob-accent-deep);
-	font-family: 'Fraunces', Georgia, serif;
-	font-weight: 900;
+	background: #e9e9e6;
+	color: #5c6167;
+	font-family: var(--ob-font-display);
+	font-weight: 800;
 	font-size: 1rem;
 }
 .ob-person--dead .ob-person__avatar {
-	background: linear-gradient(150deg, #ece7db, #ddd3bd);
-	color: #6b5b32;
+	background: var(--ob-ink);
+	color: #ffffff;
 }
 .ob-person__name {
-	font-family: 'Fraunces', Georgia, serif;
+	font-family: var(--ob-font-display);
 	font-weight: 700;
 	font-size: 0.98rem;
 	margin: 0 0 3px;
@@ -514,11 +563,11 @@
 	letter-spacing: 0.08em;
 	color: var(--ob-accent);
 	background: var(--ob-accent-soft);
-	border-radius: 999px;
+	border-radius: 3px;
 	padding: 3px 8px;
 }
 .ob-person--dead .ob-person__status {
-	color: #7a5c12;
+	color: #616161;
 	background: var(--ob-brass-soft);
 }
 
@@ -548,7 +597,7 @@
 	border: 0;
 	border-radius: var(--ob-radius-sm);
 	background: var(--ob-accent-deep);
-	color: #fff;
+	color: #ffffff;
 	font-weight: 700;
 	font-size: 0.9rem;
 	cursor: pointer;
@@ -557,7 +606,7 @@
 }
 .ob-filters button:hover {
 	transform: translateY(-1px);
-	background: #0d4633;
+	background: #3d3d3d;
 }
 
 /* ---------- responsive ---------- */
@@ -712,7 +761,7 @@
 	border: 0;
 	border-radius: var(--ob-radius-sm);
 	background: var(--ob-accent-deep);
-	color: #fff;
+	color: #ffffff;
 	font-weight: 700;
 	font-size: 0.88rem;
 	cursor: pointer;
@@ -720,7 +769,7 @@
 	transition: background 0.15s;
 }
 .ob-people__search button:hover {
-	background: #0d4633;
+	background: #3d3d3d;
 }
 .ob-people__sorts {
 	display: flex;
@@ -730,7 +779,7 @@
 .ob-people__sort {
 	padding: 8px 14px;
 	border: 1px solid var(--ob-line);
-	border-radius: 999px;
+	border-radius: 3px;
 	background: var(--ob-card);
 	color: var(--ob-ink);
 	font-size: 0.84rem;
@@ -745,7 +794,7 @@
 .ob-people__sort.is-active {
 	background: var(--ob-accent-deep);
 	border-color: var(--ob-accent-deep);
-	color: #fff;
+	color: #ffffff;
 }
 .ob-people__letters {
 	display: flex;
@@ -761,14 +810,14 @@
 	font-weight: 700;
 	color: var(--ob-accent-deep);
 	text-decoration: none;
-	border-radius: 6px;
+	border-radius: 3px;
 }
 .ob-people__letter:hover {
 	background: var(--ob-accent-soft);
 }
 .ob-people__letter.is-active {
 	background: var(--ob-accent-deep);
-	color: #fff;
+	color: #ffffff;
 }
 .ob-people__letter.is-empty {
 	color: var(--ob-line);
@@ -809,7 +858,7 @@
 .ob-page-link.is-current {
 	background: var(--ob-accent-deep);
 	border-color: var(--ob-accent-deep);
-	color: #fff;
+	color: #ffffff;
 }
 .ob-page-gap {
 	color: var(--ob-muted);
@@ -854,20 +903,20 @@
 	font-weight: 700;
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
-	color: var(--ob-muted, #5a6b5d);
+	color: var(--ob-muted, #676767);
 }
 
-.ob-ai-card__category--official { color: var(--ob-accent, #8a6d1f); }
+.ob-ai-card__category--official { color: var(--ob-accent, #717171); }
 
 .ob-ai-card__name { font-weight: 700; font-size: 1.05rem; }
 
 .ob-ai-card__desc {
 	font-size: 0.86rem;
-	color: var(--ob-muted, #5a6b5d);
+	color: var(--ob-muted, #676767);
 	line-height: 1.45;
 }
 
-.ob-ai-card__model { font-size: 0.78rem; color: var(--ob-muted, #5a6b5d); }
+.ob-ai-card__model { font-size: 0.78rem; color: var(--ob-muted, #676767); }
 
 .ob-ai-meta {
 	display: grid;
@@ -876,14 +925,14 @@
 	margin: 0;
 }
 
-.ob-ai-meta dt { font-weight: 700; color: var(--ob-muted, #5a6b5d); }
+.ob-ai-meta dt { font-weight: 700; color: var(--ob-muted, #676767); }
 .ob-ai-meta dd { margin: 0; }
 
 .ob-ai-badge {
 	display: inline-block;
 	padding: 0.05rem 0.5rem;
 	border: 1px solid var(--ob-line);
-	border-radius: 999px;
+	border-radius: 3px;
 	font-size: 0.7rem;
 	font-weight: 700;
 	letter-spacing: 0.04em;
@@ -891,8 +940,8 @@
 }
 
 .ob-ai-badge--verified {
-	border-color: var(--ob-accent, #8a6d1f);
-	color: var(--ob-accent, #8a6d1f);
+	border-color: var(--ob-accent, #717171);
+	color: var(--ob-accent, #717171);
 }
 
 .ob-ai-pick {
@@ -905,7 +954,7 @@
 
 .ob-ai-pick img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
 
-.ob-ai-pick__points { margin-left: auto; font-weight: 700; color: var(--ob-accent, #8a6d1f); }
+.ob-ai-pick__points { margin-left: auto; font-weight: 700; color: var(--ob-accent, #717171); }
 
 .ob-vs-grid {
 	display: grid;
@@ -915,7 +964,7 @@
 
 .ob-vs-caveat {
 	font-size: 0.84rem;
-	color: var(--ob-muted, #5a6b5d);
+	color: var(--ob-muted, #676767);
 	border-left: 3px solid var(--ob-line);
 	padding-left: 0.8rem;
 }
@@ -928,14 +977,14 @@
 
 /* Status words render as badges, not giant display numerals (#5 in UX report). */
 .ob-my-league__state.ob-my-league__state {
-	font-family: var(--ob-font-body, 'Public Sans', sans-serif);
+	font-family: var(--ob-font-body, var(--ob-font-body));
 	font-size: 0.9rem;
 	font-weight: 700;
 	text-transform: lowercase;
 	letter-spacing: 0.01em;
 	background: var(--ob-accent-soft);
 	color: var(--ob-accent-deep);
-	border-radius: 999px;
+	border-radius: 3px;
 	padding: 4px 12px;
 }
 
@@ -971,12 +1020,12 @@
 	border-radius: 50%;
 	background: var(--ob-accent-soft);
 	color: var(--ob-accent-deep);
-	font-family: 'Fraunces', Georgia, serif;
+	font-family: var(--ob-font-display);
 	font-weight: 700;
 	font-size: 1.1rem;
 }
 .ob-team__name {
-	font-family: 'Fraunces', Georgia, serif;
+	font-family: var(--ob-font-display);
 	font-weight: 600;
 	font-size: 1.02rem;
 	line-height: 1.25;
@@ -996,7 +1045,7 @@
 .ob-team__rank,
 .ob-team__pts {
 	background: var(--ob-brass-soft);
-	border-radius: 999px;
+	border-radius: 3px;
 	padding: 2px 10px;
 	color: var(--ob-accent-deep);
 	font-weight: 600;
@@ -1009,7 +1058,7 @@
 	font-weight: 600;
 	color: var(--ob-accent-deep);
 	background: var(--ob-accent-soft);
-	border-radius: 999px;
+	border-radius: 3px;
 	padding: 3px 10px;
 	text-decoration: none;
 }
