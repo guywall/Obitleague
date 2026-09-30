@@ -24,6 +24,7 @@ final class Jobs {
 	private const HOOK_STANDINGS_REBUILD = 'obitleague_standings_rebuild';
 	private const HOOK_WIKI_QUEUE  = 'obitleague_wiki_queue_tick';
 	private const HOOK_DISCOVERY_TICK    = 'obitleague_discovery_tick';
+	private const HOOK_DEATH_WIRE_TICK  = 'obitleague_death_wire_tick';
 
 	private function __construct() {}
 
@@ -41,6 +42,7 @@ final class Jobs {
 		add_action( self::HOOK_STANDINGS_REBUILD, array( self::class, 'rebuild_standings' ), 10, 2 );
 		add_action( self::HOOK_WIKI_QUEUE, array( self::class, 'run_wiki_queue' ) );
 		add_action( self::HOOK_DISCOVERY_TICK, array( self::class, 'run_discovery_tick' ) );
+		add_action( self::HOOK_DEATH_WIRE_TICK, array( self::class, 'run_death_wire_tick' ) );
 		add_action( 'obitleague_main_user_backfill', array( Main_League_Service::class, 'run_user_backfill' ), 10, 2 );
 
 		// Self-healing schedule: upgrades on existing installs never run
@@ -50,6 +52,9 @@ final class Jobs {
 		}
 		if ( ! \wp_next_scheduled( self::HOOK_DISCOVERY_TICK ) ) {
 			\wp_schedule_event( time() + 300, 'hourly', self::HOOK_DISCOVERY_TICK );
+		}
+		if ( ! \wp_next_scheduled( self::HOOK_DEATH_WIRE_TICK ) ) {
+			\wp_schedule_event( time() + 600, 'hourly', self::HOOK_DEATH_WIRE_TICK );
 		}
 	}
 
@@ -184,6 +189,11 @@ final class Jobs {
 			if ( $exists ) {
 				continue;
 			}
+			$verdict = Feed_Classifier::classify( (string) $item['title'] );
+			$cues    = array_merge(
+				(array) $verdict['matched'],
+				array_map( static fn ( string $cue ): string => '−' . $cue, (array) $verdict['negative'] )
+			);
 			$wpdb->insert(
 				$table,
 				array(
@@ -191,11 +201,13 @@ final class Jobs {
 					'guid'         => $item['guid'],
 					'url'          => $item['url'],
 					'title'        => $item['title'],
-					'classification' => Feed_Classifier::classify( $item['title'] )['classification'],
+					'classification' => $verdict['classification'],
+					'classification_score' => (int) $verdict['score'],
+					'matched_cues' => mb_substr( implode( ', ', $cues ), 0, 191 ),
 					'published_at' => gmdate( 'Y-m-d H:i:s', (int) strtotime( $item['date'] ) ),
 					'retrieved_at' => current_time( 'mysql', true ),
 				),
-				array( '%d', '%s', '%s', '%s', '%s', '%s', '%s' )
+				array( '%d', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s' )
 			);
 			if ( 1 === (int) $wpdb->rows_affected ) {
 				++$new;
@@ -276,5 +288,14 @@ final class Jobs {
 		if ( is_wp_error( $result ) ) {
 			error_log( 'Obitleague discovery tick: ' . $result->get_error_message() );
 		}
+	}
+
+	/**
+	 * Hourly death wire: enqueue the Wikipedia "Deaths in <year>" list pass
+	 * and the RSS wire sweep. The handlers themselves run through the global
+	 * Wikimedia request queue; this tick only primes it.
+	 */
+	public static function run_death_wire_tick(): void {
+		Death_Wire::run();
 	}
 }

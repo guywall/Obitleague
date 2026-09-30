@@ -5,6 +5,96 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Fixed — The death wire now actually runs
+
+- **The Wikipedia "Deaths in 2026" pass and the RSS wire sweep were never
+  scheduled.** `Death_Wire::run()` was reachable only through WP-CLI, so on a
+  production install the wire never fired and confirmed list deaths were not
+  being captured. A new hourly tick (`obitleague_death_wire_tick`) primes the
+  Wikimedia request queue every hour; it is armed by the self-healing boot,
+  on activation, and unscheduled on deactivation like the other jobs.
+- **The RSS sweep's `wire_state` column did not exist.** The sweep filters on
+  `feed_items.wire_state`, but the column was never added to the schema, so
+  the sweep died on a SQL error even when triggered by hand. The schema now
+  carries `wire_state`, plus `classification_score` and `matched_cues` for
+  the dashboard (DB 0.7.0 → 0.7.1, additive; `dbDelta` backfills existing
+  rows with defaults). Feed ingest now stores the classifier score and the
+  matched/negative cues alongside the classification.
+
+### Added — Death wire dashboard
+
+- **New admin screen: Obitleague → Death wire.** Status strip (list months
+  covered, Wikimedia queue depth, unprocessed candidates, next scheduled
+  run, last-run tallies) with a run-now button; **RSS source management** —
+  add a source by name, https feed URL and poll interval, with a probe that
+  refuses unreachable or non-feed URLs, and pause/resume/delete per source
+  (deleting a source removes its parsed stories); and a **parsed-stories
+  table** showing every story the feeds produced with its obituary
+  likelihood (classifier score as a 0–100% gauge), matched and negative
+  cues, wire outcome, and a **season wordcloud** aggregated over feed
+  titles, so the year's language is visible at a glance.
+- README documents the wire, the dashboard and the source-terms rule: the
+  dashboard makes adding easy, but unclear terms still mean no source.
+
+### Added — Static wiring audit in the domain suite
+
+- **The suite now re-proves the plugin's wiring on every CI run**, no
+  WordPress needed. `tests/Scenario_Wiring.php` verifies: every booted
+  module exists with a `boot()`, every `array( Class, "method" )` hook
+  callback resolves, every cross-class static call exists, every referenced
+  template and asset file exists, every shortcode tag maps to a real method,
+  every rewrite query var is registered or read, and every static internal
+  link points at a route the plugin itself guarantees.
+- The link audit immediately earned its keep: **`/standings/`, `/rules/` and
+  `/archive/` were linked from the header, footer and templates but never
+  created on a fresh install** (only the demo importer made them). They are
+  now auto-created with the overall-standings, rules and death-archive
+  shortcodes, alongside the existing teams/obituaries pages. The person
+  template's "Back to the catalogue" link now points at `/people/`, which is
+  actually guaranteed, instead of the demo-only `/catalogue/`.
+- **Restored the lost `Pick_Stats::season_picks_summary()`** — the header's
+  "Most picked" strip has been silently empty because a `method_exists`
+  guard masked the missing method. It is implemented on the cached pick
+  distribution, and the audit stays strict so a future deletion fails CI.
+- The Wikimedia User-Agent identity no longer links to a never-created
+  `/about/` page; it uses the site root.
+
+### Fixed — Team picker layout and button colourways
+
+- **Search results no longer cram the name and description onto one line.**
+  Each eligible-pick result is now a proper row: the person's name on its own
+  line, the disambiguation (age, occupations, QID) underneath, and a
+  **View on Wikipedia** link beside the choose button so players can confirm
+  they have the right person before adding them. Catalogue REST results now
+  expose the record's `enwiki` title to power that link; Wikidata-only
+  results fall back to a "View on Wikidata" link.
+- **Outlawed the broken button colourways site-wide.** The Elementor kit and
+  theme globals style bare buttons and out-specify the plugin's single-class
+  rules, which produced green-on-green and mint-on-yellow buttons. Doubled
+  `!important` declarations now pin the system regardless of what the kit
+  emits: primary is always gold on dark green, secondary and danger keep
+  their white-on-colour looks, the header search keeps its deliberate ghost
+  style, and disabled buttons always look disabled.
+
+### Added — Death log with hits and misses
+
+- **Every confirmed in-season death is now classified on the site.** The
+  obituaries index and the recent-deaths card mark each death as a **hit**
+  (someone picked them) or a **miss** (nobody did); the deaths pipeline
+  already imports unpicked deaths, so the misses surface is a view, not a new
+  pipeline. The index gains All/Hits/Misses filter pills (`?pick=picked`,
+  `?pick=missed`) and a summary line; the stats shortcode gains Hits and
+  Misses tiles for the season in play.
+- The Obituaries header menu is now a mega panel fronting the full death log:
+  all deaths, hits, misses, and the death archive. The People and Teams menus
+  keep mega panels too; Standings and Stats return to plain links so the
+  header reads as five clear destinations.
+- Header housekeeping: current-page highlighting on primary links, deleted
+  the never-booted `HeaderIntegration` module and the Elementor-only dead
+  methods on `Header`.
+- New WP-CLI probe `tests/verify-death-misses.php` proves hits + misses cover
+  every confirmed season death.
+
 ### Changed — Discovery self-population
 
 - **Discovery now samples the living cohort at random instead of walking it in

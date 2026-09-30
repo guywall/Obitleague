@@ -42,6 +42,9 @@ final class Setup {
 		if ( ! \wp_next_scheduled( 'obitleague_discovery_tick' ) ) {
 			\wp_schedule_event( time() + 300, 'hourly', 'obitleague_discovery_tick' );
 		}
+		if ( ! \wp_next_scheduled( 'obitleague_death_wire_tick' ) ) {
+			\wp_schedule_event( time() + 600, 'hourly', 'obitleague_death_wire_tick' );
+		}
 
 		flush_rewrite_rules();
 	}
@@ -60,7 +63,7 @@ final class Setup {
 	}
 
 	public static function deactivate(): void {
-		foreach ( array( 'obitleague_feed_poll', 'obitleague_profile_refresh', 'obitleague_outbox_tick', 'obitleague_standings_rebuild', 'obitleague_main_user_backfill', 'obitleague_wiki_queue_tick', 'obitleague_discovery_tick' ) as $hook ) {
+		foreach ( array( 'obitleague_feed_poll', 'obitleague_profile_refresh', 'obitleague_outbox_tick', 'obitleague_standings_rebuild', 'obitleague_main_user_backfill', 'obitleague_wiki_queue_tick', 'obitleague_discovery_tick', 'obitleague_death_wire_tick' ) as $hook ) {
 			$timestamp = \wp_next_scheduled( $hook );
 			while ( false !== $timestamp ) {
 				\wp_unschedule_event( $timestamp, $hook );
@@ -167,11 +170,15 @@ final class Setup {
 			url TEXT NULL,
 			title TEXT NULL,
 			classification VARCHAR(20) NOT NULL DEFAULT 'not_candidate',
+			classification_score SMALLINT NOT NULL DEFAULT 0,
+			matched_cues VARCHAR(191) NOT NULL DEFAULT '',
+			wire_state VARCHAR(32) NOT NULL DEFAULT '',
 			published_at DATETIME NULL,
 			retrieved_at DATETIME NOT NULL,
 			PRIMARY KEY  (id),
 			UNIQUE KEY source_guid (source_id, guid),
-			KEY classification (classification)
+			KEY classification (classification),
+			KEY wire_state (wire_state)
 		) {$charset};";
 
 		$sql[] = "CREATE TABLE {$leagues} (

@@ -68,6 +68,7 @@ wp eval-file tests/prune-orphan-occupation-terms.php  # drop empty occupation te
 wp eval-file tests/verify-orphan-occupation-pruning.php  # deleting a person prunes their terms
 wp eval-file tests/verify-import-taxonomy.php      # assert imports create no public terms
 wp eval-file tests/verify-pick-stats.php          # pick counts, hot/unique badges, page render
+wp eval-file tests/verify-death-misses.php        # hits + misses cover every confirmed season death
 wp eval-file tests/import-seed-file.php <path>     # load any builder-produced seed file
 wp eval-file tests/sync-portraits.php              # portraits + occupations from Wikidata
 ```
@@ -83,6 +84,25 @@ importing people; feed role text is kept as the `obit_occupation_hint` postmeta
 instead of becoming a public archive page. Because each term is a public archive
 URL, deleting a person prunes the occupations only they were filed under;
 a term anyone else still holds is never removed.
+
+## Death wire and RSS sources
+
+The death wire reads Wikipedia's *Deaths in <season>* list and every enabled
+RSS source, then hands death-shaped stories to the editorial review queue. It
+runs automatically on an **hourly schedule** (`obitleague_death_wire_tick`);
+`wp obitleague deaths2026` still works for a manual run.
+
+Sources are managed in **WP Admin → Obitleague → Death wire**. That dashboard
+shows the wire's status (list months covered, Wikimedia queue, unprocessed
+candidates), lets an administrator add, pause or delete sources with a feed
+probe on save, and lists every parsed story with its **obituary likelihood**
+(classifier score as a 0–100% gauge), the cues that matched, the wire outcome,
+and a season wordcloud of feed language.
+
+Before adding a source through the dashboard, record the owner and usage terms
+in `work/source-register.md` — the dashboard makes adding easy, but the rule
+holds: if the terms are unclear, leave the source out. Priority feeds poll
+every 5 minutes, others every 15 or more.
 
 ## Demo data
 

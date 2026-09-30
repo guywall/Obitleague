@@ -30,7 +30,7 @@ if ( ! defined( 'OBITLEAGUE_VERSION' ) ) {
 	define( 'OBITLEAGUE_VERSION', '0.14.4' );
 }
 if ( ! defined( 'OBITLEAGUE_DB_VERSION' ) ) {
-	define( 'OBITLEAGUE_DB_VERSION', '0.7.0' );
+	define( 'OBITLEAGUE_DB_VERSION', '0.7.1' );
 }
 if ( ! defined( 'OBITLEAGUE_FILE' ) ) {
 	define( 'OBITLEAGUE_FILE', __FILE__ );
@@ -92,6 +92,7 @@ add_action(
 		Obitleague\Modules\Discovery_Service::boot();
 		Obitleague\Modules\Wiki_Request_Queue::boot();
 		Obitleague\Modules\Admin_Discovery::boot();
+		Obitleague\Modules\Admin_Death_Wire::boot();
 		Obitleague\Modules\Admin_Game::boot();
 		Obitleague\Modules\Admin_Stats::boot();
 		Obitleague\Modules\Demo_Accounts_Admin::boot();
