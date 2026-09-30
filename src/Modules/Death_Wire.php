@@ -381,16 +381,15 @@ final class Death_Wire {
 		foreach ( $items as $item ) {
 			update_option( self::WIRE_CURSOR_OPTION, (int) $item->id, false );
 			// Stories whose obituary likelihood sits below the discard line are
-			// not worth editor attention; they are marked and never swept again.
+			// not worth editor attention: deleted outright, never swept again.
 			if ( self::likelihood_pct( (int) $item->classification_score ) < self::discard_threshold() ) {
-				$wpdb->update(
+				$wpdb->delete(
 					$wpdb->prefix . 'obitleague_feed_items',
-					array( 'wire_state' => 'discarded' ),
 					array( 'id' => (int) $item->id ),
-					array( '%s' ),
 					array( '%d' )
 				);
-				++$stats['discarded_low_likelihood'];				continue;
+				++$stats['discarded_low_likelihood'];
+				continue;
 			}
 			$source_name = (string) ( $item->source_name ?: 'News feed' );
 			$source_url  = (string) $item->url;
@@ -848,11 +847,9 @@ final class Death_Wire {
 					++$below;
 					continue;
 				}
-				$wpdb->update(
+				$wpdb->delete(
 					$table,
-					array( 'wire_state' => 'discarded' ),
 					array( 'id' => (int) $row->id ),
-					array( '%s' ),
 					array( '%d' )
 				);
 				++$discarded;
@@ -860,28 +857,28 @@ final class Death_Wire {
 			$offset += $batch;
 		} while ( count( $rows ) === $batch );
 
-		// 3. Mark every never-swept not_death story as discarded. The
-		// classifier has already ruled them out — they only ever appeared
-		// in the audit bucket, never as pending work, so there is nothing
-		// to re-examine before clearing them.
+		// 3. Delete every never-swept not_death story plus everything
+		// already sitting in the discarded/duplicate states from earlier
+		// runs. The classifier has already ruled them out; discarded means
+		// discarded, not retained for an audit nobody asked for.
 		if ( $dry_run ) {
 			$not_death = (int) $wpdb->get_var(
-				"SELECT COUNT(*) FROM {$table} WHERE wire_state = '' AND classification = 'not_death'"
+				"SELECT COUNT(*) FROM {$table} WHERE ( wire_state = '' AND classification = 'not_death' ) OR wire_state IN ('discarded','duplicate')"
 			);
 		} else {
 			$not_death = (int) $wpdb->query(
-				"UPDATE {$table} SET wire_state = 'discarded' WHERE wire_state = '' AND classification = 'not_death'"
+				"DELETE FROM {$table} WHERE ( wire_state = '' AND classification = 'not_death' ) OR wire_state IN ('discarded','duplicate')"
 			);
 		}
 
 		if ( $dry_run ) {
 			\WP_CLI::log( sprintf( 'Threshold: %d%%. Pending signals seen: %d; reclassified: %d.', $threshold, $scored, $changed ) );
-			\WP_CLI::log( sprintf( 'Dry run: %d pending signal(s) below the %d%% line and %d not_death story/stories would be discarded.', $below, $threshold, $not_death ) );
+			\WP_CLI::log( sprintf( 'Dry run: %d pending signal(s) below the %d%% line and %d not_death/discarded story/stories would be deleted.', $below, $threshold, $not_death ) );
 			\WP_CLI::success( 'No changes made (dry run).' );
 			return;
 		}
 		\WP_CLI::log( sprintf( 'Threshold: %d%%. Pending signals seen: %d; reclassified: %d.', $threshold, $scored, $changed ) );
-		\WP_CLI::success( sprintf( 'Tidy complete: %d pending signal(s) below %d%% and %d not_death story/stories discarded; %d remain pending.', $discarded, $threshold, $not_death, $kept ) );
+		\WP_CLI::success( sprintf( 'Tidy complete: %d pending signal(s) below %d%% and %d not_death/already-discarded story/stories deleted; %d remain pending.', $discarded, $threshold, $not_death, $kept ) );
 	}
 
 	/**
@@ -1258,14 +1255,12 @@ final class Death_Wire {
 		return (bool) $ok;
 	}
 
-	/** Mark a story dismissed (hidden from the pending list, kept for audit). */
+	/** Dismiss a story: deleted outright — discarded means discarded. */
 	public static function dismiss_story( int $item_id ): void {
 		global $wpdb;
-		$wpdb->update(
+		$wpdb->delete(
 			$wpdb->prefix . 'obitleague_feed_items',
-			array( 'wire_state' => 'dismissed' ),
 			array( 'id' => $item_id ),
-			array( '%s' ),
 			array( '%d' )
 		);
 	}

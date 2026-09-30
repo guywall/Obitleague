@@ -178,7 +178,7 @@ final class Admin_Death_Wire {
 		/* Auto-discard threshold: the adjustable automatic line. */
 		$threshold = Death_Wire::discard_threshold();
 		echo '<h2>Automatic discard threshold</h2>';
-		echo '<p>Stories whose obituary likelihood sits below this line are discarded by the wire without human attention. Raise it for a quieter queue; lower it to catch marginal death signals. The line applies on the next wire sweep.</p>';
+		echo '<p>Stories whose obituary likelihood sits below this line are deleted by the wire without human attention. Raise it for a quieter queue; lower it to catch marginal death signals. The line applies on the next wire sweep — deletion is permanent.</p>';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'obitleague_death_wire_threshold' );
 		echo '<input type="hidden" name="action" value="obitleague_death_wire_threshold" />';
@@ -205,14 +205,12 @@ final class Admin_Death_Wire {
 		$death   = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) {$base} AND i.classification IN ({$in})", array_merge( array( $season_start ), $signals ) ) );
 		$pending = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) {$base} AND i.classification IN ({$in}) AND i.wire_state = ''", array_merge( array( $season_start ), $signals ) ) );
 		$attached = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) {$base} AND i.wire_state = 'attached'", $season_start ) );
-		$dismissed = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) {$base} AND i.wire_state IN ('dismissed','discarded')", $season_start ) );
 		$sources = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}obitleague_sources WHERE enabled = 1" );
 		return array(
 			'Stories this season'   => $total,
 			'Death signals'         => $death,
 			'Awaiting decision'     => $pending,
 			'Attached to records'   => $attached,
-			'Discarded / dismissed' => $dismissed,
 			'Active sources'        => $sources,
 		);
 	}
@@ -276,9 +274,6 @@ final class Admin_Death_Wire {
 				'params' => $signals,
 			),
 			'attached'  => array( 'label' => 'Attached', 'where' => "i.wire_state = 'attached'", 'params' => array() ),
-			'dismissed' => array( 'label' => 'Dismissed', 'where' => "i.wire_state = 'dismissed'", 'params' => array() ),
-			'discarded' => array( 'label' => 'Auto-discarded', 'where' => "i.wire_state IN ('discarded','duplicate')", 'params' => array() ),
-			'not_death' => array( 'label' => 'Not death stories', 'where' => "i.wire_state = '' AND i.classification = 'not_death'", 'params' => array() ),
 			'check_queued' => array( 'label' => 'Queued for check', 'where' => "i.wire_state = 'check_queued'", 'params' => array() ),
 			'all'       => array( 'label' => 'Everything', 'where' => '1=1', 'params' => array() ),
 		);
@@ -310,24 +305,13 @@ final class Admin_Death_Wire {
 			$class = (string) $row->classification;
 			$n     = (int) $row->n;
 			if ( '' === $state ) {
-				$counts['pending']  += in_array( $class, $signals, true ) ? $n : 0;
-				$counts['not_death'] += 'not_death' === $class ? $n : 0;
+				$counts['pending'] += in_array( $class, $signals, true ) ? $n : 0;
 			} else {
 				if ( isset( $counts[ $state ] ) ) {
 					$counts[ $state ] += $n;
 				}
-				if ( 'discarded' === $state || 'duplicate' === $state ) {
-					$counts['discarded'] = $counts['discarded']; // already counted above when set
-				}
 			}
 			$counts['all'] += $n;
-		}
-		// 'discarded' bucket counts both discarded and duplicate states.
-		$counts['discarded'] = 0;
-		foreach ( $state_rows as $row ) {
-			if ( in_array( (string) $row->wire_state, array( 'discarded', 'duplicate' ), true ) ) {
-				$counts['discarded'] += (int) $row->n;
-			}
 		}
 
 		echo '<div class="ob-dw__filters">';
@@ -674,8 +658,8 @@ final class Admin_Death_Wire {
 			self::action_button( 'obitleague_death_wire_story_reprocess', 'Re-run the wire match', 'small', array( 'item' => $item_id ) );
 			echo ' ';
 		}
-		if ( 'dismissed' !== $state ) {
-			self::action_button( 'obitleague_death_wire_story_dismiss', 'Dismiss story', 'small', array( 'item' => $item_id ) );
+		if ( '' !== $story->url && 'attached' !== $state ) {
+			self::action_button( 'obitleague_death_wire_story_dismiss', 'Delete story', 'small', array( 'item' => $item_id ), 'Delete this story outright? It cannot be recovered.' );
 		}
 		if ( '' !== (string) $story->url ) {
 			echo ' <a class="button small" href="' . esc_url( (string) $story->url ) . '" rel="noopener" target="_blank">Open original ↗</a>';
@@ -821,7 +805,7 @@ final class Admin_Death_Wire {
 			exit;
 		}
 		Death_Wire::dismiss_story( $item_id );
-		wp_safe_redirect( self::back( 'Story dismissed.' ) );
+		wp_safe_redirect( self::back( 'Story deleted.' ) );
 		exit;
 	}
 

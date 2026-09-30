@@ -5,6 +5,16 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Changed — Discarded stories are deleted, not retained
+
+- **Discarded now means discarded.** Below-threshold sweep discards, the
+  tidy command's not_death and already-discarded purge, and the story
+  modal's Dismiss button all **delete** the feed-item row outright
+  instead of parking it with a `discarded`/`dismissed` state. No audit
+  bucket, no recovery: if a marginal story mattered, it should have
+  cleared the threshold. The dashboard's Discarded/Not-death buckets and
+  stat card are gone; the tidy dry run reports what it would delete.
+
 ### Added — Story facts in the death-wire modal: dates, cause and biography from the article
 
 - **The story modal now reads the article, not just the RSS summary.**
