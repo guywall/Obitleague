@@ -536,7 +536,10 @@ final class Death_Wire {
 			$new_id = Import_Service::import_person(
 				array(
 					'qid'        => $qid,
-					'name'       => (string) ( $payload['name'] ?? str_replace( '_', ' ', $enwiki ) ),
+					// The Wikipedia article title is the canonical name; the
+					// headline group is only a search hint and can carry
+					// desk furniture ("Stephanie Cole obituary").
+					'name'       => str_replace( '_', ' ', $enwiki ),
 					'birth_date' => $birth,
 					'death_date' => $deathstr,
 					'enwiki'     => $enwiki,
