@@ -586,6 +586,7 @@ body.ob-on a.skip-link.screen-reader-text {
 
 	.ob-header.ob-header .ob-header__search .ob-btn {
 		flex: 0 0 auto;
+		min-height: 44px;
 	}
 
 	/* Menu links: full-width rows, one tap target each, hairline separators. */
