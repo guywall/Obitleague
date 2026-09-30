@@ -212,9 +212,12 @@
 /* ---------- cards & grids ---------- */
 .ob-grid {
 	display: grid;
-	grid-template-columns: 1fr;
+	grid-template-columns: minmax(0, 1fr);
 	gap: 14px;
 	margin: 16px 0;
+}
+.ob-grid > * {
+	min-width: 0;
 }
 .ob-card {
 	background: var(--ob-card);
@@ -553,7 +556,7 @@
 		padding: 38px 26px 12px;
 	}
 	.ob-grid--3 {
-		grid-template-columns: repeat(3, 1fr);
+		grid-template-columns: repeat(3, minmax(0, 1fr));
 	}
 	.ob-people {
 		grid-template-columns: repeat(4, 1fr);
