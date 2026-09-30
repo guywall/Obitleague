@@ -876,7 +876,7 @@ final class Death_Wire {
 		if ( $score <= 0 ) {
 			return 0;
 		}
-		if ( $score >= Feed_Classifier::THRESHOLD_REVIEW ) {
+		if ( $score >= \Obitleague\Domain\Feed_Classifier::THRESHOLD_REVIEW ) {
 			return (int) min( 95, $score );
 		}
 		return (int) min( 95, $score * 10 );
