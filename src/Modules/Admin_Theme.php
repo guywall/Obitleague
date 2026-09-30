@@ -2,12 +2,12 @@
 /**
  * Admin theming.
  *
- * Brings the front-end monochrome typewriter design system (greys only,
- * JetBrains Mono body, Outfit display) into the WordPress admin for
- * Obitleague screens: the plugin
- * menu tree, review queue/case screens, leagues & teams admin, statistics
- * screens and the person edit screen. Core admin screens outside the
- * Obitleague plugin tree are left untouched.
+ * The WordPress admin keeps its default look. This module only scopes a
+ * small functional stylesheet (assets/admin.css) to Obitleague screens —
+ * the plugin menu tree, review screens, leagues & teams admin, statistics
+ * and the person edit screen — for classes referenced in plugin markup.
+ * It applies no branding: core admin screens, and the admin chrome on
+ * plugin screens, are left untouched.
  *
  * @package Obitleague
  */
