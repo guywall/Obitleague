@@ -42,14 +42,17 @@ final class Obituary_Article {
 
 	/**
 	 * "X, role, died on 12 September 2026" — the classic obituary signature.
-	 * Also matches "X died on 12 September 2026" and "…died 12 September 2026".
+	 * Also matches "…, born 22 March 1929; died 14 August 2026" and the
+	 * American order "X, actress, died September 12, 2026". The last match
+	 * in the text wins: obituary desks sign at the foot of the piece, and
+	 * earlier mentions tend to carry lead-ins ("The Japanese artist …").
 	 */
 	private static function name_from_signature( string $text ): string {
-		if ( ! preg_match( '/(?<![\w.])([A-Z][\p{L}\'.-]+(?:\s+[A-Z][\p{L}\'.-]+){1,4})(?:,\s*[^,.]{3,90})?,?\s+died(?:\s+on)?\s+\d/mu', $text, $m ) ) {
+		if ( ! preg_match_all( '/(?:^|[.;!?]\s+)([A-Z][\p{L}\'.-]+(?:\s+[A-Z][\p{L}\'.-]+){1,4})[^.]{0,160}?\bdied\s+(?:on\s+)?(?:\d|[A-Z][a-z]{2,8}\.?\s+\d)/mu', $text, $matches ) ) {
 			return '';
 		}
-		$candidate = trim( (string) $m[1] );
-		// Reject year-only or garbled captures.
+		$candidate = trim( (string) end( $matches[1] ) );
+		// Reject garbled captures.
 		if ( preg_match( '/\d/', $candidate ) || mb_strlen( $candidate ) < 6 || mb_strlen( $candidate ) > 60 ) {
 			return '';
 		}
