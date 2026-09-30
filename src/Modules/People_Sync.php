@@ -179,6 +179,10 @@ final class People_Sync {
 			if ( '' !== $primary && '' === (string) get_post_meta( $post_id, 'obit_role', true ) ) {
 				update_post_meta( $post_id, 'obit_role', $primary );
 			}
+			// The body text is composed from these fields, so it must be
+			// recomposed now that they exist — enrichment routinely lands
+			// after the record was first published with an empty descriptor.
+			Person_Content::regenerate( $post_id );
 			++$updated;
 		}
 
