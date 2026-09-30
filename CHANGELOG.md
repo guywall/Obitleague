@@ -5,6 +5,24 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Fixed — Hero CTA ink and header breathing room
+
+- **"Browse the catalogue" rendered mint-on-gold.** The home hero emitted
+  bare `<a>` tags with no button classes, and the "links inside dark heroes
+  stay light" rule in chrome.css exempted CTAs with a `:not([class*=...])`
+  test against the link's own class — which the links did not carry (the
+  class lived on their parent). The exemption never matched, so mint
+  `!important` ink beat the gold button's dark text. Hero CTAs now carry
+  real `ob-btn` / `ob-btn--ghost` classes (new ghost variant), the broken
+  `:not()` was rewritten in the form already used elsewhere in the file,
+  and an ink law pins the CTA colours against the kit regardless of
+  markup. The my-leagues hero CTAs get the same treatment.
+- **Header and hero spacing loosened.** Header inner width 1180→1240px
+  with 24px side padding, nav-link padding 7→11px horizontal, actions gap
+  2→6px; hero padding up at both breakpoints, CTA row gains a top margin,
+  and the "Season at a glance" tiles flow `auto-fit minmax(190px, 1fr)`
+  instead of a hard 5-across with 212px cells.
+
 ### Fixed — Cache-buster and plugin header repaired
 
 - **Stylesheets could keep serving stale cached copies after a deploy.**

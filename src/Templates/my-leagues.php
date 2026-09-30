@@ -19,7 +19,7 @@ if ( ! $user_id ) :
 		<section class="ob-hero ob-hero--archive ob-anim">
 			<span class="ob-hero__kicker">Your game</span><h1>My leagues</h1>
 			<p>Sign in to see your leagues, your position and your team status.</p>
-			<div class="ob-hero__cta"><a href="<?php echo esc_url( home_url( '/login/?redirect_to=' . rawurlencode( home_url( '/my-leagues/' ) ) ) ); ?>">Sign in</a><a class="ghost" href="<?php echo esc_url( home_url( '/join/' ) ); ?>">Join a side league</a></div>
+			<div class="ob-hero__cta"><a class="ob-btn" href="<?php echo esc_url( home_url( '/login/?redirect_to=' . rawurlencode( home_url( '/my-leagues/' ) ) ) ); ?>">Sign in</a><a class="ob-btn ob-btn--ghost" href="<?php echo esc_url( home_url( '/join/' ) ); ?>">Join a side league</a></div>
 		</section>
 	</main>
 	<?php
@@ -62,7 +62,7 @@ $rest_root = rest_url( 'obitleague/v1' );
 	<section class="ob-hero ob-hero--archive ob-anim">
 		<span class="ob-hero__kicker">Your game</span><h1>My leagues</h1>
 		<p><?php echo esc_html( Season_Switcher::season_story() ); ?>. Your 2026 team is live on the leaderboard while the 2027 season is open for picks until 00:00 London time on 1 January <?php echo esc_html( (string) $season ); ?>.</p>
-		<div class="ob-hero__cta"><a href="<?php echo esc_url( home_url( '/join/' ) ); ?>">Join a side league</a><a class="ghost" href="<?php echo esc_url( home_url( '/standings/' ) ); ?>">Overall standings</a></div>
+		<div class="ob-hero__cta"><a class="ob-btn" href="<?php echo esc_url( home_url( '/join/' ) ); ?>">Join a side league</a><a class="ob-btn ob-btn--ghost" href="<?php echo esc_url( home_url( '/standings/' ) ); ?>">Overall standings</a></div>
 	</section>
 
 	<?php

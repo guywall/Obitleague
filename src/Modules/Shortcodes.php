@@ -157,8 +157,8 @@ final class Shortcodes {
 		$out   .= '<h1>Pick ten lives. Follow the year.</h1>';
 		$out   .= '<p>Every confirmed, editor-approved death of a picked figure scores points — younger lives score more: max(1, 100 − age).</p>';
 		$out   .= '<div class="ob-hero__cta">';
-		$out   .= '<a href="' . esc_url( '/person/' ) . '">Browse the catalogue</a>';
-		$out   .= '<a class="ghost" href="' . esc_url( '/standings/' ) . '">View standings</a>';
+		$out   .= '<a class="ob-btn" href="' . esc_url( '/person/' ) . '">Browse the catalogue</a>';
+		$out   .= '<a class="ob-btn ob-btn--ghost" href="' . esc_url( '/standings/' ) . '">View standings</a>';
 		$out   .= '</div></section>';
 		return self::style() . $out;
 	}
