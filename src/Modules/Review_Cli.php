@@ -141,7 +141,9 @@ final class Review_Cli {
 		}
 
 		$origins = array();
-		if ( (string) get_post_meta( $post_id, 'obit_enwiki', true ) !== '' ) {
+		// The Deaths-in-2026 list flag or an article title both count as the
+		// Wikipedia origin; the Wikidata QID is the structured second origin.
+		if ( (string) get_post_meta( $post_id, 'obit_death_wiki_name', true ) !== '' || (string) get_post_meta( $post_id, 'obit_enwiki', true ) !== '' ) {
 			$origins[] = 'enwiki-deaths-list';
 		}
 		if ( (string) get_post_meta( $post_id, 'obit_qid', true ) !== '' ) {

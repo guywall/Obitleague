@@ -257,7 +257,7 @@ final class Admin_Review {
 		$in    = implode( ',', array_fill( 0, count( $uuids ), '%s' ) );
 
 		// Person posts for the uuids, with the meta keys the queue shows.
-		$meta_keys = array( 'obit_death_date', 'obit_birth_date', 'obit_cause_status', 'obit_cause_text', 'obit_role', 'obit_enwiki', 'obit_qid', 'obit_death_provisional' );
+		$meta_keys = array( 'obit_death_date', 'obit_birth_date', 'obit_cause_status', 'obit_cause_text', 'obit_role', 'obit_enwiki', 'obit_qid', 'obit_death_provisional', 'obit_death_wiki_name' );
 		$post_rows = (array) $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT p.ID, p.post_title, pm.meta_key, pm.meta_value
@@ -315,7 +315,9 @@ final class Admin_Review {
 			$cause_text   = trim( (string) ( $m['obit_cause_text'] ?? '' ) );
 			$cause        = '' !== $cause_text ? $cause_text : ( '' !== $cause_status ? str_replace( '_', ' ', $cause_status ) : 'unknown' );
 			$origins      = 0;
-			$origins     += ( '' !== (string) ( $m['obit_enwiki'] ?? '' ) ) ? 1 : 0;
+			// The Deaths-in-2026 list flag or an article title both count as
+			// the Wikipedia origin; the Wikidata QID is the second origin.
+			$origins     += ( '' !== (string) ( $m['obit_death_wiki_name'] ?? '' ) || '' !== (string) ( $m['obit_enwiki'] ?? '' ) ) ? 1 : 0;
 			$origins     += ( '' !== (string) ( $m['obit_qid'] ?? '' ) ) ? 1 : 0;
 			$eligible     = (bool) $post_id
 				&& (bool) preg_match( '/^\d{4}-\d{2}-\d{2}$/', $death )

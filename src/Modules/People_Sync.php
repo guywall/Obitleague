@@ -58,9 +58,11 @@ final class People_Sync {
 				"SELECT p.ID FROM {$wpdb->posts} p
 				 LEFT JOIN {$wpdb->postmeta} img ON img.post_id = p.ID AND img.meta_key = %s
 				 LEFT JOIN {$wpdb->postmeta} occ ON occ.post_id = p.ID AND occ.meta_key = %s
+				 LEFT JOIN {$wpdb->postmeta} rol ON rol.post_id = p.ID AND rol.meta_key = 'obit_role'
 				 WHERE p.post_type = %s AND p.post_status = 'publish'
 				   AND ( img.meta_value IS NULL OR img.meta_value = ''
-				      OR occ.meta_value IS NULL OR occ.meta_value = '' )
+				      OR occ.meta_value IS NULL OR occ.meta_value = ''
+				      OR rol.meta_value IS NULL OR rol.meta_value = '' )
 				 ORDER BY p.ID ASC LIMIT %d",
 				self::META_IMAGE_URL,
 				self::META_OCCUPATIONS,
@@ -125,7 +127,34 @@ final class People_Sync {
 				// Mirror the labels into the obit_occupation taxonomy so groups of
 				// people can be browsed, queried and output together.
 				self::sync_occupation_terms( (int) $pid, $occ['labels'] );
+
+				// The public role falls back to the primary Wikidata occupation.
+				$primary = (string) ( $occ['primary'] ?? '' );
+				if ( '' !== $primary && '' === (string) get_post_meta( (int) $pid, 'obit_role', true ) ) {
+					update_post_meta( (int) $pid, 'obit_role', $primary );
+				}
 				++$updated;
+			}
+
+			// The English Wikipedia article title (sitelink) fills the
+			// citation/link field the wire leaves empty.
+			$enwiki = self::enwiki_from_entity( $entity );
+			if ( '' !== $enwiki && '' === (string) get_post_meta( (int) $pid, 'obit_enwiki', true ) ) {
+				update_post_meta( (int) $pid, 'obit_enwiki', $enwiki );
+			}
+
+			// A day-precision date of death (P570) refines the stored date of
+			// a provisional (wire-published, unconfirmed) record only. Living
+			// records gain deaths through the wire and review, never here, and
+			// confirmed records keep the date their approval decided.
+			$stored_death = (string) get_post_meta( (int) $pid, 'obit_death_date', true );
+			if ( '' !== $stored_death && Death_Wire::is_provisional( (int) $pid ) ) {
+				$wd_death = self::death_date_from_entity( $entity );
+				if ( '' !== $wd_death && $wd_death !== $stored_death ) {
+					update_post_meta( (int) $pid, 'obit_death_date', $wd_death );
+					update_post_meta( (int) $pid, 'obit_death_precision', 'exact' );
+					Person_Content::regenerate( (int) $pid );
+				}
 			}
 
 			$url = self::image_url_for( $entity );
@@ -480,12 +509,13 @@ final class People_Sync {
 			$batch = array_slice( $qids, $i, 50 );
 			$url   = 'https://www.wikidata.org/w/api.php?' . http_build_query(
 				array(
-					'action'          => 'wbgetentities',
-					'ids'             => implode( '|', $batch ),
-					'props'           => 'claims',
-					'format'          => 'json',
-					'formatversion'   => '2',
-					'language'        => 'en',
+				'action'          => 'wbgetentities',
+				'ids'             => implode( '|', $batch ),
+				'props'           => 'claims|sitelinks',
+				'sitefilter'      => 'enwiki',
+				'format'          => 'json',
+				'formatversion'   => '2',
+				'language'        => 'en',
 				)
 			);
 			$response = wp_remote_get(
@@ -504,6 +534,42 @@ final class People_Sync {
 			}
 		}
 		return $out;
+	}
+
+	/** English Wikipedia sitelink title for one entity (empty when none). */
+	private static function enwiki_from_entity( ?array $entity ): string {
+		$title = (string) ( $entity['sitelinks']['enwiki']['title'] ?? '' );
+		return '' !== $title ? str_replace( ' ', '_', $title ) : '';
+	}
+
+	/**
+	 * Day-precision death date (P570) as Y-m-d, preferring preferred ranks;
+	 * empty when the claim is absent, deprecated, or coarser than a day.
+	 */
+	private static function death_date_from_entity( ?array $entity ): string {
+		$claims = (array) ( $entity['claims']['P570'] ?? array() );
+		$candidates = array();
+		foreach ( $claims as $claim ) {
+			if ( 'deprecated' === (string) ( $claim['rank'] ?? 'normal' ) ) {
+				continue;
+			}
+			$candidates[] = $claim;
+		}
+		$preferred = array_values( array_filter( $candidates, static fn ( $c ): bool => 'preferred' === (string) ( $c['rank'] ?? '' ) ) );
+		if ( $preferred ) {
+			$candidates = $preferred;
+		}
+		foreach ( $candidates as $claim ) {
+			$value = (array) ( $claim['mainsnak']['datavalue']['value'] ?? array() );
+			if ( 11 !== (int) ( $value['precision'] ?? 0 ) ) {
+				continue;
+			}
+			$time = (string) ( $value['time'] ?? '' );
+			if ( preg_match( '/^(\d{4})-(\d{2})-(\d{2})T/', $time, $m ) ) {
+				return $m[1] . '-' . $m[2] . '-' . $m[3];
+			}
+		}
+		return '';
 	}
 
 	/** Stay under Wikidata rate guidance between batches. */

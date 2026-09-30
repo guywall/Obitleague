@@ -5,6 +5,26 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Changed — Wikipedia list deaths treat the list as an origin; profiles fill the gaps
+
+- **A "Deaths in 2026" listing now counts as the Wikipedia origin group.**
+  The wire already stamps every list import with `obit_death_wiki_name`,
+  but approval only counted an article title (`obit_enwiki`) — so
+  list-imported people failed the two-origin rule on a technicality. The
+  list flag and the article title are now interchangeable as the
+  Wikipedia origin; the Wikidata QID remains the second origin. Every
+  list-imported case with an exact stored date is confirmable in one
+  click, exactly as the editor intended: the list is hot on third-party
+  confirmation.
+- **Profile sync fills what the wire cannot.** Wikidata batch sync now
+  also writes the public role from the primary occupation (P106) when
+  the record has none — the cause of the blank "Public role" fields on
+  wire imports — fills the English Wikipedia article title from the
+  entity sitelink, and refines the stored death date to Wikidata's
+  day-precision P570 on provisional records only. Living records gain
+  deaths through the wire and review, never through sync; confirmed
+  records keep the date their approval decided.
+
 ### Added — Provisional deaths, a triage queue and bulk approval
 
 - **The wire now publishes deaths immediately as provisional.** Imported
