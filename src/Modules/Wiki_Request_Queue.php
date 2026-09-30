@@ -88,7 +88,7 @@ final class Wiki_Request_Queue {
 					$kind,
 					$dedupe_key,
 					self::STATUS_PENDING,
-					self::STATUS_DONE
+					self::STATUS_PROCESSING
 				)
 			);
 			if ( $existing > 0 ) {

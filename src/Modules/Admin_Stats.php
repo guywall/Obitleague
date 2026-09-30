@@ -60,7 +60,7 @@ final class Admin_Stats {
 		);
 
 		echo '<div class="wrap"><h1>Obitleague — site statistics</h1>';
-		echo '<p>Operational snapshot · current entry season ' . (int) $season . ' · generated ' . esc_html( current_time( 'mysql' ) ) . '</p>';
+		echo '<p>Operational snapshot · current entry season ' . (int) $season . ' · generated ' . esc_html( current_time( 'mysql' ) ) . ' · <a href="' . esc_url( admin_url( 'admin.php?page=obitleague-data-sources' ) ) . '">Data sources &amp; sync controls</a></p>';
 		echo '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;max-width:1250px">';
 		foreach ( $stats as $label => $value ) {
 			echo '<div class="card" style="max-width:none;margin:0;padding:16px"><p style="margin:0;color:#686868">' . esc_html( $label ) . '</p><p style="margin:8px 0 0;font-size:26px;font-weight:600">' . esc_html( number_format_i18n( $value ) ) . '</p></div>';

@@ -96,6 +96,7 @@ add_action(
 		Obitleague\Modules\Admin_Death_Wire::boot();
 		Obitleague\Modules\Admin_Game::boot();
 		Obitleague\Modules\Admin_Stats::boot();
+		Obitleague\Modules\Admin_Data_Sources::boot();
 		Obitleague\Modules\Demo_Accounts_Admin::boot();
 		Obitleague\Modules\Admin_Agents::boot();
 		Obitleague\Modules\Agent_Pages::boot();

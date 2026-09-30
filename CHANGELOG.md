@@ -5,6 +5,28 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Added — Data sources admin screen: queue visibility and sync controls
+
+- **New “Data sources” screen** under the Obitleague review menu, one
+  place for everything the plugin fetches externally. For each Wikimedia
+  source (wikidata / enwiki / commons) it shows the rate-limit pause
+  state with a human-readable countdown, pending/running/failed request
+  counts and the next due time — plus a one-click pause clear when a
+  stale cooldown is holding things up.
+- **People enrichment is now inspectable:** the pending enrichment rows
+  are listed with the person, attempt count, exact next-attempt time
+  and *why* it is waiting (pacing, pause, or the last error being
+  retried) — no more opaque “verbose data missing”.
+- **Controls:** drain the queue now, reset failed requests with a fresh
+  attempt budget, enqueue missing people (bounded scan), run a
+  discovery batch, prime the death wire, and poll any RSS feed source
+  immediately. All nonced admin-post handlers, admin-only.
+- **Queue fix:** enrichment dedupe no longer matches completed rows, so
+  a person whose data was filled can be re-enqueued later if a field
+  becomes empty again.
+- The Statistics screen stays read-only and links across to the new
+  controls.
+
 ### Fixed — Portraits and occupations self-heal through the request queue (db 0.7.2)
 
 - **Why the catalogue filled with "no occupation recorded" and missing
