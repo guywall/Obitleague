@@ -42,7 +42,8 @@ final class Death_Wire {
 	private const WIRE_LOOKBACK_DAYS = 400;
 	private const USER_AGENT         = 'Obitleague-DeathWire/0.1 (WordPress; +obitleague.co.uk)';
 
-	private function __construct() {}
+	/** Public although the class is static-only: WP-CLI instantiates array callables when invoking commands. */
+	public function __construct() {}
 
 	public static function boot(): void {
 		Wiki_Request_Queue::register_handler( 'deaths2026_list_page', array( self::class, 'handle_list_page' ) );

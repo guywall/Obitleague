@@ -28,7 +28,8 @@ final class People_Sync {
 	public const META_OCCUPATION_PRIMARY = 'obit_occupation_primary';
 	public const META_OCCUPATION_QIDS = 'obit_occupation_qids';
 
-	private function __construct() {}
+	/** Public although the class is static-only: WP-CLI instantiates array callables when invoking commands. */
+	public function __construct() {}
 
 	/** Keep the derived sort/birth-year meta fresh on every person save. */
 	public static function boot(): void {

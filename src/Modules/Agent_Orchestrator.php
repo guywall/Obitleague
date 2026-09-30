@@ -31,7 +31,8 @@ final class Agent_Orchestrator {
 
 	private const RUN_HOOK = 'obitleague_agent_run';
 
-	private function __construct() {}
+	/** Public although the class is static-only: WP-CLI instantiates array callables when invoking commands. */
+	public function __construct() {}
 
 	public static function boot(): void {
 		add_action( self::RUN_HOOK, array( self::class, 'run_agent' ), 10, 2 );

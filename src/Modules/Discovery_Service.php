@@ -46,7 +46,8 @@ final class Discovery_Service {
 	private static ?int $editorial_publication_post_id = null;
 	private static ?int $system_publication_post_id   = null;
 
-	private function __construct() {}
+	/** Public although the class is static-only: WP-CLI instantiates array callables when invoking commands. */
+	public function __construct() {}
 
 	public static function boot(): void {
 		add_filter( 'wp_insert_post_data', array( self::class, 'guard_candidate_publication' ), 10, 2 );
