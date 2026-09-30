@@ -30,10 +30,12 @@
  * so the published ranking is recomputed without the hidden teams rather
  * than left holding their rows.
  *
+ * This runs through `wp eval-file`, which evaluates the file body, so it
+ * deliberately declares no strict_types — a declare() would not be the first
+ * statement and PHP would refuse the whole script.
+ *
  * @package Obitleague
  */
-
-declare( strict_types = 1 );
 
 use Obitleague\Modules\Public_Scope;
 use Obitleague\Modules\Setup;
@@ -54,9 +56,9 @@ global $wpdb;
  */
 Setup::maybe_upgrade();
 
-/** The synthetic rows observed on the live site. */
-const QA_DEFAULT_LEAGUES  = array( 'Testings', "Guy's Test League 2027" );
-const QA_DEFAULT_ACCOUNTS = array( 'barrywhite5-qkuhd8vf', 'Demo Account One QA', 'QA Human Pass One', 'QA Mobile Two' );
+/* The synthetic rows observed on the live site. */
+$qa_default_leagues  = array( 'Testings', "Guy's Test League 2027" );
+$qa_default_accounts = array( 'barrywhite5-qkuhd8vf', 'Demo Account One QA', 'QA Human Pass One', 'QA Mobile Two' );
 
 $apply = '1' === (string) getenv( 'OBITLEAGUE_QA_APPLY' );
 $auto  = '1' === (string) getenv( 'OBITLEAGUE_QA_AUTO' );
@@ -81,7 +83,7 @@ $column        = Public_Scope::LEAGUE_COLUMN;
 
 $league_targets = array(); // id => array{ name, hidden }
 $all_leagues    = $wpdb->get_results( "SELECT id, name, {$column} AS is_hidden FROM {$leagues_table} ORDER BY id ASC" );
-$wanted_leagues = array_merge( QA_DEFAULT_LEAGUES, $list_env( 'OBITLEAGUE_QA_LEAGUES' ) );
+$wanted_leagues = array_merge( $qa_default_leagues, $list_env( 'OBITLEAGUE_QA_LEAGUES' ) );
 
 foreach ( (array) $all_leagues as $league ) {
 	$name = (string) $league->name;
@@ -95,7 +97,7 @@ foreach ( (array) $all_leagues as $league ) {
 }
 
 $account_targets = array(); // id => array{ login, display, test }
-$wanted_accounts = array_merge( QA_DEFAULT_ACCOUNTS, $list_env( 'OBITLEAGUE_QA_ACCOUNTS' ) );
+$wanted_accounts = array_merge( $qa_default_accounts, $list_env( 'OBITLEAGUE_QA_ACCOUNTS' ) );
 
 $users = get_users(
 	array(
