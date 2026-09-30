@@ -27,6 +27,42 @@ header in `obitleague.php`; each released version is tagged in git.
 - The Statistics screen stays read-only and links across to the new
   controls.
 
+### Added — Fully automatic death wire: adjustable discard line, cached combined wiki fetches, wordcloud disambiguation
+
+- **The auto-discard threshold is now a setting, not a constant.** The
+  overview tab of the death-wire dashboard carries an "Automatic discard
+  threshold" field: stories whose obituary likelihood sits below the line
+  are discarded by the wire sweep without human attention. Stored in the
+  `obitleague_death_wire_discard_below` option (0–95, default 50), clamped
+  by `Death_Wire::set_discard_threshold()`.
+- **One cached Wikipedia request per person instead of two uncached
+  ones.** `Death_Wire::wiki_article( $title )` fetches the article
+  wikitext AND the Wikidata QID behind it in a single `prop=revisions|pageprops`
+  call, and caches the pair (transient, 2 h TTL, keyed on the title).
+  Negative results cache too, so a missing article is not re-requested on
+  every sweep. `wiki_search_title()` and `article_text()` are transient-
+  cached as well (2 h / 12 h respectively, misses included).
+- **Same-name matches are disambiguated by language, not guessed.** When
+  several records cite the same Wikipedia article title, the story's own
+  text (title + excerpt, falling back to the cached article text) is
+  compared — via the new pure-domain `Wordcloud` class (cosine similarity
+  over word-frequency clouds) — against each candidate's stored
+  Wikipedia-article cloud (`obit_wiki_cloud` postmeta, written when the
+  wire check runs). The best overlap wins only above the `MATCH_FLOOR`
+  (0.08); below that the story stays flagged for a human. Wrong
+  attachments are worse than flagged ones.
+- **Wire-confirmed records enrich themselves.** The wire stamps the QID
+  from the combined fetch and enqueues a `People_Sync::enqueue_person()`
+  request, so portraits (P18), occupations (P106) and a missing birth
+  date (P569) fill in through the global Wikimedia queue instead of
+  waiting for the daily refresh. `People_Sync::apply_entity()` now fills
+  an absent `obit_birth_date` from a day-precision P569 claim.
+- **The story modal's wordcloud now includes the article text** when the
+  wire has already fetched and cached it (the modal never fetches live).
+- New domain class `Obitleague\Domain\Wordcloud` (pure, no WordPress —
+  covered by the new `Scenario_Wordcloud` suite: counting, stopwords,
+  wikitext reduction, cosine similarity, match floor).
+
 ### Fixed — Portraits and occupations self-heal through the request queue (db 0.7.2)
 
 - **Why the catalogue filled with "no occupation recorded" and missing

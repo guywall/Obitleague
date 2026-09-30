@@ -130,6 +130,28 @@ final class People_Sync {
 	}
 
 	/**
+	 * Enqueue one person's enrichment (portrait, occupations, dates)
+	 * through the global Wikimedia queue. Idempotent: pending and recently
+	 * completed requests for the same person collapse into one row.
+	 */
+	public static function enqueue_person( int $post_id ): void {
+		if ( $post_id < 1 ) {
+			return;
+		}
+		Wiki_Request_Queue::enqueue(
+			'enrich_person',
+			array( 'post_id' => $post_id ),
+			self::enrich_dedupe_key( $post_id ),
+			'wikidata'
+		);
+	}
+
+	/** Public dedupe key so other modules enqueue with the same key. */
+	public static function enrich_dedupe_key_public( int $post_id ): string {
+		return self::enrich_dedupe_key( $post_id );
+	}
+
+	/**
 	 * Queue handler: fetch one entity from Wikidata and apply it to the
 	 * person post. Returns a WP_Error when the queue should retry (with the
 	 * shared rate-limit pause honoured) rather than give up.
@@ -155,8 +177,9 @@ final class People_Sync {
 
 	/**
 	 * Apply one Wikidata entity to a person post: occupations (P106), the
-	 * enwiki sitelink, a day-precision death-date refinement for provisional
-	 * records, and the portrait (P18). Returns the number of meta groups
+	 * enwiki sitelink, a birth date (P569) when missing, a day-precision
+	 * death-date refinement for provisional records, and the portrait (P18).
+	 * Returns the number of meta groups
 	 * written.
 	 */
 	public static function apply_entity( int $post_id, array $entity ): int {
@@ -191,6 +214,17 @@ final class People_Sync {
 		$enwiki = self::enwiki_from_entity( $entity );
 		if ( '' !== $enwiki && '' === (string) get_post_meta( $post_id, 'obit_enwiki', true ) ) {
 			update_post_meta( $post_id, 'obit_enwiki', $enwiki );
+		}
+
+		// A birth date (P569) fills the record's gap; an existing stored
+		// date always wins over anything the sync could add.
+		if ( '' === (string) get_post_meta( $post_id, 'obit_birth_date', true ) ) {
+			$wd_birth = self::birth_date_from_entity( $entity );
+			if ( '' !== $wd_birth ) {
+				update_post_meta( $post_id, 'obit_birth_date', $wd_birth );
+				update_post_meta( $post_id, 'obit_birth_precision', 'exact' );
+				++$updated;
+			}
 		}
 
 		// A day-precision date of death (P570) refines the stored date of
@@ -642,6 +676,36 @@ final class People_Sync {
 	private static function enwiki_from_entity( ?array $entity ): string {
 		$title = (string) ( $entity['sitelinks']['enwiki']['title'] ?? '' );
 		return '' !== $title ? str_replace( ' ', '_', $title ) : '';
+	}
+
+	/**
+	 * Day-precision birth date (P569) as Y-m-d, preferring preferred ranks;
+	 * empty when the claim is absent, deprecated, or coarser than a day.
+	 */
+	private static function birth_date_from_entity( ?array $entity ): string {
+		$claims = (array) ( ( $entity['claims']['P569'] ?? array() ) );
+		$candidates = array();
+		foreach ( $claims as $claim ) {
+			if ( 'deprecated' === (string) ( $claim['rank'] ?? 'normal' ) ) {
+				continue;
+			}
+			$candidates[] = $claim;
+		}
+		$preferred = array_values( array_filter( $candidates, static fn ( $c ): bool => 'preferred' === (string) ( $c['rank'] ?? '' ) ) );
+		if ( $preferred ) {
+			$candidates = $preferred;
+		}
+		foreach ( $candidates as $claim ) {
+			$value = (array) ( $claim['mainsnak']['datavalue']['value'] ?? array() );
+			if ( 11 !== (int) ( $value['precision'] ?? 0 ) ) {
+				continue;
+			}
+			$time = (string) ( $value['time'] ?? '' );
+			if ( preg_match( '/^(\d{4})-(\d{2})-(\d{2})T/', $time, $m ) ) {
+				return $m[1] . '-' . $m[2] . '-' . $m[3];
+			}
+		}
+		return '';
 	}
 
 	/**

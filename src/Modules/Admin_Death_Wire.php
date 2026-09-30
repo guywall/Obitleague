@@ -35,6 +35,7 @@ final class Admin_Death_Wire {
 		add_action( 'wp_ajax_obitleague_death_wire_story_detail', array( self::class, 'ajax_story_detail' ) );
 
 		add_action( 'admin_post_obitleague_death_wire_run', array( self::class, 'handle_run' ) );
+		add_action( 'admin_post_obitleague_death_wire_threshold', array( self::class, 'handle_threshold' ) );
 		add_action( 'admin_post_obitleague_death_wire_source_add', array( self::class, 'handle_source_add' ) );
 		add_action( 'admin_post_obitleague_death_wire_source_toggle', array( self::class, 'handle_source_toggle' ) );
 		add_action( 'admin_post_obitleague_death_wire_source_delete', array( self::class, 'handle_source_delete' ) );
@@ -173,6 +174,17 @@ final class Admin_Death_Wire {
 		echo '</form>';
 
 		self::render_pause_control();
+
+		/* Auto-discard threshold: the adjustable automatic line. */
+		$threshold = Death_Wire::discard_threshold();
+		echo '<h2>Automatic discard threshold</h2>';
+		echo '<p>Stories whose obituary likelihood sits below this line are discarded by the wire without human attention. Raise it for a quieter queue; lower it to catch marginal death signals. The line applies on the next wire sweep.</p>';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		wp_nonce_field( 'obitleague_death_wire_threshold' );
+		echo '<input type="hidden" name="action" value="obitleague_death_wire_threshold" />';
+		echo '<input type="number" name="discard_below" min="0" max="95" step="1" value="' . esc_attr( (string) $threshold ) . '" class="small-text" /> % ';
+		submit_button( 'Save threshold', 'secondary', 'submit', false );
+		echo '</form>';
 
 		$stories = self::season_stories( 80 );
 		$cloud   = self::wordcloud( $stories );
@@ -590,8 +602,8 @@ final class Admin_Death_Wire {
 			echo '<p class="description">This feed item carried no summary text.</p>';
 		}
 
-		/* Mini wordcloud for the article: title + excerpt words. */
-		$cloud = self::story_cloud( (string) $story->title, $excerpt );
+		/* Mini wordcloud for the article: title + excerpt + any cached article text. */
+		$cloud = self::story_cloud( (string) $story->title, $excerpt, (string) $story->url );
 		if ( $cloud ) {
 			echo '<h3>Story wordcloud</h3>';
 			self::render_cloud( $cloud, true );
@@ -647,12 +659,18 @@ final class Admin_Death_Wire {
 	}
 
 	/**
-	 * Mini wordcloud for one story: title + excerpt, minus stopwords.
+	 * Mini wordcloud for one story: title + excerpt, plus the fetched
+	 * article text when the wire has already cached it (never fetched live
+	 * here — the modal must render instantly).
 	 *
 	 * @return array<string,int> word => count, most frequent first.
 	 */
-	private static function story_cloud( string $title, string $excerpt ): array {
-		return self::wordcloud( array( (object) array( 'title' => $title, 'description' => $excerpt ) ), 18 );
+	private static function story_cloud( string $title, string $excerpt, string $url = '' ): array {
+		$cached_article = '';
+		if ( '' !== $url ) {
+			$cached_article = (string) get_transient( 'obit_article_' . md5( $url ) );
+		}
+		return self::wordcloud( array( (object) array( 'title' => $title, 'description' => $excerpt . ' ' . $cached_article ) ), 18 );
 	}
 
 	/**
@@ -767,6 +785,14 @@ final class Admin_Death_Wire {
 		Death_Wire::run();
 		Wiki_Request_Queue::process( 2 );
 		wp_safe_redirect( self::back( 'The wire has been queued: the Wikipedia list pass and the RSS sweep are running through the Wikimedia queue.' ) );
+		exit;
+	}
+
+	public static function handle_threshold(): void {
+		self::must( 'obitleague_death_wire_threshold', 'manage_options' );
+		$value = (int) ( $_POST['discard_below'] ?? Death_Wire::DISCARD_BELOW );
+		Death_Wire::set_discard_threshold( $value );
+		wp_safe_redirect( self::back( 'Auto-discard threshold set to ' . Death_Wire::discard_threshold() . '%.' ) );
 		exit;
 	}
 

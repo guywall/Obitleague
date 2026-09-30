@@ -99,6 +99,15 @@ probe on save, and lists every parsed story with its **obituary likelihood**
 (classifier score as a 0–100% gauge), the cues that matched, the wire outcome,
 and a season wordcloud of feed language.
 
+The wire runs itself end to end: stories below the **adjustable auto-discard
+threshold** (overview tab, default 50%) are dropped without human attention;
+Wikipedia lookups go out as one cached, combined request per person (wikitext
+and Wikidata QID together, 2-hour transient cache, negative results cached
+too); same-name candidates are resolved by wordcloud overlap between the
+story and each record's stored Wikipedia-article cloud, or left flagged when
+the match is below the floor; and confirmed records enrich themselves with
+portrait, occupations and birth date through the background Wikimedia queue.
+
 Before adding a source through the dashboard, record the owner and usage terms
 in `work/source-register.md` — the dashboard makes adding easy, but the rule
 holds: if the terms are unclear, leave the source out. Priority feeds poll

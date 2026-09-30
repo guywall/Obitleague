@@ -38,11 +38,28 @@ final class Death_Wire {
 	private const WIKI_LIST_TITLE    = 'Deaths in 2026';
 	/** Stories below this obituary likelihood are auto-discarded. */
 	public const DISCARD_BELOW = 50;
+	/** Stored, adjustable discard threshold (admin overview sets it). */
+	private const DISCARD_OPTION   = 'obitleague_death_wire_discard_below';
+	/** How long a fetched Wikipedia article (wikitext + QID) stays cached. */
+	private const WIKI_TTL         = 2 * HOUR_IN_SECONDS;
+	/** How long a fetched publisher article text stays cached. */
+	private const ARTICLE_TTL      = 12 * HOUR_IN_SECONDS;
 	private const PAGE_SIZE          = 50;
 	private const MAX_LIST_PAGES     = 40; // Safety bound: ~2000 names/month.
 	private const WIRE_BATCH         = 100;
 	private const WIRE_LOOKBACK_DAYS = 400;
 	private const USER_AGENT         = 'Obitleague-DeathWire/0.1 (WordPress; +obitleague.co.uk)';
+
+	/** The obituary likelihood below which a story is auto-discarded (0–95). */
+	public static function discard_threshold(): int {
+		$value = (int) get_option( self::DISCARD_OPTION, self::DISCARD_BELOW );
+		return max( 0, min( 95, $value ) );
+	}
+
+	/** Store the adjustable discard threshold, clamped to the honest scale. */
+	public static function set_discard_threshold( int $value ): void {
+		update_option( self::DISCARD_OPTION, max( 0, min( 95, $value ) ), false );
+	}
 
 	/** Public although the class is static-only: WP-CLI instantiates array callables when invoking commands. */
 	public function __construct() {}
@@ -64,6 +81,12 @@ final class Death_Wire {
 				'obitleague reclassify-feed-items',
 				static function ( array $args, array $assoc_args ): void {
 					self::cli_reclassify( $args, $assoc_args );
+				}
+			);
+			\WP_CLI::add_command(
+				'obitleague death-wire-tidy-pending',
+				static function ( array $args, array $assoc_args ): void {
+					self::cli_tidy_pending( $args, $assoc_args );
 				}
 			);
 		}
@@ -333,10 +356,9 @@ final class Death_Wire {
 		$cursor = (int) get_option( self::WIRE_CURSOR_OPTION, 0 );
 		$season = Pick_Stats::season_in_play();
 		$signals  = \Obitleague\Domain\Feed_Classifier::DEATH_SIGNALS;
-		$in       = implode( ',', array_fill( 0, count( $signals ), '%s' ) );
-		$items    = (array) $wpdb->get_results(
+		$in       = implode( ',', array_fill( 0, count( $signals ), '%s' ) );			$items    = (array) $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT i.id, i.title, i.url, i.published_at, i.classification_score, s.name AS source_name
+				"SELECT i.id, i.title, i.url, i.description, i.published_at, i.classification_score, s.name AS source_name
 				 FROM {$wpdb->prefix}obitleague_feed_items i
 				 JOIN {$wpdb->prefix}obitleague_sources s ON s.id = i.source_id
 				 WHERE i.classification IN ({$in}) AND i.wire_state = '' AND i.id > %d
@@ -360,7 +382,7 @@ final class Death_Wire {
 			update_option( self::WIRE_CURSOR_OPTION, (int) $item->id, false );
 			// Stories whose obituary likelihood sits below the discard line are
 			// not worth editor attention; they are marked and never swept again.
-			if ( self::likelihood_pct( (int) $item->classification_score ) < self::DISCARD_BELOW ) {
+			if ( self::likelihood_pct( (int) $item->classification_score ) < self::discard_threshold() ) {
 				$wpdb->update(
 					$wpdb->prefix . 'obitleague_feed_items',
 					array( 'wire_state' => 'discarded' ),
@@ -373,7 +395,7 @@ final class Death_Wire {
 			$source_name = (string) ( $item->source_name ?: 'News feed' );
 			$source_url  = (string) $item->url;
 			$title       = (string) $item->title;
-			$outcome     = self::attach( $title, $source_url, $source_name, (int) $item->id, $stats );
+			$outcome     = self::attach( $title, $source_url, $source_name, (int) $item->id, $stats, (string) $item->description );
 			$wpdb->update(
 				$wpdb->prefix . 'obitleague_feed_items',
 				array( 'wire_state' => $outcome ),
@@ -419,7 +441,7 @@ final class Death_Wire {
 	 *
 	 * @param array<string,int> $stats Running tallies.
 	 */
-	private static function attach( string $title, string $source_url, string $source_name, int $item_id, array &$stats ): string {
+	private static function attach( string $title, string $source_url, string $source_name, int $item_id, array &$stats, string $description = '' ): string {
 		if ( '' === trim( $title ) ) {
 			return 'no_title';
 		}
@@ -433,7 +455,7 @@ final class Death_Wire {
 			return 'no_name'; // No usable name: these stay visible in the discovery queue.
 		}
 
-		$found = self::person_for_group( $group );
+		$found = self::person_for_group( $group, $title . ' ' . $description, $source_url );
 		if ( $found ) {
 			if ( self::has_death( $found['post_id'] ) ) {
 				// Known 2026 death: the story is public reporting — attach it.
@@ -515,10 +537,11 @@ final class Death_Wire {
 		if ( '' === $enwiki ) {
 			return array( 'ok' => true, 'note' => 'No article to check.' );
 		}
-		$wikitext = self::wiki_article_wikitext( $enwiki );
-		if ( is_wp_error( $wikitext ) ) {
-			return $wikitext; // Parked on a rate limit; retried later.
+		$article = self::wiki_article( $enwiki );
+		if ( is_wp_error( $article ) ) {
+			return $article; // Parked on a rate limit; retried later.
 		}
+		$wikitext = (string) $article['wikitext'];
 		$year = (int) gmdate( 'Y' );
 
 		if ( ! self::wiki_death_year( $wikitext, $year ) ) {
@@ -535,6 +558,12 @@ final class Death_Wire {
 		if ( $post_id > 0 ) {
 			// Confirmed against Wikipedia: open the editorial case with the
 			// story attached; the editors enter the exact date.
+			// Cache the article's wordcloud on the record: this is the
+			// reference language future same-name stories are compared against.
+			self::store_wiki_cloud( $post_id, $wikitext );
+			// Fill the identity gaps (QID, portrait, occupations, DoB) in the
+			// background rather than leaving them for an editor to chase.
+			self::enrich_person( $post_id, (string) $article['qid'] );
 			if ( self::open_case_for( $post_id, 'Wire story ' . $source_url . ' matches this record and the Wikipedia article confirms a ' . $year . ' death. Editor confirmation required.' ) ) {
 				self::attach_source( $post_id, $source_name, $source_url, (string) current_time( 'mysql', true ) );
 				++$stats['review_opened'];
@@ -550,8 +579,9 @@ final class Death_Wire {
 			return array( 'ok' => true, 'note' => 'Death confirmed against Wikipedia.' );
 		}
 
-		// New name: import the draft, then hand the editors the case.
-		$qid      = self::discover_by_enwiki( $enwiki );
+		// New name: import the draft, then hand the editors the case. The
+		// QID came back in the same cached request that fetched the wikitext.
+		$qid      = (string) $article['qid'];
 		$birth    = '' !== $qid ? self::birth_year_from_wikitext( $wikitext ) : '';
 		$deathstr = self::death_date_from_wikitext( $wikitext, $year );
 		if ( '' === $qid || '' === $birth ) {
@@ -628,9 +658,15 @@ final class Death_Wire {
 	/**
 	 * Find the site record a headline group refers to.
 	 *
+	 * When several published records share the group's name the story's
+	 * own language (title + excerpt + article text, wordcloud-reduced)
+	 * is compared against each candidate's stored Wikipedia-article cloud
+	 * and the best overlap wins — provided it clears the floor. An
+	 * unresolved ambiguity returns null and lands on the editors.
+	 *
 	 * @return array{post_id:int,enwiki:string}|null
 	 */
-	private static function person_for_group( string $group ): ?array {
+	private static function person_for_group( string $group, string $story_text = '', string $source_url = '' ): ?array {
 		global $wpdb;
 		// The Wikipedia name this record actually died under.
 		$post_id = (int) $wpdb->get_var(
@@ -642,30 +678,195 @@ final class Death_Wire {
 		if ( $post_id ) {
 			return array( 'post_id' => $post_id, 'enwiki' => '' );
 		}
-		// Exact citation title.
-		$post_id = (int) $wpdb->get_var(
+		// Every published record citing the same Wikipedia article title.
+		$enwiki_posts = (array) $wpdb->get_col(
 			$wpdb->prepare(
-				"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = 'obit_enwiki' AND meta_value = %s LIMIT 1",
+				"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = 'obit_enwiki' AND meta_value = %s",
 				$group
 			)
 		);
-		if ( $post_id ) {
-			return array( 'post_id' => $post_id, 'enwiki' => $group );
-		}
-		// Search Wikipedia for the article, then match its title.
+		// Search Wikipedia for the article, then collect its records too.
 		$search = self::wiki_search_title( $group );
 		if ( '' !== $search ) {
-			$post_id = (int) $wpdb->get_var(
+			$by_search = (array) $wpdb->get_col(
 				$wpdb->prepare(
-					"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = 'obit_enwiki' AND meta_value = %s LIMIT 1",
+					"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = 'obit_enwiki' AND meta_value = %s",
 					$search
 				)
 			);
-			if ( $post_id ) {
-				return array( 'post_id' => $post_id, 'enwiki' => $search );
-			}
+			$enwiki_posts = array_values( array_unique( array_merge( $enwiki_posts, $by_search ) ) );
 		}
-		return null;
+		if ( array() === $enwiki_posts ) {
+			return null;
+		}
+		if ( 1 === count( $enwiki_posts ) ) {
+			return array( 'post_id' => (int) $enwiki_posts[0], 'enwiki' => '' !== $search ? $search : $group );
+		}
+		// Same-name ambiguity: resolve it by language, or don't resolve it.
+		return self::disambiguate( $enwiki_posts, $story_text, $search, $source_url );
+	}
+
+	/**
+	 * Pick among same-name records by wordcloud overlap between the story
+	 * and each record's stored Wikipedia-article cloud (cached at import
+	 * time by handle_wire_check). Below-floor or tie outcomes stay
+	 * unresolved on purpose: wrong attachments are worse than flagged ones.
+	 *
+	 * @param int[] $post_ids Same-name candidate records.
+	 * @return array{post_id:int,enwiki:string}|null
+	 */
+	private static function disambiguate( array $post_ids, string $story_text, string $enwiki, string $source_url = '' ): ?array {
+		$story_cloud = \Obitleague\Domain\Wordcloud::from_text( $story_text, 60 );
+		if ( array() === $story_cloud && '' !== $source_url ) {
+			// The excerpt was empty: fall back to the article text itself
+		// (cached; one polite fetch per story per TTL window).
+			$story_cloud = \Obitleague\Domain\Wordcloud::from_text( self::article_text( $source_url ), 60 );
+		}
+		if ( array() === $story_cloud ) {
+			return null;
+		}
+		$candidates = array();
+		foreach ( $post_ids as $pid ) {
+			$stored = get_post_meta( (int) $pid, 'obit_wiki_cloud', true );
+			$counts  = is_string( $stored ) && '' !== $stored ? json_decode( $stored, true ) : null;
+			if ( ! is_array( $counts ) || array() === $counts ) {
+				return null; // An un-cached candidate makes the choice unprovable.
+			}
+			$candidates[ (int) $pid ] = $counts;
+		}
+		$best = \Obitleague\Domain\Wordcloud::best_match( $story_cloud, $candidates );
+		if ( null === $best ) {
+			return null;
+		}
+		return array( 'post_id' => (int) $best, 'enwiki' => $enwiki );
+	}
+
+	/**
+	 * WP-CLI: wp obitleague death-wire-tidy-pending [--dry-run]
+	 * [--threshold=N]
+	 *
+	 * Clears the wire's backlog of never-swept pending stories: re-runs the
+	 * current classifier over every pending signal first (older items were
+	 * scored by earlier phrase tables), then marks everything below the
+	 * threshold as discarded. Stories at or above the line stay pending for
+	 * the sweep to process normally.
+	 */
+	public static function cli_tidy_pending( array $args, array $assoc_args ): void {
+		global $wpdb;
+		$dry_run   = (bool) ( $assoc_args['dry-run'] ?? false );
+		$threshold = isset( $assoc_args['threshold'] ) ? max( 0, min( 95, (int) $assoc_args['threshold'] ) ) : self::discard_threshold();
+
+		$signals = \Obitleague\Domain\Feed_Classifier::DEATH_SIGNALS;
+		$in      = implode( ',', array_fill( 0, count( $signals ), '%s' ) );
+
+		// 1. Reclassify every pending signal with the current phrase tables
+		// so the threshold is applied to today's scoring, not the scorer
+		// that was live when the item was ingested.
+		$table    = $wpdb->prefix . 'obitleague_feed_items';
+		$sources  = array();
+		foreach ( (array) $wpdb->get_results( "SELECT id, name, feed_url FROM {$wpdb->prefix}obitleague_sources" ) as $s ) {
+			$sources[ (int) $s->id ] = $s;
+		}
+		$offset  = 0;
+		$batch   = 500;
+		$scored  = 0;
+		$changed = 0;
+		do {
+			$rows = (array) $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT i.id, i.source_id, i.title, i.description, i.classification, i.classification_score
+					 FROM {$table} i WHERE i.wire_state = '' AND i.classification IN ({$in})
+					 ORDER BY i.id ASC LIMIT %d OFFSET %d",
+					array_merge( $signals, array( $batch, $offset ) )
+				)
+			);
+			foreach ( $rows as $row ) {
+				++$scored;
+				$source  = $sources[ (int) $row->source_id ] ?? null;
+				$verdict = \Obitleague\Domain\Wire_Phrases::classify(
+					(string) $row->title,
+					(string) ( $row->description ?? '' ),
+					array(
+						'source_name' => (string) ( $source->name ?? '' ),
+						'source_url'  => (string) ( $source->feed_url ?? '' ),
+					)
+				);
+				\Obitleague\Domain\Wire_Phrases::note_hits( (array) $verdict['matched'], (array) $verdict['negative'], (array) $verdict['excluded'] );
+				if ( $verdict['classification'] === (string) $row->classification && (int) $verdict['score'] === (int) $row->classification_score ) {
+					continue;
+				}
+				$cues = array_merge(
+					(array) $verdict['matched'],
+					array_map( static fn ( string $cue ): string => '−' . $cue, (array) $verdict['negative'] ),
+					array_map( static fn ( string $cue ): string => '✕' . $cue, (array) $verdict['excluded'] )
+				);
+				if ( ! $dry_run ) {
+					$wpdb->update(
+						$table,
+						array(
+							'classification'       => $verdict['classification'],
+							'classification_score' => (int) $verdict['score'],
+							'matched_cues'         => mb_substr( implode( ', ', $cues ), 0, 191 ),
+						),
+						array( 'id' => (int) $row->id ),
+						array( '%s', '%d', '%s' ),
+						array( '%d' )
+					);
+				}
+				++$changed;
+			}
+			$offset += $batch;
+		} while ( count( $rows ) === $batch );
+
+		// 2. Discard every remaining pending signal below the line. The
+		// mapped-likelihood comparison runs in PHP because likelihood_pct()
+		// folds two scoring eras (legacy cue counters ×10, weighted 50+)
+		// into one 0–95 scale.
+		$discarded = 0;
+		$kept      = 0;
+		if ( $dry_run ) {
+			$below = 0;
+		}
+		$offset = 0;
+		do {
+			$rows = (array) $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT id, classification_score FROM {$table}
+					 WHERE wire_state = '' AND classification IN ({$in})
+					 ORDER BY id ASC LIMIT %d OFFSET %d",
+					array_merge( $signals, array( $batch, $offset ) )
+				)
+			);
+			foreach ( $rows as $row ) {
+				$likelihood = self::likelihood_pct( (int) $row->classification_score );
+				if ( $likelihood >= $threshold ) {
+					++$kept;
+					continue;
+				}
+				if ( $dry_run ) {
+					++$below;
+					continue;
+				}
+				$wpdb->update(
+					$table,
+					array( 'wire_state' => 'discarded' ),
+					array( 'id' => (int) $row->id ),
+					array( '%s' ),
+					array( '%d' )
+				);
+				++$discarded;
+			}
+			$offset += $batch;
+		} while ( count( $rows ) === $batch );
+
+		if ( $dry_run ) {
+			\WP_CLI::log( sprintf( 'Threshold: %d%%. Pending signals seen: %d; reclassified: %d.', $threshold, $scored, $changed ) );
+			\WP_CLI::log( sprintf( 'Dry run: %d pending signal(s) sit below the %d%% line and would be discarded.', $below, $threshold ) );
+			\WP_CLI::success( 'No changes made (dry run).' );
+			return;
+		}
+		\WP_CLI::log( sprintf( 'Threshold: %d%%. Pending signals seen: %d; reclassified: %d.', $threshold, $scored, $changed ) );
+		\WP_CLI::success( sprintf( 'Tidy complete: %d pending signal(s) below %d%% discarded; %d remain pending.', $discarded, $threshold, $kept ) );
 	}
 
 	/**
@@ -818,6 +1019,37 @@ final class Death_Wire {
 	}
 
 	/**
+	 * Store a record's Wikipedia-article wordcloud (JSON, capped) so same-
+	 * name stories can be disambiguated later without refetching the article.
+	 */
+	private static function store_wiki_cloud( int $post_id, string $wikitext ): void {
+		$cloud = \Obitleague\Domain\Wordcloud::from_wikitext( $wikitext, 80 );
+		if ( array() === $cloud ) {
+			return;
+		}
+		update_post_meta( $post_id, 'obit_wiki_cloud', wp_json_encode( $cloud ) );
+	}
+
+	/**
+	 * Fill a record's identity gaps in the background: stamp the Wikidata
+	 * QID when the article carried one and the record lacks it, and enqueue
+	 * a People_Sync enrichment (portrait, occupations, dates) through the
+	 * global Wikimedia queue.
+	 */
+	private static function enrich_person( int $post_id, string $qid ): void {
+		if ( $post_id < 1 ) {
+			return;
+		}
+		if ( '' === (string) get_post_meta( $post_id, 'obit_qid', true ) && preg_match( '/^Q\d+$/', $qid ) ) {
+			update_post_meta( $post_id, 'obit_qid', $qid );
+		}
+		if ( '' === (string) get_post_meta( $post_id, 'obit_qid', true ) ) {
+			return;
+		}
+		People_Sync::enqueue_person( $post_id );
+	}
+
+	/**
 	 * Provisional publication flag. A provisional record is public at once
 	 * but scores nothing until an editor confirms the death.
 	 */
@@ -889,6 +1121,11 @@ final class Death_Wire {
 		if ( '' === $url || ! str_starts_with( $url, 'http' ) ) {
 			return '';
 		}
+		$cache_key = 'obit_article_' . md5( $url );
+		$cached    = get_transient( $cache_key );
+		if ( is_string( $cached ) ) {
+			return $cached;
+		}
 		$response = wp_remote_get(
 			$url,
 			array(
@@ -909,7 +1146,11 @@ final class Death_Wire {
 		$text = preg_replace( '/<style\b[^>]*>.*?<\/style>/is', ' ', $text ) ?? $text;
 		$text = preg_replace( '/<[^>]+>/', ' ', $text ) ?? $text;
 		$text = html_entity_decode( $text, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
-		return trim( preg_replace( '/\s+/u', ' ', $text ) ?? '' );
+		$text = trim( preg_replace( '/\s+/u', ' ', $text ) ?? '' );
+		// Empty results cache briefly, real text for the article TTL: a page
+		// that failed once should not be re-fetched on every look.
+		set_transient( $cache_key, $text, '' === $text ? HOUR_IN_SECONDS : self::ARTICLE_TTL );
+		return $text;
 	}
 
 	/**
@@ -1134,23 +1375,53 @@ final class Death_Wire {
 		return rawurldecode( substr( $uri, $pos + strlen( $marker ) ) );
 	}
 
-	/** Wikipedia search: the best article title for a name, or ''. */
+	/** Wikipedia search: the best article title for a name, cached briefly. */
 	private static function wiki_search_title( string $term ): string {
+		$term   = trim( $term );
+		if ( '' === $term ) {
+			return '';
+		}
+		$cache_key = 'obit_wikisearch_' . md5( mb_strtolower( $term ) );
+		$cached    = get_transient( $cache_key );
+		if ( is_string( $cached ) ) {
+			return $cached;
+		}
 		$response = wp_remote_get(
 			'https://en.wikipedia.org/w/api.php?action=query&list=search&format=json&formatversion=2&srlimit=3&srsearch=' . rawurlencode( $term ),
 			array( 'timeout' => 15, 'user-agent' => self::USER_AGENT )
 		);
-		if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
-			return '';
+		$title = '';
+		if ( ! is_wp_error( $response ) && 200 === (int) wp_remote_retrieve_response_code( $response ) ) {
+			$body  = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+			$title = (string) ( $body['query']['search'][0]['title'] ?? '' );
 		}
-		$body = json_decode( (string) wp_remote_retrieve_body( $response ), true );
-		return (string) ( $body['query']['search'][0]['title'] ?? '' );
+		// Cache misses too: a name with no article stays no-article for the TTL.
+		set_transient( $cache_key, $title, self::WIKI_TTL );
+		return $title;
 	}
 
-	/** Raw wikitext of one enwiki article ('' when missing). */
-	private static function wiki_article_wikitext( string $title ): string|\WP_Error {
+	/**
+	 * One cached enwiki request carrying everything the wire needs about a
+	 * person: the article wikitext AND the Wikidata QID behind it (both live
+	 * in a single action=query&prop=revisions|pageprops call). Consumers:
+	 * death-year check, exact death-date extraction, birth year, and the
+	 * wordcloud stored on the record for same-name disambiguation.
+	 *
+	 * @return array{wikitext:string, qid:string}|\WP_Error Cached arrays are
+	 *         shared by reference discipline — callers must not mutate.
+	 */
+	public static function wiki_article( string $title ): array|\WP_Error {
+		$title = str_replace( ' ', '_', trim( $title ) );
+		if ( '' === $title ) {
+			return array( 'wikitext' => '', 'qid' => '' );
+		}
+		$cache_key = 'obit_wikiart_' . md5( $title );
+		$cached    = get_transient( $cache_key );
+		if ( is_array( $cached ) && isset( $cached['wikitext'] ) ) {
+			return $cached;
+		}
 		$response = wp_remote_get(
-			'https://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&rvslots=main&format=json&formatversion=2&titles=' . rawurlencode( $title ),
+			'https://en.wikipedia.org/w/api.php?action=query&prop=revisions%7Cpageprops&rvprop=content&rvslots=main&format=json&formatversion=2&maxlag=5&titles=' . rawurlencode( $title ),
 			array( 'timeout' => 20, 'user-agent' => self::USER_AGENT )
 		);
 		if ( is_wp_error( $response ) ) {
@@ -1164,10 +1435,31 @@ final class Death_Wire {
 			return new \WP_Error( 'obitleague_discovery_paused', sprintf( 'Wikipedia asked us to slow down until %s UTC.', gmdate( 'Y-m-d H:i:s', $pause_until ) ) );
 		}
 		if ( 200 !== $code ) {
-			return '';
+			// Negative answers cache too: dead titles stay dead for the TTL.
+			$empty = array( 'wikitext' => '', 'qid' => '' );
+			set_transient( $cache_key, $empty, self::WIKI_TTL );
+			return $empty;
 		}
-		$body = json_decode( (string) wp_remote_retrieve_body( $response ), true );
-		return (string) ( $body['query']['pages'][0]['revisions'][0]['slots']['main']['content'] ?? '' );
+		$body  = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+		$page  = (array) ( $body['query']['pages'][0] ?? array() );
+		$out   = array(
+			'wikitext' => (string) ( $page['revisions'][0]['slots']['main']['content'] ?? '' ),
+			'qid'      => (string) ( $page['pageprops']['wikibase_item'] ?? '' ),
+		);
+		if ( '' === $out['qid'] || ! preg_match( '/^Q\d+$/', $out['qid'] ) ) {
+			$out['qid'] = '';
+		}
+		set_transient( $cache_key, $out, self::WIKI_TTL );
+		return $out;
+	}
+
+	/** Raw wikitext of one enwiki article via the combined cached fetch. */
+	private static function wiki_article_wikitext( string $title ): string|\WP_Error {
+		$result = self::wiki_article( $title );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return (string) $result['wikitext'];
 	}
 
 	/**
@@ -1211,21 +1503,6 @@ final class Death_Wire {
 			return sprintf( '%04d-%02d-%02d', $year, $month, min( 31, max( 1, (int) $m2[1] ) ) );
 		}
 		return (string) $year;
-	}
-
-	/** The Wikidata QID behind an enwiki title ('' when none). */
-	private static function discover_by_enwiki( string $enwiki ): string {
-		$response = wp_remote_get(
-			'https://en.wikipedia.org/w/api.php?action=query&prop=pageprops&format=json&formatversion=2&titles=' . rawurlencode( $enwiki ),
-			array( 'timeout' => 15, 'user-agent' => self::USER_AGENT )
-		);
-		if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
-			return '';
-		}
-		$body  = json_decode( (string) wp_remote_retrieve_body( $response ), true );
-		$props = (array) ( $body['query']['pages'][0]['pageprops'] ?? array() );
-		$qid   = (string) ( $props['wikibase_item'] ?? '' );
-		return preg_match( '/^Q\d+$/', $qid ) ? $qid : '';
 	}
 
 	/** The stored identity anchor for a record (citation or QID lookup). */
