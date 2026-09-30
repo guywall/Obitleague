@@ -29,6 +29,8 @@ final class Admin_Death_Wire {
 		add_action( 'admin_post_obitleague_death_wire_source_add', array( self::class, 'handle_source_add' ) );
 		add_action( 'admin_post_obitleague_death_wire_source_toggle', array( self::class, 'handle_source_toggle' ) );
 		add_action( 'admin_post_obitleague_death_wire_source_delete', array( self::class, 'handle_source_delete' ) );
+		add_action( 'admin_post_obitleague_death_wire_story_dismiss', array( self::class, 'handle_story_dismiss' ) );
+		add_action( 'admin_post_obitleague_death_wire_story_publish', array( self::class, 'handle_story_publish' ) );
 	}
 
 	public static function menu(): void {
@@ -135,6 +137,47 @@ final class Admin_Death_Wire {
 		submit_button( 'Add source', 'primary', 'submit', false );
 		echo '</form>';
 
+		/* ---------------- pending stories: dismiss or publish ---------------- */
+		$pending = self::pending_stories( 40 );
+		echo '<h2>Pending stories (' . esc_html( (string) count( $pending ) ) . ' awaiting a decision)</h2>';
+		echo '<p>Sorted by obituary likelihood, most likely first. Stories below ' . (int) Death_Wire::DISCARD_BELOW . '% are discarded automatically by the sweep. <strong>Dismiss</strong> hides a story that is not a death; <strong>Publish</strong> runs the wire match on it now — a story matching a confirmed death gains its source on the public obit page immediately, one matching a person record queues the Wikipedia confirmation pass.</p>';
+		echo '<div class="ob-admin-table-scroll"><table class="widefat striped"><thead><tr><th>Parsed</th><th>Story</th><th>Source</th><th>Likelihood</th><th>Cues</th><th>Matches</th><th>Actions</th></tr></thead><tbody>';
+		if ( ! $pending ) {
+			echo '<tr><td colspan="7">No stories awaiting a decision. The sweep processes everything above the discard line on its own schedule.</td></tr>';
+		}
+		foreach ( $pending as $story ) {
+			$likelihood = self::likelihood( (int) $story->classification_score );
+			$match      = Death_Wire::story_match( (string) $story->title );
+			echo '<tr>';
+			echo '<td>' . esc_html( substr( (string) $story->retrieved_at, 0, 16 ) ) . '</td>';
+			$title = (string) $story->title;
+			echo '<td>';
+			if ( '' !== (string) $story->url ) {
+				echo '<a href="' . esc_url( (string) $story->url ) . '" rel="noopener" target="_blank">' . esc_html( wp_html_excerpt( $title, 64, '…' ) ) . '</a>';
+			} else {
+				echo esc_html( wp_html_excerpt( $title, 64, '…' ) );
+			}
+			echo '</td>';
+			echo '<td>' . esc_html( (string) $story->source_name ) . '</td>';
+			echo '<td><span style="font-weight:700;color:' . esc_attr( self::likelihood_colour( $likelihood ) ) . '">' . esc_html( (string) $likelihood ) . '%</span></td>';
+			echo '<td>' . esc_html( '' !== (string) $story->matched_cues ? (string) $story->matched_cues : '—' ) . '</td>';
+			echo '<td>' . ( $match ? '<a href="' . esc_url( (string) get_edit_post_link( $match['post_id'] ) ) . '">' . esc_html( $match['name'] ) . '</a>' : '<span class="description">no record yet</span>' ) . '</td>';
+			echo '<td style="white-space:nowrap">';
+			$base = admin_url( 'admin-post.php' );
+			echo '<form method="post" action="' . esc_url( $base ) . '" style="display:inline">';
+			wp_nonce_field( 'obitleague_death_wire_story_dismiss' );
+			echo '<input type="hidden" name="action" value="obitleague_death_wire_story_dismiss" /><input type="hidden" name="item" value="' . (int) $story->id . '" />';
+			submit_button( 'Dismiss', 'small', 'submit', false );
+			echo '</form> ';
+			echo '<form method="post" action="' . esc_url( $base ) . '" style="display:inline">';
+			wp_nonce_field( 'obitleague_death_wire_story_publish' );
+			echo '<input type="hidden" name="action" value="obitleague_death_wire_story_publish" /><input type="hidden" name="item" value="' . (int) $story->id . '" />';
+			submit_button( 'Publish', 'small primary', 'submit', false );
+			echo '</form>';
+			echo '</td></tr>';
+		}
+		echo '</tbody></table></div>';
+
 		/* ---------------- parsed stories ---------------- */
 		$stories = self::recent_stories();
 		echo '<h2>Parsed stories (' . esc_html( (string) self::season_story_count() ) . ' this season)</h2>';
@@ -150,6 +193,7 @@ final class Admin_Death_Wire {
 			}
 			echo '</p>';
 		}
+		echo '<p class="description">Sorted by obituary likelihood, most likely first. Discarded and dismissed stories stay here for audit.</p>';
 		echo '<table class="widefat striped"><thead><tr><th>Parsed</th><th>Story</th><th>Source</th><th>Obituary likelihood</th><th>Matched cues</th><th>Wire outcome</th></tr></thead><tbody>';
 		if ( ! $stories ) {
 			echo '<tr><td colspan="6">Nothing parsed yet — add a source above and wait for the next poll.</td></tr>';
@@ -205,20 +249,36 @@ final class Admin_Death_Wire {
 		);
 	}
 
-	/** @return object[] Newest parsed stories with source names. */
+	/** @return object[] Stories awaiting a sweep decision, most likely first. */
+	private static function pending_stories( int $limit ): array {
+		global $wpdb;
+		return (array) $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT i.id, i.title, i.url, i.retrieved_at, i.classification_score, i.matched_cues, s.name AS source_name
+				 FROM {$wpdb->prefix}obitleague_feed_items i
+				 JOIN {$wpdb->prefix}obitleague_sources s ON s.id = i.source_id
+				 WHERE i.wire_state = '' AND i.classification = %s
+				 ORDER BY i.classification_score DESC, i.id DESC LIMIT %d",
+				\Obitleague\Domain\Feed_Classifier::CANDIDATE,
+				$limit
+			)
+		);
+	}
+
+	/** @return object[] Newest parsed stories, most likely first. */
 	private static function recent_stories(): array {
 		global $wpdb;
 		return (array) $wpdb->get_results(
 			"SELECT i.id, i.title, i.url, i.published_at, i.retrieved_at, i.classification, i.classification_score, i.matched_cues, i.wire_state, s.name AS source_name
 			 FROM {$wpdb->prefix}obitleague_feed_items i
 			 JOIN {$wpdb->prefix}obitleague_sources s ON s.id = i.source_id
-			 ORDER BY i.id DESC LIMIT 60"
+			 ORDER BY (i.classification = 'candidate') DESC, i.classification_score DESC, i.id DESC LIMIT 60"
 		);
 	}
 
-	/** Classifier score as a positive 0–100 likelihood gauge for display. */
+	/** Classifier score as an honest 0–100 likelihood gauge (0 = no signal). */
 	private static function likelihood( int $score ): int {
-		return (int) max( 0, min( 100, round( 50 + $score * 6 ) ) );
+		return Death_Wire::likelihood_pct( $score );
 	}
 
 	private static function likelihood_colour( int $likelihood ): string {
@@ -265,6 +325,44 @@ final class Admin_Death_Wire {
 	/* ------------------------------------------------------------------ */
 	/* Handlers                                                            */
 	/* ------------------------------------------------------------------ */
+
+	public static function handle_story_dismiss(): void {
+		self::must( 'obitleague_death_wire_story_dismiss' );
+		$item_id = (int) ( $_POST['item'] ?? 0 );
+		if ( $item_id < 1 ) {
+			wp_safe_redirect( self::back( '', 'Unknown story.' ) );
+			exit;
+		}
+		Death_Wire::dismiss_story( $item_id );
+		wp_safe_redirect( self::back( 'Story dismissed.' ) );
+		exit;
+	}
+
+	public static function handle_story_publish(): void {
+		self::must( 'obitleague_death_wire_story_publish' );
+		$item_id = (int) ( $_POST['item'] ?? 0 );
+		if ( $item_id < 1 ) {
+			wp_safe_redirect( self::back( '', 'Unknown story.' ) );
+			exit;
+		}
+		$outcome = Death_Wire::process_story( $item_id );
+		$story   = self::story_title( $item_id );
+		$match   = Death_Wire::story_match( $story );
+		$notice  = match ( $outcome ) {
+			'attached', 'duplicate' => 'Published: source attached to ' . ( $match ? $match['name'] : "" ) . "'s obituary page.",
+			'check_queued'          => 'Published to the wire: the Wikipedia confirmation pass is queued' . ( $match ? ' for ' . $match['name'] : '' ) . '.',
+			'no_anchor'             => 'No Wikipedia article found for the name in that headline — nothing to publish against.',
+			'no_name'               => 'That headline has no usable name group to match.',
+			default                 => 'Wire outcome: ' . $outcome . '.',
+		};
+		wp_safe_redirect( self::back( $notice ) );
+		exit;
+	}
+
+	private static function story_title( int $item_id ): string {
+		global $wpdb;
+		return (string) $wpdb->get_var( $wpdb->prepare( "SELECT title FROM {$wpdb->prefix}obitleague_feed_items WHERE id = %d", $item_id ) );
+	}
 
 	public static function handle_run(): void {
 		self::must( 'obitleague_death_wire_run' );

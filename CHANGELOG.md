@@ -5,6 +5,27 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Added — Honest obituary likelihood, auto-discard, and per-story decisions
+
+- **The likelihood gauge was fiction at the low end.** It mapped a zero-
+  signal story to 50% (50 + score×6), so nothing ever looked unlikely.
+  The gauge is now honest: 0% for a story with no death signal, roughly
+  +10 points per cue-weight, capped at 95% — and both the pending list
+  and the parsed-stories table sort most-likely-first.
+- **Stories below 50% likelihood are auto-discarded.** The RSS sweep
+  marks them `discarded` without spending a Wikimedia request or an
+  editor's attention; they remain visible in the audit table. The line
+  is `Death_Wire::DISCARD_BELOW` (50).
+- **Pending stories gain Dismiss / Publish buttons with a match column.**
+  The death-wire dashboard lists unprocessed candidate stories sorted by
+  likelihood, shows which person record the headline's name group
+  matches (linked to its editor screen), and offers Dismiss (story is
+  not a death; hidden, kept for audit) and Publish (runs the wire match
+  immediately: a story matching a confirmed death attaches its source
+  to the public obit page at once, one matching a person record queues
+  the Wikipedia confirmation pass, an unmatched name queues the
+  new-person check).
+
 ### Changed — Wikipedia list deaths treat the list as an origin; profiles fill the gaps
 
 - **A "Deaths in 2026" listing now counts as the Wikipedia origin group.**

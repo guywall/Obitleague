@@ -36,6 +36,8 @@ final class Death_Wire {
 	private const LAST_RUN_OPTION    = 'obitleague_death_wire_last_run';
 	private const DONE_MONTHS_OPTION = 'obitleague_death_wire_months_done';
 	private const WIKI_LIST_TITLE    = 'Deaths in 2026';
+	/** Stories below this obituary likelihood are auto-discarded. */
+	public const DISCARD_BELOW = 50;
 	private const PAGE_SIZE          = 50;
 	private const MAX_LIST_PAGES     = 40; // Safety bound: ~2000 names/month.
 	private const WIRE_BATCH         = 100;
@@ -326,7 +328,7 @@ final class Death_Wire {
 		$season = Pick_Stats::season_in_play();
 		$items  = (array) $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT i.id, i.title, i.url, i.published_at, s.name AS source_name
+				"SELECT i.id, i.title, i.url, i.published_at, i.classification_score, s.name AS source_name
 				 FROM {$wpdb->prefix}obitleague_feed_items i
 				 JOIN {$wpdb->prefix}obitleague_sources s ON s.id = i.source_id
 				 WHERE i.classification = %s AND i.wire_state = '' AND i.id > %d
@@ -348,6 +350,19 @@ final class Death_Wire {
 		$stats = self::fresh_stats( 'wire' );
 		foreach ( $items as $item ) {
 			update_option( self::WIRE_CURSOR_OPTION, (int) $item->id, false );
+			// Stories whose obituary likelihood sits below the discard line are
+			// not worth editor attention; they are marked and never swept again.
+			if ( self::likelihood_pct( (int) $item->classification_score ) < self::DISCARD_BELOW ) {
+				$wpdb->update(
+					$wpdb->prefix . 'obitleague_feed_items',
+					array( 'wire_state' => 'discarded' ),
+					array( 'id' => (int) $item->id ),
+					array( '%s' ),
+					array( '%d' )
+				);
+				++$stats['discarded_low_likelihood'];
+				continue;
+			}
 			$source_name = (string) ( $item->source_name ?: 'News feed' );
 			$source_url  = (string) $item->url;
 			$title       = (string) $item->title;
@@ -608,6 +623,104 @@ final class Death_Wire {
 	/** Promote a provisional record to a confirmed death. */
 	public static function confirm_provisional( int $post_id ): void {
 		delete_post_meta( $post_id, 'obit_death_provisional' );
+	}
+
+	/**
+	 * Classifier score as an honest 0–100 obituary likelihood: 0% for a story
+	 * with no death signal (score 0 or negative), roughly +10 points per
+	 * positive cue-weight, capped below certainty.
+	 */
+	public static function likelihood_pct( int $score ): int {
+		if ( $score <= 0 ) {
+			return 0;
+		}
+		return (int) min( 95, $score * 10 );
+	}
+
+	/** The person record a story title matches, for queue display. */
+	public static function story_match( string $title ): ?array {
+		$group = self::match_group( $title );
+		if ( null === $group || '' === $group ) {
+			return null;
+		}
+		$found = self::person_for_group( $group );
+		if ( ! $found ) {
+			return null;
+		}
+		return array( 'post_id' => (int) $found['post_id'], 'name' => (string) get_the_title( (int) $found['post_id'] ) );
+	}
+
+	/**
+	 * Run the wire's own match logic on one story immediately — the Publish
+	 * button. A story matching a confirmed death gains its source on the
+	 * public obit page at once; one matching a living or provisional record
+	 * queues the Wikipedia confirmation pass; an unmatched story queues the
+	 * new-person check. Returns the outcome label stored on the item.
+	 */
+	public static function process_story( int $item_id ): string {
+		global $wpdb;
+		$item = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT i.title, i.url, s.name AS source_name FROM {$wpdb->prefix}obitleague_feed_items i
+				 JOIN {$wpdb->prefix}obitleague_sources s ON s.id = i.source_id WHERE i.id = %d",
+				$item_id
+			)
+		);
+		if ( ! $item ) {
+			return 'missing';
+		}
+		$stats   = self::fresh_stats( 'wire' );
+		$outcome = self::attach( (string) $item->title, (string) $item->url, (string) ( $item->source_name ?: 'News feed' ), $item_id, $stats );
+		$wpdb->update(
+			$wpdb->prefix . 'obitleague_feed_items',
+			array( 'wire_state' => $outcome ),
+			array( 'id' => $item_id ),
+			array( '%s' ),
+			array( '%d' )
+		);
+		self::save_stats( $stats );
+		return $outcome;
+	}
+
+	/** Attach a story source to a person's review case (public wrapper). */
+	public static function attach_story( int $post_id, string $item_id ): bool {
+		global $wpdb;
+		$item = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT i.title, i.url, s.name AS source_name FROM {$wpdb->prefix}obitleague_feed_items i
+				 JOIN {$wpdb->prefix}obitleague_sources s ON s.id = i.source_id WHERE i.id = %d",
+				$item_id
+			)
+		);
+		if ( ! $item || '' === (string) $item->url ) {
+			return false;
+		}
+		$ok = self::attach_source( $post_id, (string) ( $item->source_name ?: 'News feed' ), (string) $item->url, (string) gmdate( 'Y-m-d H:i:s' ) );
+		if ( $ok ) {
+			$wpdb->update(
+				$wpdb->prefix . 'obitleague_feed_items',
+				array( 'wire_state' => 'attached' ),
+				array( 'id' => (int) $item_id ),
+				array( '%s' ),
+				array( '%d' )
+			);
+			if ( self::has_death( $post_id ) ) {
+				Person_Content::regenerate( $post_id );
+			}
+		}
+		return (bool) $ok;
+	}
+
+	/** Mark a story dismissed (hidden from the pending list, kept for audit). */
+	public static function dismiss_story( int $item_id ): void {
+		global $wpdb;
+		$wpdb->update(
+			$wpdb->prefix . 'obitleague_feed_items',
+			array( 'wire_state' => 'dismissed' ),
+			array( 'id' => $item_id ),
+			array( '%s' ),
+			array( '%d' )
+		);
 	}
 
 	/** Open a review case unless one is already open or approved. */
@@ -881,6 +994,7 @@ final class Death_Wire {
 		$stats['sources_attached']  = 0;
 		$stats['source_duplicates'] = 0;
 		$stats['checks_queued']     = 0;
+		$stats['discarded_low_likelihood'] = 0;
 		$stats['flagged_unconfirmable'] = 0;
 		$stats['flagged_no_anchor'] = 0;
 		$stats['skipped_no_url']    = 0;
