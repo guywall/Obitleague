@@ -345,9 +345,10 @@ body.ob-on a.skip-link.screen-reader-text {
 	transform: translate(-50%, 0);
 }
 
-.ob-header__chev {
+.ob-header__chev.ob-header__chev {
 	appearance: none;
 	border: 0;
+	outline-offset: 2px;
 	cursor: pointer;
 	font: inherit;
 	padding: 0;
@@ -361,7 +362,13 @@ body.ob-on a.skip-link.screen-reader-text {
 	background: rgba(255, 255, 255, 0.12);
 	color: rgba(255, 255, 255, 0.85);
 	font-size: 0.7rem;
+	box-shadow: none;
+	text-shadow: none;
 	transition: background 0.2s, color 0.2s;
+}
+
+.ob-header__chev.ob-header__chev:focus-visible {
+	outline: 2px solid #f0c75e;
 }
 
 .ob-header__item:hover > .ob-header__chev,
