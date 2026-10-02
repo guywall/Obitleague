@@ -95,6 +95,7 @@ final class Catalogue {
 			'obit_death_precision' => 'string', // exact|month|year|unknown.
 			'obit_cause_status'    => 'string',
 			'obit_cause_text'      => 'string',
+			'obit_cause_source'    => 'string', // wikidata-P509 | editor | none.
 			'obit_eligibility'     => 'string', // candidate|approved|ineligible.
 			'obit_portrait_credit' => 'string',
 			'obit_eligibility_note' => 'string',

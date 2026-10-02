@@ -23,6 +23,7 @@ declare( strict_types = 1 );
 
 namespace Obitleague\Modules;
 
+use Obitleague\Domain\Value\Cause_Status;
 use Obitleague\Domain\Value\Role_Label;
 
 final class People_Sync {
@@ -33,6 +34,15 @@ final class People_Sync {
 	public const META_OCCUPATIONS = 'obit_occupations';
 	public const META_OCCUPATION_PRIMARY = 'obit_occupation_primary';
 	public const META_OCCUPATION_QIDS = 'obit_occupation_qids';
+
+	/**
+	 * Where a record's cause of death came from. '' means it has not been
+	 * resolved yet — an absent P509 and an unreadable one both leave a
+	 * marker, so the sweep does not retry the same gap forever.
+	 */
+	public const META_CAUSE_SOURCE = 'obit_cause_source';
+	public const CAUSE_SOURCE_WIKIDATA = 'wikidata-P509';
+	public const CAUSE_SOURCE_EDITOR = 'editor';
 
 	/** Public although the class is static-only: WP-CLI instantiates array callables when invoking commands. */
 	public function __construct() {}
@@ -60,7 +70,12 @@ final class People_Sync {
 				static function ( array $args, array $assoc_args ): void {
 					$limit = (int) ( $assoc_args['limit'] ?? 400 );
 					$stats = self::enqueue_missing( $limit );
-					\WP_CLI::success( "Enqueued {$stats['enqueued']} enrichment request(s); {$stats['missing']} people missing data." );
+					$note  = "Enqueued {$stats['enqueued']} enrichment request(s); {$stats['missing']} people missing data.";
+					if ( $stats['failed'] > 0 ) {
+						\WP_CLI::warning( $note . " {$stats['failed']} request(s) could not be stored in the Wikimedia request queue." );
+						return;
+					}
+					\WP_CLI::success( $note );
 				}
 			);
 		}
@@ -68,11 +83,13 @@ final class People_Sync {
 
 	/**
 	 * Enqueue enrichment requests for every published person still missing a
-	 * portrait or occupations. Idempotent per person: while a request for
-	 * one is pending — or a previous one already succeeded — the dedupe key
-	 * keeps it to a single row. Returns stats.
+	 * portrait, occupations, a role, or a resolved cause of death. Idempotent
+	 * per person: while a request for one is pending — or a previous one
+	 * already succeeded — the dedupe key keeps it to a single row. Returns
+	 * stats, including `failed` for requests the queue refused to store, so a
+	 * broken insert is visible rather than counted as success.
 	 *
-	 * @return array{checked:int, missing:int, enqueued:int}
+	 * @return array{checked:int, missing:int, enqueued:int, failed:int}
 	 */
 	public static function enqueue_missing( int $limit = 400 ): array {
 		global $wpdb;
@@ -83,18 +100,21 @@ final class People_Sync {
 				 LEFT JOIN {$wpdb->postmeta} img ON img.post_id = p.ID AND img.meta_key = %s
 				 LEFT JOIN {$wpdb->postmeta} occ ON occ.post_id = p.ID AND occ.meta_key = %s
 				 LEFT JOIN {$wpdb->postmeta} rol ON rol.post_id = p.ID AND rol.meta_key = 'obit_role'
+				 LEFT JOIN {$wpdb->postmeta} cause ON cause.post_id = p.ID AND cause.meta_key = %s
 				 WHERE p.post_type = %s AND p.post_status = 'publish'
 				   AND ( img.meta_value IS NULL OR img.meta_value = ''
 				      OR occ.meta_value IS NULL OR occ.meta_value = ''
-				      OR rol.meta_value IS NULL OR rol.meta_value = '' )
+				      OR rol.meta_value IS NULL OR rol.meta_value = ''
+				      OR cause.meta_value IS NULL OR cause.meta_value = '' )
 				 ORDER BY p.ID ASC LIMIT %d",
 				self::META_IMAGE_URL,
 				self::META_OCCUPATIONS,
+				self::META_CAUSE_SOURCE,
 				Catalogue::POST_TYPE,
 				$limit
 			)
 		);
-		$stats = array( 'checked' => 0, 'missing' => 0, 'enqueued' => 0 );
+		$stats = array( 'checked' => 0, 'missing' => 0, 'enqueued' => 0, 'failed' => 0 );
 		foreach ( array_map( 'intval', (array) $post_ids ) as $post_id ) {
 			++$stats['checked'];
 			$qid = (string) get_post_meta( $post_id, 'obit_qid', true );
@@ -112,13 +132,19 @@ final class People_Sync {
 			if ( $existing > 0 ) {
 				continue;
 			}
-			Wiki_Request_Queue::enqueue(
+			// enqueue() returns 0 when the row could not be stored: the gap is
+			// then still open and must be reported, never counted as a success.
+			$row_id = Wiki_Request_Queue::enqueue(
 				'enrich_person',
 				array( 'post_id' => $post_id ),
 				self::enrich_dedupe_key( $post_id ),
 				'wikidata'
 			);
-			++$stats['enqueued'];
+			if ( $row_id > 0 ) {
+				++$stats['enqueued'];
+			} else {
+				++$stats['failed'];
+			}
 		}
 		update_option( 'obitleague_people_sync_last_run', array_merge( $stats, array( 'completed_at' => current_time( 'mysql', true ) ) ), false );
 		return $stats;
@@ -178,8 +204,8 @@ final class People_Sync {
 	/**
 	 * Apply one Wikidata entity to a person post: occupations (P106), the
 	 * enwiki sitelink, a birth date (P569) when missing, a day-precision
-	 * death-date refinement for provisional records, and the portrait (P18).
-	 * Returns the number of meta groups
+	 * death-date refinement for provisional records, the cause of death
+	 * (P509), and the portrait (P18). Returns the number of meta groups
 	 * written.
 	 */
 	public static function apply_entity( int $post_id, array $entity ): int {
@@ -214,6 +240,29 @@ final class People_Sync {
 		$enwiki = self::enwiki_from_entity( $entity );
 		if ( '' !== $enwiki && '' === (string) get_post_meta( $post_id, 'obit_enwiki', true ) ) {
 			update_post_meta( $post_id, 'obit_enwiki', $enwiki );
+		}
+
+		// Cause of death (P509). The cause is resolved once per record: an
+		// editorial decision (Review_Service marks it 'editor') or an earlier
+		// import always wins, and a record Wikidata has no cause for is
+		// marked checked so the sweep stops retrying it.
+		if ( '' === (string) get_post_meta( $post_id, self::META_CAUSE_SOURCE, true )
+			&& '' === trim( (string) get_post_meta( $post_id, 'obit_cause_text', true ) ) ) {
+			$cause_qid = self::cause_qid( $entity );
+			if ( '' !== $cause_qid ) {
+				$cause_label = self::label_for( $cause_qid );
+				if ( '' !== $cause_label ) {
+					update_post_meta( $post_id, 'obit_cause_status', Cause_Status::CONFIRMED );
+					update_post_meta( $post_id, 'obit_cause_text', $cause_label );
+					update_post_meta( $post_id, self::META_CAUSE_SOURCE, self::CAUSE_SOURCE_WIKIDATA );
+					Person_Content::regenerate( $post_id );
+					++$updated;
+				}
+				// A cause whose label will not resolve is left unmarked, so a
+				// later pass can still read it.
+			} else {
+				update_post_meta( $post_id, self::META_CAUSE_SOURCE, 'none' );
+			}
 		}
 
 		// A birth date (P569) fills the record's gap; an existing stored
@@ -316,6 +365,36 @@ final class People_Sync {
 	}
 
 	/**
+	 * The Wikidata item named as the cause of death (P509) by one entity,
+	 * '' when the person has no usable claim. Preferred ranks win; a claim
+	 * Wikidata has deprecated is ignored.
+	 */
+	public static function cause_qid( ?array $entity ): string {
+		if ( ! $entity ) {
+			return '';
+		}
+		$claims = is_array( $entity['claims'] ?? null ) ? $entity['claims'] : array();
+		$qids   = array();
+		foreach ( (array) ( $claims['P509'] ?? array() ) as $claim ) {
+			if ( ! is_array( $claim ) || 'deprecated' === (string) ( $claim['rank'] ?? 'normal' ) ) {
+				continue;
+			}
+			$value = $claim['mainsnak']['datavalue']['value'] ?? null;
+			$qid   = is_array( $value ) ? (string) ( $value['id'] ?? '' ) : '';
+			if ( '' !== $qid ) {
+				$qids[ $qid ] = 'preferred' === (string) ( $claim['rank'] ?? 'normal' ) ? 'preferred' : 'normal';
+			}
+		}
+		foreach ( $qids as $qid => $rank ) {
+			if ( 'preferred' === $rank ) {
+				return (string) $qid;
+			}
+		}
+		$first = array_key_first( $qids );
+		return null === $first ? '' : (string) $first;
+	}
+
+	/**
 	 * Occupations from one entity: preferred-rank claim becomes the primary
 	 * designator (falling back to the first listed occupation when Wikidata
 	 * marks none preferred). Returns labels, primary label and QID map.
@@ -344,7 +423,7 @@ final class People_Sync {
 			if ( '' === $qid || isset( $qids[ $qid ] ) ) {
 				continue;
 			}
-			$label = self::occupation_label( $qid );
+			$label = self::label_for( $qid );
 			if ( '' === $label ) {
 				continue;
 			}
@@ -367,15 +446,18 @@ final class People_Sync {
 		);
 	}
 
-	/** Label lookup cache (occupation QID → English label). */
-	private static array $occ_labels = array();
+	/**
+	 * Label lookup cache (Wikidata QID → English label), shared by every
+	 * item-valued claim this module reads: occupations and cause of death.
+	 */
+	private static array $labels = array();
 
-	/** Prefetch labels for many occupation QIDs (50 ids per wbgetentities call). */
+	/** Prefetch labels for many QIDs (50 ids per wbgetentities call). */
 	private static function label_prefetch( array $qids ): void {
 		$todo = array();
 		foreach ( $qids as $qid ) {
 			$qid = (string) $qid;
-			if ( '' !== $qid && ! isset( self::$occ_labels[ $qid ] ) ) {
+			if ( '' !== $qid && ! isset( self::$labels[ $qid ] ) ) {
 				$todo[] = $qid;
 			}
 		}
@@ -413,17 +495,17 @@ final class People_Sync {
 						break;
 					}
 				}
-				self::$occ_labels[ $qid ] = $label;
+				self::$labels[ $qid ] = $label;
 			}
 		}
 	}
 
-	/** English label for an occupation QID; unresolved QIDs are skipped. */
-	private static function occupation_label( string $qid ): string {
-		if ( isset( self::$occ_labels[ $qid ] ) ) {
-			return self::$occ_labels[ $qid ];
+	/** English label for one Wikidata item; unresolved QIDs return ''. */
+	private static function label_for( string $qid ): string {
+		if ( isset( self::$labels[ $qid ] ) ) {
+			return self::$labels[ $qid ];
 		}
-		self::$occ_labels[ $qid ] = '';
+		self::$labels[ $qid ] = '';
 		$url = 'https://www.wikidata.org/w/api.php?' . http_build_query(
 			array(
 				'action'        => 'wbgetentities',
@@ -453,7 +535,7 @@ final class People_Sync {
 				break;
 			}
 		}
-		self::$occ_labels[ $qid ] = $label;
+		self::$labels[ $qid ] = $label;
 		return $label;
 	}
 

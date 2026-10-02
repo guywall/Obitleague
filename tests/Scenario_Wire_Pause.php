@@ -41,4 +41,27 @@ final class Scenario_Wire_Pause {
 	public function test_seconds_has_a_floor( Runner $t ): void {
 		$t->check( Wire_Pause::MIN_SECONDS === Wire_Pause::seconds( '3', 1 ), __METHOD__, 'a tiny hint still waits the floor' );
 	}
+
+	/**
+	 * The moment the next queued row for a source becomes eligible. A stored
+	 * datetime once flowed through a numeric cast, so the spacing candidate
+	 * came back as the bare year "2027" and MySQL stored a zero date — which
+	 * reads as due at once, silently discarding the per-source pacing.
+	 */
+	public function test_next_attempt_at_paces_rows_without_casting_dates( Runner $t ): void {
+		$now   = '2026-10-02 12:00:00';
+		$pause = (int) strtotime( '2026-10-02 12:30:00 UTC' );
+
+		$t->check( $now === Wire_Pause::next_attempt_at( '', 1, $now, 0 ), __METHOD__, 'nothing queued and no pause means now' );
+		$t->check( $now === Wire_Pause::next_attempt_at( '2026-10-02 11:31:24', 1, $now, 0 ), __METHOD__, 'an already-past row does not push the moment forward' );
+		$t->check( $now === Wire_Pause::next_attempt_at( '0000-00-00 00:00:00', 1, $now, 0 ), __METHOD__, 'a zero date is ignored rather than parsed' );
+		$t->check( '2026-10-02 12:00:15' === Wire_Pause::next_attempt_at( '2026-10-02 12:00:10', 5, $now, 0 ), __METHOD__, 'the gap is added to the last queued row' );
+		$t->check( '2026-10-02 12:30:00' === Wire_Pause::next_attempt_at( '', 1, $now, $pause ), __METHOD__, 'a rate-limit pause wins over now' );
+		$t->check( '2026-10-02 12:45:00' === Wire_Pause::next_attempt_at( '2026-10-02 12:44:59', 1, $now, $pause ), __METHOD__, 'the later of the pause and the spacing wins' );
+		$t->check(
+			1 === preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', Wire_Pause::next_attempt_at( '2026-10-02 11:31:24', 1, $now, 0 ) ),
+			__METHOD__,
+			'the result is always a storable MySQL datetime'
+		);
+	}
 }

@@ -59,14 +59,16 @@ final class Admin_Data_Sources {
 		self::guard( 'obitleague_sync_enqueue_people' );
 		$limit = max( 1, min( 2000, (int) ( $_POST['limit'] ?? 400 ) ) );
 		$stats = People_Sync::enqueue_missing( $limit );
-		self::redirect_notice(
-			sprintf(
-				'%d people checked, %d missing enrichment, %d newly queued.',
-				(int) $stats['checked'],
-				(int) $stats['missing'],
-				(int) $stats['enqueued']
-			)
+		$notice = sprintf(
+			'%d people checked, %d missing enrichment, %d newly queued.',
+			(int) $stats['checked'],
+			(int) $stats['missing'],
+			(int) $stats['enqueued']
 		);
+		if ( (int) ( $stats['failed'] ?? 0 ) > 0 ) {
+			self::redirect_error( $notice . sprintf( ' %d request(s) could not be stored in the Wikimedia request queue — nothing will run until that is fixed.', (int) $stats['failed'] ) );
+		}
+		self::redirect_notice( $notice );
 	}
 
 	public static function handle_drain_queue(): void {

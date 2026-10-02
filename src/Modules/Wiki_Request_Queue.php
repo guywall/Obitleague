@@ -132,17 +132,16 @@ final class Wiki_Request_Queue {
 				self::STATUS_PROCESSING
 			)
 		);
-		$gap   = (float) ( self::SOURCE_MIN_INTERVAL_S[ $source ] ?? 1.0 );
-		$candidate = $last ? (string) ( (float) $last + $gap ) : '';
+		$gap = (int) round( (float) ( self::SOURCE_MIN_INTERVAL_S[ $source ] ?? 1.0 ) );
 
-		$now = current_time( 'mysql', true );
-		$out = $now;
-		foreach ( array( gmdate( 'Y-m-d H:i:s', $pause_until ), $candidate ) as $t ) {
-			if ( '' !== $t && $t > $out ) {
-				$out = $t;
-			}
-		}
-		return $out;
+		// The datetime arithmetic itself lives in the pure pause policy so it
+		// can be tested without WordPress — see Wire_Pause::next_attempt_at().
+		return \Obitleague\Domain\Wire_Pause::next_attempt_at(
+			$last ? (string) $last : '',
+			$gap,
+			current_time( 'mysql', true ),
+			$pause_until
+		);
 	}
 
 	/**

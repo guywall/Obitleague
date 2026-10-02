@@ -5,6 +5,37 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Fixed — A request the queue refused to store is no longer counted as queued
+
+- **Enrichment gaps stopped being invisible.** `People_Sync::enqueue_missing()`
+  counted a person as enqueued for every one it *tried* to queue, so when the
+  live queue table was missing the `source` and `next_attempt_at` columns every
+  insert failed and the run still reported success — 708 requests, none stored,
+  and no signal that anything was wrong. The counter now follows
+  `Wiki_Request_Queue::enqueue()`'s return value; a `failed` figure lands on the
+  run and is surfaced in the admin notice and `wp obitleague sync-people`, and
+  the daily refresh re-attempts the gaps that are still open.
+- **The queue's pacing timestamp is a datetime again.** `next_available_time()`
+  added the per-source gap to a numeric *cast* of the last stored timestamp, so
+  `'2026-10-02 11:31:24'` became `2026`, the candidate came back as the bare
+  year `'2027'`, and MySQL stored a zero date — which reads as due at once, so
+  the per-source spacing the queue promises was silently discarded. The
+  arithmetic moved to the pure `Wire_Pause::next_attempt_at()`, which parses
+  datetimes properly and tolerates the zero dates earlier writes left behind.
+
+### Fixed — The cause of death Wikidata states is brought in
+
+- **A disclosed cause was reported as undisclosed.** Nothing read Wikidata's
+  P509, so a person whose cause of death is a matter of public record still
+  rendered "cause of death has not been publicly disclosed". Enrichment now
+  resolves P509 to its English label and records it as a confirmed cause the
+  first time a record is processed. An editorial decision always wins, and
+  `obit_cause_source` marks a record resolved — `wikidata-P509`, `editor`, or
+  `none` when Wikidata has no claim — so the sweep retries a gap that is still
+  open without re-litigating one that is closed. `enqueue_missing()` sweeps
+  records with no resolved cause alongside those missing a portrait,
+  occupations or role.
+
 ### Changed — The death wire's decisions are domain rules, its HTTP is a client
 
 - **One 1760-line file became orchestration.** `Death_Wire` owned headline

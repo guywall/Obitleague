@@ -138,6 +138,13 @@ final class Admin_Review {
 			}
 		}
 
+		// Editing the cause by hand is an editorial decision, so it pins the
+		// value against the Wikidata P509 import exactly as an approved review
+		// decision does — including a deliberate "not disclosed".
+		if ( isset( $_POST['obit_cause_status'], $_POST['obit_cause_text'] ) ) {
+			update_post_meta( $post_id, People_Sync::META_CAUSE_SOURCE, People_Sync::CAUSE_SOURCE_EDITOR );
+		}
+
 		// Occupation tags follow the stored Wikidata occupation labels.
 		$occupations = People_Sync::occupation_labels( $post_id );
 		People_Sync::sync_occupation_terms( $post_id, $occupations );

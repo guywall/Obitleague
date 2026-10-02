@@ -234,6 +234,10 @@ final class Review_Service {
 		update_post_meta( $post_id, 'obit_death_precision', $precision );
 		update_post_meta( $post_id, 'obit_cause_status', $cause_status );
 		update_post_meta( $post_id, 'obit_cause_text', (string) $cause_text );
+		// The editor has now ruled on the cause — including ruling that it is
+		// undisclosed — so enrichment must never overwrite that with Wikidata's
+		// value. Marking the provenance is what pins the decision.
+		update_post_meta( $post_id, People_Sync::META_CAUSE_SOURCE, People_Sync::CAUSE_SOURCE_EDITOR );
 		// The public body states the death, its age and its points value, so it
 		// has to be recomposed whenever those facts are projected.
 		Person_Content::regenerate( $post_id );
