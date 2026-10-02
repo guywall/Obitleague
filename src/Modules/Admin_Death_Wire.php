@@ -646,6 +646,8 @@ final class Admin_Death_Wire {
 		}
 		echo '</dl>';
 
+		$state = (string) $story->wire_state;
+
 		/* Pairing widget for identity_mismatch stories.
 		 * An editor can search Wikidata with the headline name pre-filled,
 		 * pick the right person, and the record is created automatically.
@@ -678,7 +680,6 @@ final class Admin_Death_Wire {
 
 		/* Actions row. */
 		echo '<div class="ob-dw-modal__actions">';
-		$state = (string) $story->wire_state;
 		if ( 'attached' !== $state && 'check_queued' !== $state ) {
 			self::action_button( 'obitleague_death_wire_story_publish', 'Publish (run wire match)', 'primary small', array( 'item' => $item_id ) );
 			echo ' ';
