@@ -316,6 +316,17 @@ final class Admin_Data_Sources {
 		}
 		echo '</p>';
 
+		// A drained queue is not an empty backlog: report who still needs
+		// enrichment even when nothing is in flight, so the gap is visible
+		// here rather than inferred from a page that looks unfinished.
+		$backlog = People_Sync::enrichment_backlog();
+		$waiting = max( 0, (int) $backlog['missing'] - (int) $backlog['queued'] );
+		echo '<p><strong>' . number_format_i18n( (int) $backlog['missing'] ) . '</strong> of ' . number_format_i18n( $people_total ) . ' published people still need enrichment · <strong>' . number_format_i18n( (int) $backlog['queued'] ) . '</strong> queued right now';
+		if ( $waiting > 0 ) {
+			echo ' · <strong>' . number_format_i18n( $waiting ) . '</strong> waiting for the next sweep — a drained queue is not an empty backlog';
+		}
+		echo '.</p>';
+
 		// Every enrichment request in flight, with its person and due time.
 		$rows = (array) $wpdb->get_results(			"SELECT q.id, q.status, q.attempts, q.next_attempt_at, q.last_error, q.created_at,
 					p.ID AS post_id, p.post_title
@@ -341,6 +352,28 @@ final class Admin_Data_Sources {
 					$waiting = 'retrying after: ' . (string) $row->last_error;
 				}
 				echo '<tr><td>' . ( $edit ? '<a href="' . esc_url( $edit ) . '">' . esc_html( $title ) . '</a>' : esc_html( $title ) ) . '</td><td>' . esc_html( (string) $row->status ) . '</td><td>' . (int) $row->attempts . '</td><td>' . esc_html( (string) $row->next_attempt_at ) . '</td><td>' . esc_html( wp_trim_words( $waiting, 12 ) ) . '</td><td>' . esc_html( (string) $row->created_at ) . '</td></tr>';
+			}
+			echo '</tbody></table>';
+		}
+
+		$sample = People_Sync::enrichment_backlog_sample( 50 );
+		echo '<h3 style="margin-top:1.2em">Backlog — people still missing data (up to 50 shown, newest first)</h3>';
+		if ( ! $sample ) {
+			echo '<p class="description">Nothing outstanding: every published person has a portrait, occupations, a role and a resolved cause of death.</p>';
+		} else {
+			echo '<table class="widefat striped" style="max-width:1100px"><thead><tr><th>Person</th><th>Still missing</th><th>Queued</th><th>Last enriched (UTC)</th><th>Created</th></tr></thead><tbody>';
+			foreach ( $sample as $row ) {
+				$labels = People_Sync::missing_field_labels(
+					array(
+						'image'       => '' !== (string) $row->image,
+						'occupations' => '' !== (string) $row->occupations,
+						'role'        => '' !== (string) $row->role,
+						'cause'       => '' !== (string) $row->cause,
+					)
+				);
+				$edit  = get_edit_post_link( (int) $row->post_id, 'raw' );
+				$title = '' !== (string) $row->post_title ? (string) $row->post_title : '(untitled)';
+				echo '<tr><td>' . ( $edit ? '<a href="' . esc_url( $edit ) . '">' . esc_html( $title ) . '</a>' : esc_html( $title ) ) . '</td><td>' . esc_html( implode( ', ', $labels ) ) . '</td><td>' . ( (int) $row->queued ? 'yes' : 'no' ) . '</td><td>' . esc_html( '' !== (string) $row->enriched_at ? (string) $row->enriched_at : 'never' ) . '</td><td>' . esc_html( (string) $row->post_date ) . '</td></tr>';
 			}
 			echo '</tbody></table>';
 		}

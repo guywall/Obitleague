@@ -5,6 +5,33 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Changed — The enrichment sweep works newest-first and its backlog is visible
+
+- **Newly published people are enriched before the standing backlog.** The daily
+  sweep picked people with `ORDER BY p.ID ASC`, so it always began at the oldest
+  record; every new death from the wire got the highest ID and landed behind the
+  whole queue, drifting further back as new deaths arrived. Mighty Sparrow —
+  published from the wire — had never been fetched at all: Wikidata held four
+  occupations and a portrait, and neither had ever been asked for. The sweep now
+  puts records it has never checked first, newest first, so a page a visitor has
+  just landed on is filled in on the next run.
+- **A settled record is no longer re-fetched every day.** Enrichment stamps
+  `obit_enriched_at` on every successful fetch, whether or not Wikidata had
+  anything to give: a person whose portrait the source simply does not hold is a
+  *checked* gap, not an open one. The sweep skips records settled within
+  `SETTLE_REFRESH_SECONDS` (30 days), so a permanently absent field cannot
+  occupy the top of every run and starve the rest — while a field added on
+  Wikidata later is still picked up.
+- **Data sources shows the backlog, not just the queue.** With the queue drained
+  the page read as "nothing to do" while most published people were missing a
+  portrait, occupations, a role or a cause. It now reports "N of M still need
+  enrichment · queued right now · waiting for the next sweep" and lists the
+  backlog itself (up to 50, newest first) with each record's remaining gaps,
+  whether it is already queued, and when it was last enriched.
+  `People_Sync::enrichment_backlog()` and `enrichment_backlog_sample()` build on
+  the sweep's own query, so the view and the sweep can never disagree about who
+  needs work.
+
 ### Added — Pair an identity-mismatch story to a person from Wikidata
 
 - **The modal now offers a way to act on a story the wire could not place.**
