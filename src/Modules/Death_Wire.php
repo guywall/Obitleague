@@ -1555,6 +1555,12 @@ final class Death_Wire {
 
 	/** First birth year found in the article text ('' when absent). */
 	private static function birth_year_from_wikitext( string $wikitext ): string {
+		// Most modern infoboxes use the birth-date template, whose value is
+		// pipe-separated ({{birth date|1932|12|12}}) and so is destroyed by a
+		// naive "up to the next pipe" capture.
+		if ( preg_match( '/\|\s*birth_date\s*=\s*\{\{\s*(?:birth date(?: and age)?|bda)\s*\|\s*(\d{4})/i', $wikitext, $template ) ) {
+			return $template[1];
+		}
 		if ( preg_match( '/\|\s*birth_date\s*=\s*([^\n|]*)/i', $wikitext, $m ) && preg_match( '/\b(1[89]\d{2}|20[0-2]\d)\b/', $m[1], $y ) ) {
 			return $y[1];
 		}
