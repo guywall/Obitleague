@@ -96,6 +96,7 @@ final class Catalogue {
 			'obit_cause_status'    => 'string',
 			'obit_cause_text'      => 'string',
 			'obit_cause_source'    => 'string', // wikidata-P509 | editor | none.
+			'obit_enriched_at'     => 'string', // UTC datetime of the last Wikidata enrichment fetch.
 			'obit_eligibility'     => 'string', // candidate|approved|ineligible.
 			'obit_portrait_credit' => 'string',
 			'obit_eligibility_note' => 'string',

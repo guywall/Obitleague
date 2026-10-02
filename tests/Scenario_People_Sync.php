@@ -72,4 +72,60 @@ final class Scenario_People_Sync {
 		$entity = array( 'claims' => array( 'P509' => array( self::item_claim( 'Q1654' ), self::item_claim( 'Q178561' ) ) ) );
 		$t->check( 'Q1654' === People_Sync::cause_qid( $entity ), __METHOD__, 'with no preferred rank the first claim wins' );
 	}
+
+	public function test_missing_field_labels_names_every_gap( Runner $t ): void {
+		$t->check(
+			array() === People_Sync::missing_field_labels( array( 'image' => true, 'occupations' => true, 'role' => true, 'cause' => true ) ),
+			__METHOD__,
+			'a complete record has no gaps'
+		);
+		$t->check(
+			array( 'portrait' ) === People_Sync::missing_field_labels( array( 'image' => false, 'occupations' => true, 'role' => true, 'cause' => true ) ),
+			__METHOD__,
+			'a missing portrait is named'
+		);
+		$t->check(
+			array( 'portrait', 'occupations', 'role', 'cause of death' ) === People_Sync::missing_field_labels( array() ),
+			__METHOD__,
+			'every absent field is named in a stable order'
+		);
+		$t->check(
+			array( 'occupations', 'cause of death' ) === People_Sync::missing_field_labels( array( 'image' => true, 'role' => true ) ),
+			__METHOD__,
+			'absent keys count as missing'
+		);
+		$t->check(
+			array( 'portrait' ) === People_Sync::missing_field_labels( array( 'image' => '', 'occupations' => '1', 'role' => '1', 'cause' => '1' ) ),
+			__METHOD__,
+			'an empty string counts as missing'
+		);
+	}
+
+	public function test_settle_cutoff_measures_the_refresh_window( Runner $t ): void {
+		$t->check(
+			'2026-10-01 00:00:00' === People_Sync::settle_cutoff( '2026-10-02 00:00:00', 86400 ),
+			__METHOD__,
+			'the cutoff subtracts the whole window'
+		);
+		$t->check(
+			'2026-09-02 12:00:00' === People_Sync::settle_cutoff( '2026-10-02 12:00:00' ),
+			__METHOD__,
+			'the default window is 30 days'
+		);
+		$t->check(
+			'2026-10-02 00:00:00' === People_Sync::settle_cutoff( '2026-10-02 00:00:00', 0 ),
+			__METHOD__,
+			'a zero window leaves now unchanged'
+		);
+		$t->check(
+			'2026-10-02 00:00:00' === People_Sync::settle_cutoff( '2026-10-02 00:00:00', -500 ),
+			__METHOD__,
+			'a negative window cannot push the cutoff into the future'
+		);
+		$t->check(
+			'' !== People_Sync::settle_cutoff( 'not a date' ),
+			__METHOD__,
+			'unusable input still yields a usable cutoff'
+		);
+	}
 }

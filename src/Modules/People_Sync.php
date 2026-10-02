@@ -44,6 +44,17 @@ final class People_Sync {
 	public const CAUSE_SOURCE_WIKIDATA = 'wikidata-P509';
 	public const CAUSE_SOURCE_EDITOR = 'editor';
 
+	/**
+	 * When a record was last read from Wikidata, UTC 'Y-m-d H:i:s'. Stamped
+	 * on every successful fetch, whether or not it filled anything: a field
+	 * the source simply does not hold is then a checked gap, not an open one,
+	 * so the sweep stops re-fetching it every single day.
+	 */
+	public const META_ENRICHED_AT = 'obit_enriched_at';
+
+	/** How long a settled record waits before the sweep re-checks it. */
+	public const SETTLE_REFRESH_SECONDS = 2592000; // 30 days.
+
 	/** Public although the class is static-only: WP-CLI instantiates array callables when invoking commands. */
 	public function __construct() {}
 
@@ -94,24 +105,20 @@ final class People_Sync {
 	public static function enqueue_missing( int $limit = 400 ): array {
 		global $wpdb;
 
-		$post_ids = $wpdb->get_col(
+		list( $from, $args ) = self::missing_enrichment_query();
+		$args[]              = self::settle_cutoff( current_time( 'mysql', true ) );
+		$args[]              = max( 1, $limit );
+		$post_ids            = $wpdb->get_col(
 			$wpdb->prepare(
-				"SELECT p.ID FROM {$wpdb->posts} p
-				 LEFT JOIN {$wpdb->postmeta} img ON img.post_id = p.ID AND img.meta_key = %s
-				 LEFT JOIN {$wpdb->postmeta} occ ON occ.post_id = p.ID AND occ.meta_key = %s
-				 LEFT JOIN {$wpdb->postmeta} rol ON rol.post_id = p.ID AND rol.meta_key = 'obit_role'
-				 LEFT JOIN {$wpdb->postmeta} cause ON cause.post_id = p.ID AND cause.meta_key = %s
-				 WHERE p.post_type = %s AND p.post_status = 'publish'
-				   AND ( img.meta_value IS NULL OR img.meta_value = ''
-				      OR occ.meta_value IS NULL OR occ.meta_value = ''
-				      OR rol.meta_value IS NULL OR rol.meta_value = ''
-				      OR cause.meta_value IS NULL OR cause.meta_value = '' )
-				 ORDER BY p.ID ASC LIMIT %d",
-				self::META_IMAGE_URL,
-				self::META_OCCUPATIONS,
-				self::META_CAUSE_SOURCE,
-				Catalogue::POST_TYPE,
-				$limit
+				// Never-checked records come first, newest first, so a page a
+				// visitor has just landed on is enriched before the standing
+				// backlog. A settled record is only retried once its marker is
+				// older than the refresh window, and then ranks below the rest.
+				"SELECT p.ID {$from}
+				   AND ( enr.meta_value IS NULL OR enr.meta_value = '' OR enr.meta_value < %s )
+				 ORDER BY ( enr.meta_value IS NULL OR enr.meta_value = '' ) DESC, p.ID DESC
+				 LIMIT %d",
+				...$args
 			)
 		);
 		$stats = array( 'checked' => 0, 'missing' => 0, 'enqueued' => 0, 'failed' => 0 );
@@ -148,6 +155,129 @@ final class People_Sync {
 		}
 		update_option( 'obitleague_people_sync_last_run', array_merge( $stats, array( 'completed_at' => current_time( 'mysql', true ) ) ), false );
 		return $stats;
+	}
+
+	/**
+	 * The published people still missing a portrait, occupations, a role or a
+	 * resolved cause of death, as a reusable SQL fragment. Shared by the sweep
+	 * and the admin backlog view so the two can never disagree about who needs
+	 * work.
+	 *
+	 * @return array{0:string,1:array<int,string>} FROM clause with placeholders,
+	 *         then the values those placeholders expect, in order.
+	 */
+	private static function missing_enrichment_query(): array {
+		global $wpdb;
+		return array(
+			"FROM {$wpdb->posts} p
+			 LEFT JOIN {$wpdb->postmeta} img ON img.post_id = p.ID AND img.meta_key = %s
+			 LEFT JOIN {$wpdb->postmeta} occ ON occ.post_id = p.ID AND occ.meta_key = %s
+			 LEFT JOIN {$wpdb->postmeta} rol ON rol.post_id = p.ID AND rol.meta_key = 'obit_role'
+			 LEFT JOIN {$wpdb->postmeta} cause ON cause.post_id = p.ID AND cause.meta_key = %s
+			 LEFT JOIN {$wpdb->postmeta} enr ON enr.post_id = p.ID AND enr.meta_key = %s
+			 WHERE p.post_type = %s AND p.post_status = 'publish'
+			   AND ( img.meta_value IS NULL OR img.meta_value = ''
+			      OR occ.meta_value IS NULL OR occ.meta_value = ''
+			      OR rol.meta_value IS NULL OR rol.meta_value = ''
+			      OR cause.meta_value IS NULL OR cause.meta_value = '' )",
+			array(
+				self::META_IMAGE_URL,
+				self::META_OCCUPATIONS,
+				self::META_CAUSE_SOURCE,
+				self::META_ENRICHED_AT,
+				Catalogue::POST_TYPE,
+			),
+		);
+	}
+
+	/**
+	 * The UTC 'Y-m-d H:i:s' a settle marker must predate for the record to be
+	 * swept again: now minus the refresh window. Pure, so the pacing rule is
+	 * verifiable without WordPress.
+	 */
+	public static function settle_cutoff( string $now, int $cooldown_seconds = self::SETTLE_REFRESH_SECONDS ): string {
+		$moment = strtotime( trim( $now ) . ' UTC' );
+		if ( false === $moment || $moment <= 0 ) {
+			$moment = time();
+		}
+		return gmdate( 'Y-m-d H:i:s', $moment - max( 0, $cooldown_seconds ) );
+	}
+
+	/**
+	 * Human labels for whatever a record is still missing, given which fields
+	 * it already has. Pure: the sweep and the admin view key off the same four
+	 * gaps, so neither can drift from the other.
+	 *
+	 * @param array{image?:bool,occupations?:bool,role?:bool,cause?:bool} $present
+	 * @return string[]
+	 */
+	public static function missing_field_labels( array $present ): array {
+		$fields  = array(
+			'image'       => 'portrait',
+			'occupations' => 'occupations',
+			'role'        => 'role',
+			'cause'       => 'cause of death',
+		);
+		$missing = array();
+		foreach ( $fields as $key => $label ) {
+			if ( empty( $present[ $key ] ) ) {
+				$missing[] = $label;
+			}
+		}
+		return $missing;
+	}
+
+	/**
+	 * How many published people still need enrichment, and how many of them
+	 * are sitting in the queue right now. Drives the Data-sources backlog line
+	 * so an empty queue never reads as "nothing to do".
+	 *
+	 * @return array{missing:int,queued:int}
+	 */
+	public static function enrichment_backlog(): array {
+		global $wpdb;
+		list( $from, $args ) = self::missing_enrichment_query();
+		$missing = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) {$from}", ...$args ) );
+		$queued  = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) {$from}
+				   AND EXISTS ( SELECT 1 FROM {$wpdb->prefix}obitleague_wiki_queue q
+				                WHERE q.request_kind = 'enrich_person'
+				                  AND q.dedupe_key = CONCAT( 'person-', p.ID )
+				                  AND q.status IN ( 'pending', 'processing' ) )",
+				...$args
+			)
+		);
+		return array( 'missing' => $missing, 'queued' => $queued );
+	}
+
+	/**
+	 * A page of the enrichment backlog, newest first — the same order the sweep
+	 * works in — with the gaps each record still has and whether it is already
+	 * queued.
+	 *
+	 * @return array<int,object>
+	 */
+	public static function enrichment_backlog_sample( int $limit = 50 ): array {
+		global $wpdb;
+		list( $from, $args ) = self::missing_enrichment_query();
+		$args[] = max( 1, $limit );
+		return (array) $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT p.ID AS post_id, p.post_title, p.post_date,
+				        img.meta_value AS image, occ.meta_value AS occupations,
+				        rol.meta_value AS role, cause.meta_value AS cause,
+				        enr.meta_value AS enriched_at,
+				        EXISTS ( SELECT 1 FROM {$wpdb->prefix}obitleague_wiki_queue q
+				                 WHERE q.request_kind = 'enrich_person'
+				                   AND q.dedupe_key = CONCAT( 'person-', p.ID )
+				                   AND q.status IN ( 'pending', 'processing' ) ) AS queued
+				   {$from}
+				 ORDER BY ( enr.meta_value IS NULL OR enr.meta_value = '' ) DESC, p.ID DESC
+				 LIMIT %d",
+				...$args
+			)
+		);
 	}
 
 	/** Dedupe key for one person's enrichment request. */
@@ -198,6 +328,10 @@ final class People_Sync {
 			return new \WP_Error( 'obitleague_enrich_http', 'Wikidata returned no usable entity payload; will retry.' );
 		}
 		$updated = self::apply_entity( $post_id, $entities[ $qid ] );
+		// A successful fetch settles the record whatever it returned: a field
+		// Wikidata does not hold is a checked gap, not an open one, so the
+		// daily sweep stops asking for it again and again.
+		update_post_meta( $post_id, self::META_ENRICHED_AT, current_time( 'mysql', true ) );
 		return array( 'ok' => true, 'updated' => $updated > 0 );
 	}
 
