@@ -42,6 +42,8 @@ final class Death_Wire {
 	private const DISCARD_OPTION   = 'obitleague_death_wire_discard_below';
 	/** How long a fetched Wikipedia article (wikitext + QID) stays cached. */
 	private const WIKI_TTL         = 2 * HOUR_IN_SECONDS;
+	/** How long a concluded (hit or genuine empty) title search stays cached. */
+	private const WIRE_SEARCH_TTL  = 2 * HOUR_IN_SECONDS;
 	/** How long a fetched publisher article text stays cached. */
 	private const ARTICLE_TTL      = 12 * HOUR_IN_SECONDS;
 	private const PAGE_SIZE          = 50;
@@ -361,7 +363,7 @@ final class Death_Wire {
 				"SELECT i.id, i.title, i.url, i.description, i.published_at, i.classification_score, s.name AS source_name
 				 FROM {$wpdb->prefix}obitleague_feed_items i
 				 JOIN {$wpdb->prefix}obitleague_sources s ON s.id = i.source_id
-				 WHERE i.classification IN ({$in}) AND i.wire_state = '' AND i.id > %d
+				 WHERE i.classification IN ({$in}) AND i.wire_state IN ('', 'search_deferred') AND i.id > %d
 				   AND i.published_at >= %s AND i.published_at < %s
 				 ORDER BY i.id ASC LIMIT %d",
 				array_merge(
@@ -455,6 +457,12 @@ final class Death_Wire {
 		}
 
 		$found = self::person_for_group( $group, $title . ' ' . $description, $source_url );
+		if ( is_wp_error( $found ) ) {
+			// Wikipedia could not be asked: leave the story pending so a later
+			// sweep retries it instead of parking it as "no article".
+			++$stats['wire_search_deferred'];
+			return 'search_deferred';
+		}
 		if ( $found ) {
 			if ( self::has_death( $found['post_id'] ) ) {
 				// Known 2026 death: the story is public reporting — attach it.
@@ -502,6 +510,10 @@ final class Death_Wire {
 			}
 		}
 		$enwiki_guess = self::wiki_search_title( $group );
+		if ( is_wp_error( $enwiki_guess ) ) {
+			++$stats['wire_search_deferred'];
+			return 'search_deferred';
+		}
 		if ( '' === $enwiki_guess ) {
 			++$stats['wire_no_anchor'];
 			return 'no_anchor';
@@ -617,10 +629,13 @@ final class Death_Wire {
 					// The Wikipedia article title is the canonical name; the
 					// headline group is only a search hint and can carry
 					// desk furniture ("Stephanie Cole obituary").
-					'name'       => str_replace( '_', ' ', $enwiki ),
-					'birth_date' => $birth,
-					'death_date' => $deathstr,
-					'enwiki'     => $enwiki,
+					'name'        => str_replace( '_', ' ', $enwiki ),
+					'birth_date'  => $birth,
+					'death_date'  => $deathstr,
+					'enwiki'      => $enwiki,
+					// Publish at once as awaiting confirmation, exactly like
+					// the Wikipedia-list and obituary-signature paths do.
+					'provisional' => true,
 				)
 			);
 		} catch ( \Throwable $e ) {
@@ -742,9 +757,9 @@ final class Death_Wire {
 	 * and the best overlap wins — provided it clears the floor. An
 	 * unresolved ambiguity returns null and lands on the editors.
 	 *
-	 * @return array{post_id:int,enwiki:string}|null
+	 * @return array{post_id:int,enwiki:string}|\WP_Error|null
 	 */
-	private static function person_for_group( string $group, string $story_text = '', string $source_url = '' ): ?array {
+	private static function person_for_group( string $group, string $story_text = '', string $source_url = '' ): array|\WP_Error|null {
 		global $wpdb;
 		// The Wikipedia name this record actually died under.
 		$post_id = (int) $wpdb->get_var(
@@ -765,7 +780,14 @@ final class Death_Wire {
 		);
 		// Search Wikipedia for the article, then collect its records too.
 		$search = self::wiki_search_title( $group );
-		if ( '' !== $search ) {
+		if ( is_wp_error( $search ) ) {
+			// The search is unavailable. With direct matches in hand we can
+			// still act; with none, defer rather than read an outage as proof
+			// that the person does not exist.
+			if ( array() === $enwiki_posts ) {
+				return $search;
+			}
+		} elseif ( '' !== $search ) {
 			$by_search = (array) $wpdb->get_col(
 				$wpdb->prepare(
 					"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = 'obit_enwiki' AND meta_value = %s",
@@ -774,14 +796,15 @@ final class Death_Wire {
 			);
 			$enwiki_posts = array_values( array_unique( array_merge( $enwiki_posts, $by_search ) ) );
 		}
+		$search_title = is_wp_error( $search ) ? '' : $search;
 		if ( array() === $enwiki_posts ) {
 			return null;
 		}
 		if ( 1 === count( $enwiki_posts ) ) {
-			return array( 'post_id' => (int) $enwiki_posts[0], 'enwiki' => '' !== $search ? $search : $group );
+			return array( 'post_id' => (int) $enwiki_posts[0], 'enwiki' => '' !== $search_title ? $search_title : $group );
 		}
 		// Same-name ambiguity: resolve it by language, or don't resolve it.
-		return self::disambiguate( $enwiki_posts, $story_text, $search, $source_url );
+		return self::disambiguate( $enwiki_posts, $story_text, $search_title, $source_url );
 	}
 
 	/**
@@ -1103,6 +1126,7 @@ final class Death_Wire {
 				(int) $case->revision
 			);
 			\Obitleague\Modules\Outbox_Service::process_outbox( 100 );
+			self::publish_confirmed( $post_id );
 			return true;
 		} catch ( \Throwable ) {
 			return false;
@@ -1156,6 +1180,18 @@ final class Death_Wire {
 	/** Promote a provisional record to a confirmed death. */
 	public static function confirm_provisional( int $post_id ): void {
 		delete_post_meta( $post_id, 'obit_death_provisional' );
+		self::publish_confirmed( $post_id );
+	}
+
+	/**
+	 * A record whose death is confirmed must be visible as such. Wire imports
+	 * once landed as drafts, so approval settled a record nobody could see.
+	 */
+	private static function publish_confirmed( int $post_id ): void {
+		$post = get_post( $post_id );
+		if ( $post && 'publish' !== $post->post_status ) {
+			wp_update_post( array( 'ID' => $post_id, 'post_status' => 'publish' ) );
+		}
 	}
 
 	/** Fetch and parse a story's article for the name + death signature. */
@@ -1269,7 +1305,7 @@ final class Death_Wire {
 			return null;
 		}
 		$found = self::person_for_group( $group );
-		if ( ! $found ) {
+		if ( ! is_array( $found ) ) {
 			return null;
 		}
 		return array( 'post_id' => (int) $found['post_id'], 'name' => (string) get_the_title( (int) $found['post_id'] ) );
@@ -1468,8 +1504,15 @@ final class Death_Wire {
 		return rawurldecode( substr( $uri, $pos + strlen( $marker ) ) );
 	}
 
-	/** Wikipedia search: the best article title for a name, cached briefly. */
-	private static function wiki_search_title( string $term ): string {
+	/**
+	 * Wikipedia search: the best article title for a name, cached briefly.
+	 *
+	 * Only a definitive answer is cached: a hit, or a genuine empty result.
+	 * A transport error, a 429/503 throttle or a malformed body is a failure
+	 * to ask, not proof that no article exists, so it returns a WP_Error and
+	 * caches nothing. The caller defers the story and retries it later.
+	 */
+	private static function wiki_search_title( string $term ): string|\WP_Error {
 		$term   = trim( $term );
 		if ( '' === $term ) {
 			return '';
@@ -1479,19 +1522,34 @@ final class Death_Wire {
 		if ( is_string( $cached ) ) {
 			return $cached;
 		}
+		$paused = self::paused_error();
+		if ( $paused ) {
+			return $paused; // A global pause is not an answer about the name.
+		}
 		$response = wp_remote_get(
 			'https://en.wikipedia.org/w/api.php?action=query&list=search&format=json&formatversion=2&srlimit=3&srsearch=' . rawurlencode( $term ),
 			array( 'timeout' => 15, 'user-agent' => self::USER_AGENT )
 		);
-		$title = '';
-		if ( ! is_wp_error( $response ) && 200 === (int) wp_remote_retrieve_response_code( $response ) ) {
-			Discovery_Service::note_success();
-			$body  = json_decode( (string) wp_remote_retrieve_body( $response ), true );
-			$title = (string) ( $body['query']['search'][0]['title'] ?? '' );
+		$transport_error = is_wp_error( $response );
+		$code            = $transport_error ? 0 : (int) wp_remote_retrieve_response_code( $response );
+		$body            = ( ! $transport_error && 200 === $code )
+			? json_decode( (string) wp_remote_retrieve_body( $response ), true )
+			: null;
+		$verdict = \Obitleague\Domain\Wire_Search::interpret( $transport_error, $code, $body );
+		if ( \Obitleague\Domain\Wire_Search::THROTTLED === $verdict['outcome'] ) {
+			$retry_after = wp_remote_retrieve_header( $response, 'retry-after' );
+			$retry_after = is_array( $retry_after ) ? (string) reset( $retry_after ) : (string) $retry_after;
+			$pause_until = Discovery_Service::note_rate_limit( $retry_after );
+			return new \WP_Error( 'obitleague_discovery_paused', sprintf( 'Wikipedia asked us to slow down until %s UTC.', gmdate( 'Y-m-d H:i:s', $pause_until ) ) );
 		}
-		// Cache misses too: a name with no article stays no-article for the TTL.
-		set_transient( $cache_key, $title, self::WIKI_TTL );
-		return $title;
+		if ( ! \Obitleague\Domain\Wire_Search::is_definitive( $verdict['outcome'] ) ) {
+			// Never cache a failure as "no article": the story retries instead.
+			return new \WP_Error( 'obitleague_discovery_network', 'Wikipedia search failed for "' . $term . '".' );
+		}
+		// Both a hit and a genuine empty result are definitive: cache them.
+		Discovery_Service::note_success();
+		set_transient( $cache_key, $verdict['title'], self::WIRE_SEARCH_TTL );
+		return $verdict['title'];
 	}
 
 	/**
@@ -1672,6 +1730,7 @@ final class Death_Wire {
 		$stats['skipped_no_birth']  = 0;
 		$stats['unmatched_title']   = 0;
 		$stats['wire_no_anchor']    = 0;
+		$stats['wire_search_deferred'] = 0;
 		$stats['wire_identity_mismatch'] = 0;
 		$stats['wire_new_not_dead'] = 0;
 		$stats['wire_new_unconfirmed'] = 0;

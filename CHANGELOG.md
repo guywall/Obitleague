@@ -5,6 +5,25 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Fixed — A failed Wikipedia search is no longer an answer
+
+- **The wire stopped believing a failure.** `wiki_search_title()` cached the
+  empty result of any lookup — including a transport error, a 429/503
+  throttle and a malformed body — for two hours, so well-known people
+  ('Bob Pettit', 'Cheetah Chrome') whose raw search works were parked as
+  `no_anchor` and never retried while the cache stood.
+- **Definitive answers still cache; failures never do.** A new pure
+  classifier (`Domain\Wire_Search::interpret()`) splits the outcome: a hit
+  or a genuine empty result is cached, everything else returns a `WP_Error`
+  and is not remembered. The story is parked as `search_deferred` and the
+  sweep re-runs it once Wikipedia answers again; a 429/503 feeds the shared
+  bounded pause as before.
+- **A confirmed record is now visible.** Wire imports landed as drafts, so an
+  auto-approved death was settled in the database but absent from the public
+  site. Wire-created records now publish at once as provisional, like the
+  list and obituary-signature paths, and approval — automatic or editorial —
+  publishes the record itself. The approval rules are unchanged.
+
 ### Added — Public scope: synthetic leagues and accounts off every public surface
 
 - **The site carried its own build artifacts into public view.** Synthetic

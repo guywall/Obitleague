@@ -276,6 +276,7 @@ final class Admin_Death_Wire {
 			'attached'  => array( 'label' => 'Attached', 'where' => "i.wire_state = 'attached'", 'params' => array() ),
 			'check_queued' => array( 'label' => 'Queued for check', 'where' => "i.wire_state = 'check_queued'", 'params' => array() ),
 			'identity_mismatch' => array( 'label' => 'Identity mismatch', 'where' => "i.wire_state = 'identity_mismatch'", 'params' => array() ),
+			'search_deferred' => array( 'label' => 'Search deferred', 'where' => "i.wire_state = 'search_deferred'", 'params' => array() ),
 			'all'       => array( 'label' => 'Everything', 'where' => '1=1', 'params' => array() ),
 		);
 	}
@@ -832,6 +833,7 @@ final class Admin_Death_Wire {
 			'attached', 'duplicate' => 'Published: source attached to ' . ( $match ? $match['name'] : '' ) . "'s obituary page.",
 			'check_queued'          => 'Published to the wire: the Wikipedia confirmation pass is queued' . ( $match ? ' for ' . $match['name'] : '' ) . '.',
 			'no_anchor'             => 'No Wikipedia article found for the name in that headline — nothing to publish against.',
+			'search_deferred'       => 'The Wikipedia search was unavailable — the story is parked and will be retried.',
 			'no_name'               => 'That headline has no usable name group to match.',
 			default                 => 'Wire outcome: ' . $outcome . '.',
 		};
