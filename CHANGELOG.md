@@ -5,6 +5,25 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Added — Pair an identity-mismatch story to a person from Wikidata
+
+- **The modal now offers a way to act on a story the wire could not place.**
+  An `identity_mismatch` story is one whose headline the wire could not tie to
+  a Wikipedia article, so the queue offered only "Re-run the wire match" or
+  "Delete story". The story modal now carries a pairing widget on exactly
+  those stories: it pre-fills a Wikidata search with the headline's extracted
+  name group (still editable), lists human candidates — including the
+  deceased, because the subject of an obituary is dead by definition — and
+  imports the record the editor picks as a provisional one, with a review case
+  opened, so the same confirmation rules that govern every wire import still
+  apply. Birth and death come from the article wikitext first and fall back to
+  Wikidata's P569/P570, the story is attached as a source and settled to
+  `attached` so the queue does not reprocess it, and when nothing matches the
+  existing Delete action still dismisses the story. `Wikidata_Search_Service::obituary_search()` is the
+  counterpart to `search()`: it deliberately keeps P570 bearers and hides QIDs
+  that are already imported, so the pairing list never offers a person the
+  catalogue already holds.
+
 ### Fixed — A request the queue refused to store is no longer counted as queued
 
 - **Enrichment gaps stopped being invisible.** `People_Sync::enqueue_missing()`
