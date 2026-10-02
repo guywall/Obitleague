@@ -75,11 +75,28 @@
 
 	/* ------------------------------ data -------------------------- */
 
+	/** Read one value from the page query string (empty when absent). */
+	function currentParam( name ) {
+		var query = String( window.location.search || '' ).replace( /^\?/, '' );
+		var parts = query ? query.split( '&' ) : [];
+		for ( var i = 0; i < parts.length; ++i ) {
+			var pair = parts[ i ].split( '=' );
+			if ( decodeURIComponent( pair[ 0 ] ) === name ) {
+				return decodeURIComponent( String( pair[ 1 ] || '' ).replace( /\+/g, ' ' ) );
+			}
+		}
+		return '';
+	}
+
 	function fetchStory( itemId ) {
 		var payload = new window.FormData();
 		payload.append( 'action', 'obitleague_death_wire_story_detail' );
 		payload.append( 'nonce', cfg.nonce || '' );
 		payload.append( 'item', String( itemId ) );
+		// Carry the editor's tab and state filter through so the modal's own
+		// actions return them to the list they opened the story from.
+		payload.append( 'tab', currentParam( 'tab' ) );
+		payload.append( 'state', currentParam( 'state' ) );
 
 		return window.fetch( cfg.ajaxUrl, {
 			method: 'POST',
@@ -356,6 +373,8 @@
 		addInput( '_wpnonce', cfg.pairNonce || '' );
 		addInput( 'item', item );
 		addInput( 'qid', qid );
+		addInput( 'tab', currentParam( 'tab' ) );
+		addInput( 'state', currentParam( 'state' ) );
 		document.body.appendChild( form );
 		form.submit();
 	}

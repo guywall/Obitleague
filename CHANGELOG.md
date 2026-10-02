@@ -5,6 +5,26 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Fixed — The story modal keeps your place, and pairing actually appears
+
+- **The Wikidata pairing widget never rendered.** The block in
+  `Admin_Death_Wire::ajax_story_detail()` was gated on `$state`, but that
+  variable was not assigned until the actions row *below* it, so the first read
+  was the gate itself. PHP evaluated the undefined variable as null, the
+  comparison was never true, and "Pair to a person" was skipped on every
+  story — the feature shipped inert. `$state` is now read from the story once,
+  before the widget, and the later duplicate assignment is gone. Lint and the
+  wiring suite both miss this class of bug: they check that callbacks resolve,
+  not that a variable is in scope where it is read.
+- **Reviewing a story threw you back to the Overview tab.** The modal's action
+  buttons are rendered inside the admin-ajax response, where the page query
+  string is absent, so `action_button()` wrote `tab=overview` and dropped the
+  state filter; the pairing form sent neither. Both now carry the editor's
+  `tab` and `state` — the JS forwards them from the page URL — and
+  `current_tab()`/`current_state()` read POST before GET, so publishing,
+  re-running, deleting and pairing all return you to the filtered list you were
+  working through instead of the dashboard.
+
 ### Changed — The enrichment sweep works newest-first and its backlog is visible
 
 - **Newly published people are enriched before the standing backlog.** The daily

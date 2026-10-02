@@ -754,14 +754,29 @@ final class Admin_Death_Wire {
 	/* Form plumbing                                                       */
 	/* ------------------------------------------------------------------ */
 
+	/**
+	 * The tab the editor is looking at. The modal renders its actions inside an
+	 * admin-ajax response, where the page query string is not present — the JS
+	 * forwards it in the POST body — so read POST first, then GET.
+	 */
+	private static function current_tab(): string {
+		$tab = (string) ( $_POST['tab'] ?? $_GET['tab'] ?? '' );
+		return in_array( $tab, self::TABS, true ) ? $tab : 'overview';
+	}
+
+	/** The state filter the editor is looking at, or '' when unfiltered. */
+	private static function current_state(): string {
+		return (string) ( $_POST['state'] ?? $_GET['state'] ?? '' );
+	}
+
 	/** One nonce-checked POST button rendered inline. Preserves the tab and state filters across the redirect. */
 	private static function action_button( string $action, string $label, string $class, array $fields = array(), string $confirm = '' ): void {
 		$onsubmit = '' !== $confirm ? ' onsubmit="return confirm(\'' . esc_js( $confirm ) . '\')"' : '';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline"' . $onsubmit . '>';
 		wp_nonce_field( $action );
 		echo '<input type="hidden" name="action" value="' . esc_attr( $action ) . '" />';
-		echo '<input type="hidden" name="tab" value="' . esc_attr( (string) ( $_GET['tab'] ?? 'overview' ) ) . '" />';
-		$state = (string) ( $_GET['state'] ?? '' );
+		echo '<input type="hidden" name="tab" value="' . esc_attr( self::current_tab() ) . '" />';
+		$state = self::current_state();
 		if ( '' !== $state ) {
 			echo '<input type="hidden" name="state" value="' . esc_attr( $state ) . '" />';
 		}
