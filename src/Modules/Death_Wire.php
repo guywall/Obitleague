@@ -1370,6 +1370,7 @@ final class Death_Wire {
 		if ( 200 !== $code ) {
 			return new \WP_Error( 'obitleague_discovery_http', 'Wikidata returned HTTP ' . $code . '.' );
 		}
+		Discovery_Service::note_success();
 		$body  = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 		$cards = is_array( $body ) ? (array) ( $body['results']['bindings'] ?? array() ) : array();
 		return array_map( static fn ( $b ): array => is_array( $b ) ? $b : array(), $cards );
@@ -1402,6 +1403,7 @@ final class Death_Wire {
 		);
 		$title = '';
 		if ( ! is_wp_error( $response ) && 200 === (int) wp_remote_retrieve_response_code( $response ) ) {
+			Discovery_Service::note_success();
 			$body  = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 			$title = (string) ( $body['query']['search'][0]['title'] ?? '' );
 		}
@@ -1450,6 +1452,7 @@ final class Death_Wire {
 			set_transient( $cache_key, $empty, self::WIKI_TTL );
 			return $empty;
 		}
+		Discovery_Service::note_success();
 		$body  = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 		$page  = (array) ( $body['query']['pages'][0] ?? array() );
 		$out   = array(

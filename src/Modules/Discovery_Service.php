@@ -17,6 +17,7 @@ namespace Obitleague\Modules;
 
 use Obitleague\Domain\Discovery_Rules;
 use Obitleague\Domain\Value\Ruleset;
+use Obitleague\Domain\Wire_Pause;
 
 final class Discovery_Service {
 
@@ -28,6 +29,7 @@ final class Discovery_Service {
 	private const LOCK_OPTION        = 'obitleague_discovery_lock';
 	private const HTTP_LOCK_OPTION   = 'obitleague_discovery_http_lock';
 	private const LAST_HTTP_OPTION   = 'obitleague_discovery_last_http';
+	private const PAUSE_STREAK_OPTION = 'obitleague_wq_pause_streak';
 	private const REVIEW_LOCK_PREFIX = 'obitleague_discovery_review_';
 	private const HOURLY_OPTION      = 'obitleague_discovery_hourly';
 	private const BATCH_SIZE         = 25;
@@ -650,7 +652,28 @@ final class Discovery_Service {
 
 	/** Record a rate-limit pause reported by another module's request. */
 	public static function note_rate_limit( string $retry_after ): int {
-		return self::set_rate_limit_pause($retry_after);
+		$streak = (int) get_option( self::PAUSE_STREAK_OPTION, 0 ) + 1;
+		update_option( self::PAUSE_STREAK_OPTION, $streak, false );
+		return self::set_rate_limit_pause( $retry_after, $streak );
+	}
+
+	/**
+	 * Clear the shared pause: the next Wikimedia request succeeded, so the
+	 * endpoint is answering again. Resets the failure streak too, so the next
+	 * rate limit starts backoff from the base rather than the ceiling.
+	 */
+	public static function note_success(): void {
+		if ( (int) get_option( self::PAUSE_OPTION, 0 ) > 0 ) {
+			delete_option( self::PAUSE_OPTION );
+		}
+		if ( (int) get_option( self::PAUSE_STREAK_OPTION, 0 ) > 0 ) {
+			delete_option( self::PAUSE_STREAK_OPTION );
+		}
+	}
+
+	/** Operator lever: drop the shared pause and its failure streak. */
+	public static function clear_rate_limit_pause(): void {
+		self::note_success();
 	}
 
 	/**
@@ -926,7 +949,7 @@ final class Discovery_Service {
 		if ( in_array( $code, array( 429, 503 ), true ) || in_array( (string) ( $api_error['code'] ?? '' ), array( 'maxlag', 'ratelimited' ), true ) ) {
 			$retry_after = wp_remote_retrieve_header( $response, 'retry-after' );
 			$retry_after = is_array( $retry_after ) ? (string) reset( $retry_after ) : (string) $retry_after;
-			$pause_until = self::set_rate_limit_pause( $retry_after );
+			$pause_until = self::note_rate_limit( $retry_after );
 			return new \WP_Error( 'obitleague_discovery_rate_limited', sprintf( 'Wikimedia asked us to slow down until %s UTC.', gmdate( 'Y-m-d H:i:s', $pause_until ) ), array( 'status' => $code ?: 503, 'retry_after' => $pause_until ) );
 		}
 		if ( 200 !== $code ) {
@@ -941,6 +964,7 @@ final class Discovery_Service {
 		if ( $use_cache ) {
 			set_transient( $cache_key, $body, 6 * HOUR_IN_SECONDS );
 		}
+		self::note_success();
 		return $body;
 	}
 
@@ -976,12 +1000,8 @@ final class Discovery_Service {
 		throw new \RuntimeException( 'Another reviewer is already processing this candidate.' );
 	}
 
-	private static function set_rate_limit_pause( string $retry_after ): int {
-		$retry_after = trim( $retry_after );
-		$until = is_numeric( $retry_after )
-			? time() + max( 5, (int) $retry_after )
-			: ( false !== strtotime( $retry_after ) ? strtotime( $retry_after ) : time() + 60 );
-		$until = max( time() + 5, (int) $until );
+	private static function set_rate_limit_pause( string $retry_after, int $streak = 1 ): int {
+		$until = time() + Wire_Pause::seconds( $retry_after, $streak );
 		update_option( self::PAUSE_OPTION, $until, false );
 		return $until;
 	}

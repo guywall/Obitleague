@@ -236,7 +236,7 @@ final class Admin_Death_Wire {
 			update_option( 'obitleague_discovery_pause_until', $pause_until, false );
 			wp_safe_redirect( self::back( 'Discovery and the Wikimedia queue are paused until ' . gmdate( 'Y-m-d H:i', $pause_until ) . ' UTC. Nothing queued is lost; wire checks wait too.' ) );
 		} else {
-			delete_option( 'obitleague_discovery_pause_until' );
+			\Obitleague\Modules\Discovery_Service::clear_rate_limit_pause();
 			wp_safe_redirect( self::back( 'Discovery and the Wikimedia queue are running again.' ) );
 		}
 		exit;
