@@ -603,6 +603,13 @@ final class Death_Wire {
 			self::save_stats( $stats );
 			return array( 'ok' => true, 'note' => 'Confirmed story but no importable identity.' );
 		}
+		global $wpdb;
+		$pre_existing = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = 'obit_qid' AND meta_value = %s LIMIT 1",
+				$qid
+			)
+		);
 		try {
 			$new_id = Import_Service::import_person(
 				array(
@@ -620,9 +627,25 @@ final class Death_Wire {
 			++$stats['wire_new_unconfirmed'];
 			self::save_stats( $stats );
 			return array( 'ok' => true, 'note' => 'Import failed: ' . $e->getMessage() );
-		}			update_post_meta( $new_id, 'obit_death_wiki_name', $enwiki );
-			self::mark_provisional( $new_id );
-			self::open_case_for( $new_id, 'Wire story ' . $source_url . ' and the Wikipedia article confirm a ' . $year . ' death. Editor confirmation required.' );
+		}		update_post_meta( $new_id, 'obit_death_wiki_name', $enwiki );
+		// A second story about a record the wire already holds must not
+		// re-provision it: mark_provisional() would un-confirm a settled
+		// death. Keep the story and re-use the existing case instead.
+		if ( $pre_existing > 0 ) {
+			if ( self::open_case_for( $new_id, 'Wire story ' . $source_url . ' matches this record and the Wikipedia article confirms a ' . $year . ' death. Editor confirmation required.' ) ) {
+				self::attach_source( $new_id, $source_name, $source_url, (string) current_time( 'mysql', true ) );
+				++$stats['review_opened'];
+			} elseif ( self::attach_source( $new_id, $source_name, $source_url, (string) current_time( 'mysql', true ) ) ) {
+				++$stats['sources_attached'];
+			} else {
+				++$stats['source_duplicates'];
+			}
+			self::maybe_auto_confirm( $new_id );
+			self::save_stats( $stats );
+			return array( 'ok' => true, 'note' => 'Story attached to the existing record.' );
+		}
+		self::mark_provisional( $new_id );
+		self::open_case_for( $new_id, 'Wire story ' . $source_url . ' and the Wikipedia article confirm a ' . $year . ' death. Editor confirmation required.' );
 		self::attach_source( $new_id, $source_name, $source_url, (string) current_time( 'mysql', true ) );
 		if ( self::maybe_auto_confirm( $new_id ) ) {
 			++$stats['auto_confirmed'];
