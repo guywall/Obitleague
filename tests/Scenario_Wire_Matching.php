@@ -44,6 +44,11 @@ final class Scenario_Wire_Matching {
 		}
 	}
 
+	public function test_check_dedupe_key_is_per_story( Runner $t ): void {
+		$t->check( Death_Wire::check_dedupe_key( 12 ) === Death_Wire::check_dedupe_key( 12 ), __METHOD__, 'the same story keys the same check' );
+		$t->check( Death_Wire::check_dedupe_key( 12 ) !== Death_Wire::check_dedupe_key( 13 ), __METHOD__, 'different stories never collapse onto one check' );
+	}
+
 	public function test_word_limit_keeps_sentences_out_of_the_matcher( Runner $t ): void {
 		$t->check( null === Death_Wire::match_group( 'One two three four five six seven eight' ), __METHOD__, 'eight-word fragment is refused' );
 		$t->check( null !== Death_Wire::match_group( 'Dai Owen obituary' ), __METHOD__, 'two-word name passes' );

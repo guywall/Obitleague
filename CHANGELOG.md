@@ -5,6 +5,23 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Fixed — A finished Wikipedia check settles its story
+
+- **Stories no longer strand in `check_queued`.** A story's Wikipedia
+  confirmation runs as a queued request, but the handler that ran it never
+  wrote the result back to the story: it finished (or refused) and the story
+  sat in `check_queued` forever, so every sweep re-ran up to 200 of them as a
+  band-aid (`requeue_stranded_checks()`). The check now carries its own story
+  id and writes its terminal outcome — `attached`, `duplicate`,
+  `created_provisional`, `identity_mismatch`, `no_anchor`, `flagged_no_anchor`
+  — the moment it concludes. The band-aid is gone.
+- **Each story gets its own check.** The queue key was derived from the
+  article title, so many stories about one name collapsed onto a single queue
+  row that ran once, stranding the rest. It is now keyed on the story
+  (`Death_Wire::check_dedupe_key()`), which also keeps a double click from
+  queueing the same check twice. A transient failure parks the story as
+  `search_deferred` (retried by the sweep) rather than leaving it stuck.
+
 ### Fixed — A failed Wikipedia search is no longer an answer
 
 - **The wire stopped believing a failure.** `wiki_search_title()` cached the

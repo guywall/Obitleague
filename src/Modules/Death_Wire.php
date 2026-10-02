@@ -375,8 +375,7 @@ final class Death_Wire {
 		if ( ! $items ) {
 			// Sweep complete: rewind for the next round of feed polls.
 			update_option( self::WIRE_CURSOR_OPTION, 0, false );
-			$stranded = self::requeue_stranded_checks();
-			return array( 'ok' => true, 'note' => 'Wire sweep complete.' . ( $stranded > 0 ? " {$stranded} stranded check(s) re-run." : '' ) );
+			return array( 'ok' => true, 'note' => 'Wire sweep complete.' );
 		}
 
 		$stats = self::fresh_stats( 'wire' );
@@ -407,33 +406,6 @@ final class Death_Wire {
 		}
 		self::save_stats( $stats );
 		return array( 'ok' => true, 'items' => count( $items ) );
-	}
-
-	/**
-	 * A story whose queued 'death_wire_check' has completed (done or failed)
-	 * but which still reads 'check_queued' was stranded — an older bug let
-	 * the same enwiki title dedupe many stories onto one queue row that ran
-	 * once. Re-run the attach for each stranded story so a real outcome
-	 * (attached, no_anchor, dismissed…) replaces the parked state.
-	 *
-	 * @return int Number of stranded stories re-run.
-	 */
-	private static function requeue_stranded_checks(): int {
-		global $wpdb;
-		$rows = (array) $wpdb->get_results(
-			"SELECT i.id, i.title, i.url, s.name AS source_name
-			 FROM {$wpdb->prefix}obitleague_feed_items i
-			 JOIN {$wpdb->prefix}obitleague_sources s ON s.id = i.source_id
-			 WHERE i.wire_state = 'check_queued' LIMIT 200"
-		);
-		$ran = 0;
-		foreach ( $rows as $row ) {
-			$stats = self::fresh_stats( 'wire' );
-			self::attach( (string) $row->title, (string) $row->url, (string) ( $row->source_name ?: 'News feed' ), (int) $row->id, $stats );
-			self::save_stats( $stats );
-			++$ran;
-		}
-		return $ran;
 	}
 
 	/**
@@ -490,8 +462,9 @@ final class Death_Wire {
 					'enwiki'      => $enwiki,
 					'source_url'  => $source_url,
 					'source_name' => $source_name,
+					'item_id'     => $item_id,
 				),
-				'death-wire-' . $found['post_id']
+				self::check_dedupe_key( $item_id )
 			);
 			++$stats['checks_queued'];
 			return 'check_queued';
@@ -532,11 +505,40 @@ final class Death_Wire {
 				'enwiki'      => $enwiki_guess,
 				'source_url'  => $source_url,
 				'source_name' => $source_name,
+				'item_id'     => $item_id,
 			),
-			'death-wire-new-' . md5( $enwiki_guess )
+			self::check_dedupe_key( $item_id )
 		);
 		++$stats['checks_queued'];
 		return 'check_queued';
+	}
+
+	/**
+	 * Dedupe key for one story's Wikipedia check. Keyed on the story, not on
+	 * the article title: many stories about one name each need their own check
+	 * so each can settle, and clicking one story twice must not queue it twice.
+	 */
+	public static function check_dedupe_key( int $item_id ): string {
+		return 'death-wire-item-' . $item_id;
+	}
+
+	/**
+	 * Write a story's terminal outcome back the moment its check concludes,
+	 * so nothing is left sitting in 'check_queued' waiting for a later sweep
+	 * to notice it. A no-op when the check was queued without a story (0).
+	 */
+	private static function settle_story( int $item_id, string $state ): void {
+		if ( $item_id < 1 ) {
+			return;
+		}
+		global $wpdb;
+		$wpdb->update(
+			$wpdb->prefix . 'obitleague_feed_items',
+			array( 'wire_state' => $state ),
+			array( 'id' => $item_id ),
+			array( '%s' ),
+			array( '%d' )
+		);
 	}
 
 	/** Queue handler: confirm one story against the subject's Wikipedia article. */
@@ -549,14 +551,20 @@ final class Death_Wire {
 		$enwiki      = (string) ( $payload['enwiki'] ?? '' );
 		$source_url  = (string) ( $payload['source_url'] ?? '' );
 		$source_name = (string) ( $payload['source_name'] ?? '' );
+		$item_id     = (int) ( $payload['item_id'] ?? 0 );
 		$stats       = self::fresh_stats( 'check' );
 
 		if ( '' === $enwiki ) {
+			self::settle_story( $item_id, 'no_anchor' );
 			return array( 'ok' => true, 'note' => 'No article to check.' );
 		}
 		$article = self::wiki_article( $enwiki );
 		if ( is_wp_error( $article ) ) {
-			return $article; // Parked on a rate limit; retried later.
+			// Parked on a rate limit or a network failure. Leave the story
+			// recoverable — never stuck in 'check_queued' — so the sweep
+			// retries it even if this queued job exhausts its attempts.
+			self::settle_story( $item_id, 'search_deferred' );
+			return $article;
 		}
 		$wikitext = (string) $article['wikitext'];
 		$year = (int) gmdate( 'Y' );
@@ -566,6 +574,7 @@ final class Death_Wire {
 		$group_name = (string) ( $payload['name'] ?? '' );
 		if ( $post_id <= 0 && ( '' === $group_name || ! \Obitleague\Domain\Wire_Identity::matches( $group_name, $enwiki ) ) ) {
 			++$stats['wire_identity_mismatch'];
+			self::settle_story( $item_id, 'identity_mismatch' );
 			self::save_stats( $stats );
 			return array( 'ok' => true, 'note' => 'Candidate article is a different person; the story is parked, not created.' );
 		}
@@ -574,8 +583,12 @@ final class Death_Wire {
 			if ( $post_id > 0 ) {
 				self::flag( $post_id, 'unconfirmable', 'A news story matched this record, but its Wikipedia article does not record a ' . $year . ' death. Needs a human check.' );
 				++$stats['flagged_unconfirmable'];
+				// The record is what the editor must look at; flag the story
+				// beside it rather than leaving it in 'check_queued'.
+				self::settle_story( $item_id, 'flagged_no_anchor' );
 			} else {
 				++$stats['wire_new_not_dead'];
+				self::settle_story( $item_id, 'identity_mismatch' );
 			}
 			self::save_stats( $stats );
 			return array( 'ok' => true, 'note' => 'No ' . $year . ' death in the article.' );
@@ -601,6 +614,7 @@ final class Death_Wire {
 					++$stats['source_duplicates'];
 				}
 			}
+			self::settle_story( $item_id, 'attached' );
 			self::save_stats( $stats );
 			return array( 'ok' => true, 'note' => 'Death confirmed against Wikipedia.' );
 		}
@@ -612,6 +626,7 @@ final class Death_Wire {
 		$deathstr = self::death_date_from_wikitext( $wikitext, $year );
 		if ( '' === $qid || '' === $birth ) {
 			++$stats['wire_new_unconfirmed'];
+			self::settle_story( $item_id, 'identity_mismatch' );
 			self::save_stats( $stats );
 			return array( 'ok' => true, 'note' => 'Confirmed story but no importable identity.' );
 		}
@@ -640,6 +655,7 @@ final class Death_Wire {
 			);
 		} catch ( \Throwable $e ) {
 			++$stats['wire_new_unconfirmed'];
+			self::settle_story( $item_id, 'identity_mismatch' );
 			self::save_stats( $stats );
 			return array( 'ok' => true, 'note' => 'Import failed: ' . $e->getMessage() );
 		}		update_post_meta( $new_id, 'obit_death_wiki_name', $enwiki );
@@ -647,15 +663,18 @@ final class Death_Wire {
 		// re-provision it: mark_provisional() would un-confirm a settled
 		// death. Keep the story and re-use the existing case instead.
 		if ( $pre_existing > 0 ) {
+			$kept = false;
 			if ( self::open_case_for( $new_id, 'Wire story ' . $source_url . ' matches this record and the Wikipedia article confirms a ' . $year . ' death. Editor confirmation required.' ) ) {
-				self::attach_source( $new_id, $source_name, $source_url, (string) current_time( 'mysql', true ) );
+				$kept = self::attach_source( $new_id, $source_name, $source_url, (string) current_time( 'mysql', true ) );
 				++$stats['review_opened'];
 			} elseif ( self::attach_source( $new_id, $source_name, $source_url, (string) current_time( 'mysql', true ) ) ) {
+				$kept = true;
 				++$stats['sources_attached'];
 			} else {
 				++$stats['source_duplicates'];
 			}
 			self::maybe_auto_confirm( $new_id );
+			self::settle_story( $item_id, $kept ? 'attached' : 'duplicate' );
 			self::save_stats( $stats );
 			return array( 'ok' => true, 'note' => 'Story attached to the existing record.' );
 		}
@@ -666,6 +685,7 @@ final class Death_Wire {
 			++$stats['auto_confirmed'];
 		}
 		++$stats['new_candidates'];
+		self::settle_story( $item_id, 'created_provisional' );
 		self::save_stats( $stats );
 		return array( 'ok' => true, 'note' => 'Imported ' . $enwiki . ' with an open review case.' );
 	}
