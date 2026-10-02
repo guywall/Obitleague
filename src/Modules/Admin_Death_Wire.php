@@ -275,6 +275,7 @@ final class Admin_Death_Wire {
 			),
 			'attached'  => array( 'label' => 'Attached', 'where' => "i.wire_state = 'attached'", 'params' => array() ),
 			'check_queued' => array( 'label' => 'Queued for check', 'where' => "i.wire_state = 'check_queued'", 'params' => array() ),
+			'identity_mismatch' => array( 'label' => 'Identity mismatch', 'where' => "i.wire_state = 'identity_mismatch'", 'params' => array() ),
 			'all'       => array( 'label' => 'Everything', 'where' => '1=1', 'params' => array() ),
 		);
 	}

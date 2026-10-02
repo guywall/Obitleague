@@ -506,6 +506,12 @@ final class Death_Wire {
 			++$stats['wire_no_anchor'];
 			return 'no_anchor';
 		}
+		// The search is fuzzy: a hit can be a different person entirely. Prove
+		// identity before anything is created; a mismatch is the safe outcome.
+		if ( ! \Obitleague\Domain\Wire_Identity::matches( $group, $enwiki_guess ) ) {
+			++$stats['wire_identity_mismatch'];
+			return 'identity_mismatch';
+		}
 		Wiki_Request_Queue::enqueue(
 			'death_wire_check',
 			array(
@@ -542,6 +548,15 @@ final class Death_Wire {
 		}
 		$wikitext = (string) $article['wikitext'];
 		$year = (int) gmdate( 'Y' );
+
+		// A story that names no record must resolve to that same person before
+		// anything is imported; a candidate on a different name is parked.
+		$group_name = (string) ( $payload['name'] ?? '' );
+		if ( $post_id <= 0 && ( '' === $group_name || ! \Obitleague\Domain\Wire_Identity::matches( $group_name, $enwiki ) ) ) {
+			++$stats['wire_identity_mismatch'];
+			self::save_stats( $stats );
+			return array( 'ok' => true, 'note' => 'Candidate article is a different person; the story is parked, not created.' );
+		}
 
 		if ( ! self::wiki_death_year( $wikitext, $year ) ) {
 			if ( $post_id > 0 ) {
@@ -1628,6 +1643,7 @@ final class Death_Wire {
 		$stats['skipped_no_birth']  = 0;
 		$stats['unmatched_title']   = 0;
 		$stats['wire_no_anchor']    = 0;
+		$stats['wire_identity_mismatch'] = 0;
 		$stats['wire_new_not_dead'] = 0;
 		$stats['wire_new_unconfirmed'] = 0;
 		$stats['enwiki_repaired']   = 0;
