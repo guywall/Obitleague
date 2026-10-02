@@ -1315,6 +1315,99 @@ final class Death_Wire {
 		return (bool) $ok;
 	}
 
+	/**
+	 * Pair a story to a Wikidata-selected person, for the identity_mismatch
+	 * case where the headline group didn't match the Wikipedia article the
+	 * wire searched.
+	 *
+	 * Fetches the chosen Wikidata entity, confirms it is human and has an
+	 * enwiki article, then imports (or refreshes) the person record using the
+	 * Wikipedia article's wikitext for birth/death dates — falling back to the
+	 * Wikidata claims when the article is silent. The story is attached as
+	 * public reporting on whatever record the pairing produces, and its
+	 * wire_state is settled to 'attached' so the queue never reprocesses it.
+	 *
+	 * @return string 'attached' on success, or 'identity_mismatch' when the QID
+	 *              is unusable or already matched to a different person.
+	 */
+	public static function pair_story_to_qid( int $item_id, string $qid ): string {
+		global $wpdb;
+		if ( $item_id < 1 || ! preg_match( '/^Q[1-9][0-9]*$/', strtoupper( $qid ) ) ) {
+			return 'identity_mismatch';
+		}
+		$item = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT i.title, i.url, s.name AS source_name, i.wire_state
+				 FROM {$wpdb->prefix}obitleague_feed_items i
+				 JOIN {$wpdb->prefix}obitleague_sources s ON s.id = i.source_id WHERE i.id = %d",
+				$item_id
+			)
+		);
+		if ( ! $item ) {
+			return 'identity_mismatch';
+		}
+		$entity = Wikidata_Search_Service::entity_for_pairing( $qid );
+		if ( is_wp_error( $entity ) ) {
+			return 'identity_mismatch';
+		}
+		$enwiki = $entity['enwiki'];
+		if ( '' === $enwiki ) {
+			return 'identity_mismatch';
+		}
+		$article = Wikimedia_Client::article( $enwiki );
+		if ( is_wp_error( $article ) ) {
+			return 'identity_mismatch';
+		}
+		$wikitext = is_array( $article ) ? (string) ( $article['wikitext'] ?? '' ) : '';
+		$year = (int) gmdate( 'Y' );
+		$birth = \Obitleague\Domain\Wire_Wikitext::birth_year( $wikitext );
+		if ( '' === $birth && '' !== $entity['birth'] ) {
+			$birth = $entity['birth'];
+		}
+		if ( '' === $birth ) {
+			return 'identity_mismatch';
+		}
+		$death = \Obitleague\Domain\Wire_Wikitext::death_date( $wikitext, $year );
+		if ( '' === $death && '' !== $entity['death'] ) {
+			$death = $entity['death'];
+		}
+		$name = str_replace( '_', ' ', $enwiki );
+		try {
+			$post_id = Import_Service::import_person(
+				array(
+					'qid'        => $entity['qid'],
+					'name'       => $name,
+					'birth_date'  => $birth,
+					'death_date'  => $death,
+					'enwiki'      => $enwiki,
+					'provisional' => true,
+				)
+			);
+		} catch ( \Throwable ) {
+			return 'identity_mismatch';
+		}
+		// Anchor the record to this Wikipedia article so future same-name
+		// stories find it without another identity match.
+		$stats = self::fresh_stats( 'pair' );
+		update_post_meta( $post_id, 'obit_death_wiki_name', $enwiki );
+		self::mark_provisional( $post_id );
+		if ( self::open_case_for( $post_id, 'Paired from the death-wire story queue; editor confirmation required.' ) ) {
+			++$stats['review_opened'];
+		}
+		self::attach_source( $post_id, (string) ( $item->source_name ?: 'News feed' ), (string) $item->url, (string) current_time( 'mysql', true ) );
+		self::enrich_person( $post_id, $entity['qid'] );
+		Person_Content::regenerate( $post_id );
+		$wpdb->update(
+			$wpdb->prefix . 'obitleague_feed_items',
+			array( 'wire_state' => 'attached' ),
+			array( 'id' => $item_id ),
+			array( '%s' ),
+			array( '%d' )
+		);
+		self::save_stats( $stats );
+		return 'attached';
+	}
+
 	/** Dismiss a story: deleted outright — discarded means discarded. */
 	public static function dismiss_story( int $item_id ): void {
 		global $wpdb;

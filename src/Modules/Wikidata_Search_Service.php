@@ -217,6 +217,125 @@ final class Wikidata_Search_Service {
 		return (int) $post_id;
 	}
 
+	/**
+	 * Wikidata search tuned for obituary pairing: returns humans with their
+	 * birth and death date labels, including deceased subjects (unlike search(),
+	 * which filters out P570 bearers). No season or age filtering is applied:
+	 * the editor has chosen to pair, so every human candidate is fair game.
+	 *
+	 * @return array<int,array{qid:string,name:string,description:string,birth:string,death:string,enwiki:string,url:string}>|\WP_Error
+	 */
+	public static function obituary_search( string $term ): array|\WP_Error {
+		$term = trim( sanitize_text_field( $term ) );
+		if ( mb_strlen( $term ) < 2 || mb_strlen( $term ) > 100 ) {
+			return new \WP_Error( 'obitleague_search_term', 'Enter between 2 and 100 characters to search Wikidata.', array( 'status' => 400 ) );
+		}
+		$cache_key = 'obit_wd_obitsearch_' . md5( mb_strtolower( $term ) );
+		$cached    = get_transient( $cache_key );
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+
+		$search = self::request(
+			self::API . '?' . http_build_query(
+				array(
+					'action'     => 'wbsearchentities',
+					'search'     => $term,
+					'language'   => 'en',
+					'uselang'    => 'en',
+					'type'       => 'item',
+					'limit'      => 12,
+					'format'     => 'json',
+				)
+			)
+		);
+		if ( is_wp_error( $search ) ) {
+			return $search;
+		}
+		$qids = array_values(
+			array_filter(
+				array_map(
+					static fn ( $item ): string => (string) ( $item['id'] ?? '' ),
+					(array) ( $search['search'] ?? array() )
+				),
+				static fn ( string $qid ): bool => (bool) preg_match( '/^Q[1-9][0-9]*$/', $qid )
+			)
+		);
+		if ( ! $qids ) {
+			set_transient( $cache_key, array(), 10 * MINUTE_IN_SECONDS );
+			return array();
+		}
+		// Keep already-imported people out of the pairing list.
+		foreach ( $qids as $qid ) {
+			if ( Import_Service::post_id_by_qid( $qid ) ) {
+				unset( $qids[ array_search( $qid, $qids, true ) ] );
+			}
+		}
+		$qids = array_values( $qids );
+		if ( ! $qids ) {
+			set_transient( $cache_key, array(), 10 * MINUTE_IN_SECONDS );
+			return array();
+		}
+
+		$entities = self::entities( $qids );
+		if ( is_wp_error( $entities ) ) {
+			return $entities;
+		}
+
+		$people = array();
+		foreach ( $qids as $qid ) {
+			$entity = $entities[ $qid ] ?? null;
+			if ( ! self::is_human( $entity ) ) {
+				continue;
+			}
+			$people[] = array(
+				'qid'          => $qid,
+				'name'         => self::entity_label( $entity, $qid ),
+				'description'  => self::entity_description( $entity ),
+				'birth'        => self::date_label( $entity, 'P569' ),
+				'death'        => self::date_label( $entity, 'P570' ),
+				'enwiki'       => (string) ( $entity['sitelinks']['enwiki']['title'] ?? '' ),
+				'url'          => 'https://www.wikidata.org/wiki/' . rawurlencode( $qid ),
+			);
+			if ( count( $people ) >= 8 ) {
+				break;
+			}
+		}
+		set_transient( $cache_key, $people, 10 * MINUTE_IN_SECONDS );
+		return $people;
+	}
+
+	/**
+	 * Fetch a single Wikidata entity for import after an editor picks a
+	 * search result. Returns identification fields plus best-effort birth
+	 * and death dates (ISO strings); the caller falls back to Wikipedia
+	 * wikitext extraction where the entity claim is absent.
+	 *
+	 * @return array{qid:string,name:string,enwiki:string,description:string,birth:string,death:string}|\WP_Error
+	 */
+	public static function entity_for_pairing( string $qid ): array|\WP_Error {
+		$qid = strtoupper( trim( sanitize_text_field( $qid ) ) );
+		if ( ! preg_match( '/^Q[1-9][0-9]*$/', $qid ) ) {
+			return new \WP_Error( 'obitleague_invalid_qid', 'That Wikidata item is not valid.', array( 'status' => 400 ) );
+		}
+		$entities = self::entities( array( $qid ) );
+		if ( is_wp_error( $entities ) ) {
+			return $entities;
+		}
+		$entity = $entities[ $qid ] ?? null;
+		if ( ! self::is_human( $entity ) ) {
+			return new \WP_Error( 'obitleague_not_human', 'That Wikidata item is not a human.', array( 'status' => 422 ) );
+		}
+		return array(
+			'qid'          => $qid,
+			'name'         => self::entity_label( $entity, $qid ),
+			'description'  => self::entity_description( $entity ),
+			'enwiki'       => (string) ( $entity['sitelinks']['enwiki']['title'] ?? '' ),
+			'birth'        => self::date_to_iso( self::claim_date( $entity, 'P569' ) ),
+			'death'        => self::date_to_iso( self::claim_date( $entity, 'P570' ) ),
+		);
+	}
+
 	/** Fetch and index one bounded batch of Wikidata entities. */
 	private static function entities( array $qids ): array|\WP_Error {
 		$url = self::API . '?' . http_build_query(
@@ -351,5 +470,64 @@ final class Wikidata_Search_Service {
 
 	private static function entity_description( ?array $entity ): string {
 		return trim( (string) ( $entity['descriptions']['en']['value'] ?? '' ) );
+	}
+
+	/**
+	 * Best-effort human-readable date label for a claim property (P569 birth,
+	 * P570 death). Handles year, month and day precision; returns '' when
+	 * the claim is absent.
+	 */
+	private static function date_label( ?array $entity, string $property ): string {
+		$date = self::claim_date( $entity, $property );
+		return null !== $date ? $date->label() : '';
+	}
+
+	/**
+	 * Extract a date from a Wikidata date property (P569, P570), accepting
+	 * year, month or day precision. Returns null when the claim is absent
+	 * or malformed.
+	 */
+	private static function claim_date( ?array $entity, string $property ): ?Partial_Date {
+		foreach ( (array) ( $entity['claims'][ $property ] ?? array() ) as $claim ) {
+			if ( ! is_array( $claim ) || 'deprecated' === (string) ( $claim['rank'] ?? 'normal' ) ) {
+				continue;
+			}
+			$value = $claim['mainsnak']['datavalue']['value'] ?? array();
+			if ( ! is_array( $value ) ) {
+				continue;
+			}
+			$time     = (string) ( $value['time'] ?? '' );
+			$precision = (int) ( $value['precision'] ?? 0 );
+			if ( $precision < 9 || ! preg_match( '/^([+-]\d{4})-(\d{2})-(\d{2})T/', $time, $matches ) ) {
+				continue;
+			}
+			$year  = (int) $matches[1];
+			$month = $precision >= 10 ? (int) $matches[2] : null;
+			$day   = ( $precision >= 11 && null !== $month ) ? min( 31, max( 1, (int) $matches[3] ) ) : null;
+			try {
+				$date = new Partial_Date( $year, $month, $day );
+				if ( null === $month || ! empty( $date->interpretations() ) ) {
+					return $date;
+				}
+				continue;
+			} catch ( \InvalidArgumentException ) {
+				continue;
+			}
+		}
+		return null;
+	}
+
+	/** Render a Partial_Date as 'Y', 'Y-m' or 'Y-m-d' for Import_Service. */
+	private static function date_to_iso( ?Partial_Date $date ): string {
+		if ( null === $date || null === $date->year ) {
+			return '';
+		}
+		if ( null === $date->month ) {
+			return sprintf( '%04d', $date->year );
+		}
+		if ( null === $date->day ) {
+			return sprintf( '%04d-%02d', $date->year, $date->month );
+		}
+		return sprintf( '%04d-%02d-%02d', $date->year, $date->month, $date->day );
 	}
 }

@@ -33,6 +33,8 @@ final class Admin_Death_Wire {
 		add_action( 'admin_menu', array( self::class, 'menu' ) );
 		add_action( 'admin_enqueue_scripts', array( self::class, 'assets' ) );
 		add_action( 'wp_ajax_obitleague_death_wire_story_detail', array( self::class, 'ajax_story_detail' ) );
+		add_action( 'wp_ajax_obitleague_death_wire_search_wikidata', array( self::class, 'ajax_search_wikidata' ) );
+		add_action( 'wp_ajax_obitleague_death_wire_pair_story', array( self::class, 'handle_story_pair' ) );
 
 		add_action( 'admin_post_obitleague_death_wire_run', array( self::class, 'handle_run' ) );
 		add_action( 'admin_post_obitleague_death_wire_threshold', array( self::class, 'handle_threshold' ) );
@@ -78,6 +80,8 @@ final class Admin_Death_Wire {
 			array(
 				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 				'nonce'   => wp_create_nonce( 'obitleague_death_wire_detail' ),
+				'searchNonce' => wp_create_nonce( 'obitleague_death_wire_search' ),
+				'pairNonce'   => wp_create_nonce( 'obitleague_death_wire_pair' ),
 			)
 		);
 	}
@@ -636,10 +640,33 @@ final class Admin_Death_Wire {
 			echo '<em>no record matched yet</em>';
 		}
 		echo '</dd>';
+
 		if ( '' !== (string) $story->url ) {
 			echo '<dt>Original article</dt><dd><a href="' . esc_url( (string) $story->url ) . '" rel="noopener" target="_blank">' . esc_html( wp_html_excerpt( (string) $story->url, 90, '…' ) ) . '</a></dd>';
 		}
 		echo '</dl>';
+
+		/* Pairing widget for identity_mismatch stories.
+		 * An editor can search Wikidata with the headline name pre-filled,
+		 * pick the right person, and the record is created automatically.
+		 * If nothing matches, the story can still be dismissed below. */
+		if ( 'identity_mismatch' === $state ) {
+			$group = (string) ( Death_Wire::match_group( (string) $story->title ) ?? '' );
+			echo '<h3>Pair to a person</h3>';
+			echo '<div class="ob-dw-modal__pairing" data-item="' . (int) $story->id . '" data-group="' . esc_attr( $group ) . '">';
+			echo '<p class="description">The wire could not confirm the headline name against a Wikipedia article. Search Wikidata for the correct person and pick the match to create the record automatically.</p>';
+			echo '<div class="ob-dw-pair__searchrow">';
+			echo '<input type="text" class="ob-dw-pair__term" placeholder="Search Wikidata…" value="' . esc_attr( $group ) . '" maxlength="100" size="40" />';
+			echo '<button type="button" class="ob-dw-pair__search button button-primary">Search</button>';
+			echo '</div>';
+			echo '<div class="ob-dw-pair__results" style="display:none"><p class="ob-dw-pair__loading">Searching…</p></div>';
+			echo '<div class="ob-dw-pair__selected" style="display:none"></div>';
+			echo '<div class="ob-dw-pair__actions" style="display:none">';
+			echo '<button type="button" class="ob-dw-pair__confirm button button-primary">Pair selected person</button>';
+			echo '<button type="button" class="ob-dw-pair__clear button link-secondary">Clear selection</button>';
+			echo '</div>';
+			echo '</div>';
+		}
 
 		/* Lead biography — the one-glance summary of who this is about. */
 		if ( '' !== $facts['bio'] ) {
@@ -819,6 +846,40 @@ final class Admin_Death_Wire {
 	public static function handle_story_reprocess(): void {
 		self::must( 'obitleague_death_wire_story_reprocess' );
 		self::publish_story( (int) ( $_POST['item'] ?? 0 ) );
+	}
+
+	/* Search the pairing widget */
+	public static function ajax_search_wikidata(): void {
+		if ( ! current_user_can( self::CAP ) ) {
+			wp_send_json_error( array( 'message' => 'Not allowed.' ), 403 );
+		}
+		check_ajax_referer( 'obitleague_death_wire_search', 'nonce' );
+		$term = trim( (string) ( $_POST['term'] ?? '' ) );
+		if ( '' === $term ) {
+			wp_send_json_success( array( 'results' => array() ) );
+		}
+		$results = Wikidata_Search_Service::obituary_search( $term );
+		if ( is_wp_error( $results ) ) {
+			wp_send_json_error( array( 'message' => $results->get_error_message() ), 502 );
+		}
+		wp_send_json_success( array( 'results' => $results ) );
+	}
+
+	/* Pair a story to a selected Wikidata item */
+	public static function handle_story_pair(): void {
+		self::must( 'obitleague_death_wire_pair' );
+		$item_id = (int) ( $_POST['item'] ?? 0 );
+		$qid     = strtoupper( trim( (string) ( $_POST['qid'] ?? '' ) ) );
+		if ( $item_id < 1 || '' === $qid ) {
+			wp_safe_redirect( self::back( '', 'No Wikidata selection.' ) );
+			exit;
+		}
+		$outcome = Death_Wire::pair_story_to_qid( $item_id, $qid );
+		$notice  = 'attached' === $outcome
+			? 'Story paired to ' . $qid . ' and attached to the new record.'
+			: 'Could not pair that Wikidata item.';
+		wp_safe_redirect( self::back( $notice ) );
+		exit;
 	}
 
 	private static function publish_story( int $item_id ): void {

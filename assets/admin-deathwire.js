@@ -125,4 +125,245 @@
 	if ( document.querySelector( '.ob-dw__storytable' ) ) {
 		// Nothing further yet; hooks stay here for follow-up behaviour.
 	}
+
+	/* ------------------------------ pairing widget ------------------ */
+
+	/**
+	 * Wikidata pairing widget inside the story modal.
+	 *
+	 * The widget HTML is injected via setContent(), so all interactions are
+	 * delegated from the document. Editor searches Wikidata (pre-filled with
+	 * the headline name group), picks a result, then confirms to create the
+	 * record or clears to dismiss.
+	 */
+	function pairFindWrapper( target ) {
+		var wrapper = target.closest && target.closest( '.ob-dw-modal__pairing' );
+		return wrapper || null;
+	}
+
+	document.addEventListener( 'click', function ( event ) {
+		var target = event.target;
+
+		var searchBtn = target.closest && target.closest( '.ob-dw-pair__search' );
+		if ( searchBtn && pairFindWrapper( searchBtn ) ) {
+			event.preventDefault();
+			pairSearch( pairFindWrapper( searchBtn ) );
+			return;
+		}
+
+		var resultItem = target.closest && target.closest( '.ob-dw-pair__result' );
+		if ( resultItem ) {
+			var wr = pairFindWrapper( resultItem );
+			if ( wr ) {
+				event.preventDefault();
+				pairSelectResult( resultItem, wr );
+			}
+			return;
+		}
+
+		var confirmBtn = target.closest && target.closest( '.ob-dw-pair__confirm' );
+		if ( confirmBtn ) {
+			var wc = pairFindWrapper( confirmBtn );
+			if ( wc ) {
+				event.preventDefault();
+				pairConfirm( wc );
+			}
+			return;
+		}
+
+		var clearBtn = target.closest && target.closest( '.ob-dw-pair__clear' );
+		if ( clearBtn ) {
+			var wd = pairFindWrapper( clearBtn );
+			if ( wd ) {
+				event.preventDefault();
+				pairClear( wd );
+			}
+			return;
+		}
+	} );
+
+	function pairSearch( wrapper ) {
+		var termInput = wrapper.querySelector( '.ob-dw-pair__term' );
+		var resultsEl = wrapper.querySelector( '.ob-dw-pair__results' );
+		if ( ! termInput || ! resultsEl ) {
+			return;
+		}
+		var term = termInput.value.trim();
+		if ( term.length < 2 ) {
+			resultsEl.innerHTML = '<p class="description">Enter at least 2 characters.</p>';
+			resultsEl.style.display = 'block';
+			return;
+		}
+		resultsEl.style.display = 'block';
+		resultsEl.innerHTML = '<p class="ob-dw-pair__loading">Searching…</p>';
+
+		var payload = new window.FormData();
+		payload.append( 'action', 'obitleague_death_wire_search_wikidata' );
+		payload.append( 'nonce', cfg.searchNonce || '' );
+		payload.append( 'term', term );
+
+		window.fetch( cfg.ajaxUrl, {
+			method: 'POST',
+			credentials: 'same-origin',
+			body: payload
+		} ).then( function ( response ) {
+			return response.json();
+		} ).then( function ( json ) {
+			if ( json && json.success && json.data && Array.isArray( json.data.results ) ) {
+				pairRenderResults( json.data.results, wrapper );
+			} else {
+				var msg = ( json && json.data && json.data.message ) || 'No results found.';
+				resultsEl.innerHTML = '<p class="ob-dw-pair__error">' + msg + '</p>';
+			}
+		} ).catch( function () {
+			resultsEl.innerHTML = '<p class="ob-dw-pair__error">Search failed. Please try again.</p>';
+		} );
+	}
+
+	function pairRenderResults( results, wrapper ) {
+		var resultsEl = wrapper.querySelector( '.ob-dw-pair__results' );
+		if ( ! resultsEl ) {
+			return;
+		}
+		if ( ! results.length ) {
+			resultsEl.innerHTML = '<p class="description">No results found. Try another search.</p>';
+			return;
+		}
+		var html = '<ul class="ob-dw-pair__list">';
+		for ( var i = 0; i < results.length; ++i ) {
+			var r = results[i];
+			var qid = escapeHtml( r.qid || '' );
+			html += '<li class="ob-dw-pair__result" data-qid="' + qid + '">';
+			html += '<strong class="ob-dw-pair__rname">' + escapeHtml( r.name || qid ) + '</strong>';
+			html += '<span class="ob-dw-pair__rdesc">' + escapeHtml( r.description || '' ) + '</span>';
+			var infoParts = [];
+			if ( r.birth ) {
+				infoParts.push( 'b. ' + escapeHtml( r.birth ) );
+			}
+			if ( r.death ) {
+				infoParts.push( 'd. ' + escapeHtml( r.death ) );
+			}
+			if ( r.enwiki ) {
+				infoParts.push( '<a href="https://en.wikipedia.org/wiki/' + encodeURIComponent( r.enwiki ) + '" target="_blank" rel="noopener">enwiki</a>' );
+			}
+			if ( infoParts.length ) {
+				html += '<span class="ob-dw-pair__rinfo">' + infoParts.join( ' · ' ) + '</span>';
+			}
+			html += '</li>';
+		}
+		html += '</ul>';
+		resultsEl.innerHTML = html;
+	}
+
+	function pairSelectResult( item, wrapper ) {
+		var list = wrapper.querySelector( '.ob-dw-pair__list' );
+		if ( list ) {
+			var all = list.querySelectorAll( '.ob-dw-pair__result' );
+			for ( var i = 0; i < all.length; ++i ) {
+				all[i].classList.remove( 'is-selected' );
+			}
+		}
+		item.classList.add( 'is-selected' );
+
+		var qid = item.getAttribute( 'data-qid' ) || '';
+		var name = '';
+		var desc = '';
+		var infoHtml = '';
+		var nameEl = item.querySelector( '.ob-dw-pair__rname' );
+		var descEl = item.querySelector( '.ob-dw-pair__rdesc' );
+		var infoEl = item.querySelector( '.ob-dw-pair__rinfo' );
+		if ( nameEl ) { name = nameEl.textContent; }
+		if ( descEl ) { desc = descEl.textContent; }
+		if ( infoEl ) { infoHtml = infoEl.innerHTML; }
+
+		var selectedEl = wrapper.querySelector( '.ob-dw-pair__selected' );
+		if ( ! selectedEl ) {
+			return;
+		}
+		selectedEl.setAttribute( 'data-qid', qid );
+		selectedEl.innerHTML = '';
+		var strong = document.createElement( 'strong' );
+		strong.textContent = name || qid;
+		selectedEl.appendChild( strong );
+		if ( desc ) {
+			var dash = document.createTextNode( ' — ' );
+			selectedEl.appendChild( dash );
+			var span = document.createElement( 'span' );
+			span.textContent = desc;
+			selectedEl.appendChild( span );
+		}
+		if ( infoHtml ) {
+			var info = document.createElement( 'span' );
+			info.className = 'ob-dw-pair__rinfo';
+			info.innerHTML = infoHtml;
+			selectedEl.appendChild( info );
+		}
+		selectedEl.style.display = 'block';
+
+		var actionsEl = wrapper.querySelector( '.ob-dw-pair__actions' );
+		if ( actionsEl ) {
+			actionsEl.style.display = 'block';
+		}
+	}
+
+	function pairClear( wrapper ) {
+		var resultsEl = wrapper.querySelector( '.ob-dw-pair__results' );
+		var selectedEl = wrapper.querySelector( '.ob-dw-pair__selected' );
+		var actionsEl = wrapper.querySelector( '.ob-dw-pair__actions' );
+		if ( selectedEl ) {
+			selectedEl.innerHTML = '';
+			selectedEl.removeAttribute( 'data-qid' );
+			selectedEl.style.display = 'none';
+		}
+		if ( actionsEl ) {
+			actionsEl.style.display = 'none';
+		}
+		if ( resultsEl ) {
+			resultsEl.style.display = 'none';
+		}
+		var list = wrapper.querySelector( '.ob-dw-pair__list' );
+		if ( list ) {
+			var items = list.querySelectorAll( '.ob-dw-pair__result' );
+			for ( var i = 0; i < items.length; ++i ) {
+				items[i].classList.remove( 'is-selected' );
+			}
+		}
+	}
+
+	function pairConfirm( wrapper ) {
+		var selectedEl = wrapper.querySelector( '.ob-dw-pair__selected' );
+		var qid = selectedEl ? selectedEl.getAttribute( 'data-qid' ) : '';
+		var item = wrapper.getAttribute( 'data-item' ) || '';
+		if ( ! qid || ! item ) {
+			window.alert( 'Please select a person from the search results first.' );
+			return;
+		}
+		// The server handler redirects after pairing, so submit a real form
+		// POST: the browser follows the redirect and the modal closes with
+		// the page reload.
+		var form = document.createElement( 'form' );
+		form.method = 'POST';
+		form.action = cfg.ajaxUrl;
+		form.style.display = 'none';
+		var addInput = function ( name, value ) {
+			var input = document.createElement( 'input' );
+			input.type = 'hidden';
+			input.name = name;
+			input.value = value;
+			form.appendChild( input );
+		};
+		addInput( 'action', 'obitleague_death_wire_pair_story' );
+		addInput( '_wpnonce', cfg.pairNonce || '' );
+		addInput( 'item', item );
+		addInput( 'qid', qid );
+		document.body.appendChild( form );
+		form.submit();
+	}
+
+	function escapeHtml( text ) {
+		var div = document.createElement( 'div' );
+		div.textContent = String( text );
+		return div.innerHTML;
+	}
+
 } )();
