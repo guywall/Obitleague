@@ -330,7 +330,7 @@ final class Admin_Death_Wire {
 
 		$rows = (array) $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT i.id, i.title, i.url, i.published_at, i.classification, i.classification_score, i.matched_cues, i.wire_state, s.name AS source_name
+				"SELECT i.id, i.title, i.url, i.published_at, i.retrieved_at, i.classification, i.classification_score, i.matched_cues, i.wire_state, s.name AS source_name
 				 FROM {$wpdb->prefix}obitleague_feed_items i
 				 JOIN {$wpdb->prefix}obitleague_sources s ON s.id = i.source_id
 				 WHERE {$where}
