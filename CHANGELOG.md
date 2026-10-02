@@ -5,6 +5,21 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Changed — The death wire's decisions are domain rules, its HTTP is a client
+
+- **One 1760-line file became orchestration.** `Death_Wire` owned headline
+  matching, identity, wikitext reading, HTTP, queue handlers and CLI at once.
+  The decision logic now lives in pure `Domain` classes it delegates to —
+  `Wire_Headline` (headline → subject), `Wire_Wikitext` (death year, birth
+  year, exact death date), `Wire_Dates` (Wikidata date precision, month
+  walking) and `Wire_Score` (the 0–95 likelihood) — alongside the
+  `Wire_Identity`, `Wire_Search` and `Wire_Pause` rules already extracted.
+  The outbound Wikidata/Wikipedia reads (title search, article + QID, WDQS
+  SPARQL, and the shared rate-limit pause) moved to `Modules\Wikimedia_Client`.
+  Cache keys, TTLs, error codes, queue keys, admin buckets and approval rules
+  are unchanged; `Death_Wire::match_group()` and `::wiki_death_year()` remain
+  as thin delegates so the public surface stays put.
+
 ### Fixed — A finished Wikipedia check settles its story
 
 - **Stories no longer strand in `check_queued`.** A story's Wikipedia

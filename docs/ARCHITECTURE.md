@@ -14,6 +14,9 @@
 obitleague.php                  Bootstrap, autoloader, activation, module boot
 src/Domain/                     Pure rules engine (no WordPress calls)
 src/Domain/Value/               Immutable value objects
+src/Domain/Wire_*.php           Death-wire decision rules (headline, wikitext, dates, score, identity, search, pause)
+src/Modules/Death_Wire.php      Death-wire orchestration + public facade
+src/Modules/Wikimedia_Client.php Outbound Wikidata/Wikipedia reads (search, article+QID, SPARQL, pause)
 src/Modules/Catalogue.php       Person post type, taxonomies, eligibility meta
 src/Modules/Rest.php            /obitleague/v1 routes
 src/Modules/Jobs.php            Feed polling, refresh, scoring, notifications

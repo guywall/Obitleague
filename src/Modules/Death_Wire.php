@@ -40,17 +40,11 @@ final class Death_Wire {
 	public const DISCARD_BELOW = 50;
 	/** Stored, adjustable discard threshold (admin overview sets it). */
 	private const DISCARD_OPTION   = 'obitleague_death_wire_discard_below';
-	/** How long a fetched Wikipedia article (wikitext + QID) stays cached. */
-	private const WIKI_TTL         = 2 * HOUR_IN_SECONDS;
-	/** How long a concluded (hit or genuine empty) title search stays cached. */
-	private const WIRE_SEARCH_TTL  = 2 * HOUR_IN_SECONDS;
 	/** How long a fetched publisher article text stays cached. */
 	private const ARTICLE_TTL      = 12 * HOUR_IN_SECONDS;
 	private const PAGE_SIZE          = 50;
 	private const MAX_LIST_PAGES     = 40; // Safety bound: ~2000 names/month.
 	private const WIRE_BATCH         = 100;
-	private const WIRE_LOOKBACK_DAYS = 400;
-	private const USER_AGENT         = 'Obitleague-DeathWire/0.1 (WordPress; +obitleague.co.uk)';
 
 	/** The obituary likelihood below which a story is auto-discarded (0–95). */
 	public static function discard_threshold(): int {
@@ -229,11 +223,11 @@ final class Death_Wire {
 			. 'OPTIONAL { ?item wdt:P569 ?dob } . '
 			. '?item wdt:P570 ?dod . '
 			. 'FILTER(?dod >= "' . $month . '-01T00:00:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime> '
-			. '&& ?dod < "' . self::next_month( $month ) . '-01T00:00:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>) '
+			. '&& ?dod < "' . \Obitleague\Domain\Wire_Dates::next_month( $month ) . '-01T00:00:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>) '
 			. 'OPTIONAL { ?sl schema:about ?item . ?sl schema:isPartOf <https://en.wikipedia.org/> } '
 			. '} ORDER BY ?item LIMIT ' . self::PAGE_SIZE . ' OFFSET ' . $offset;
 
-		$rows = self::sparql( $sparql );
+		$rows = Wikimedia_Client::sparql( $sparql );
 		if ( is_wp_error( $rows ) ) {
 			return $rows; // Parked or failed; the queue retries.
 		}
@@ -250,7 +244,7 @@ final class Death_Wire {
 			$people[]     = array(
 				'qid'  => $qid,
 				'name' => (string) ( $row['itemLabel']['value'] ?? '' ),
-				'enwiki' => isset( $row['sl']['value'] ) ? self::enwiki_title_from_uri( (string) $row['sl']['value'] ) : '',
+				'enwiki' => isset( $row['sl']['value'] ) ? Wikimedia_Client::enwiki_title_from_uri( (string) $row['sl']['value'] ) : '',
 				'dob'  => (string) ( $row['dob']['value'] ?? '' ),
 				'dod'  => (string) ( $row['dod']['value'] ?? '' ),
 			);
@@ -279,8 +273,8 @@ final class Death_Wire {
 		if ( '' === $person['name'] ) {
 			return;
 		}
-		$death_norm = self::normalize_day( $person['dod'] );
-		$birth_norm = self::normalize_day( $person['dob'] );
+		$death_norm = \Obitleague\Domain\Wire_Dates::normalize_day( $person['dod'] );
+		$birth_norm = \Obitleague\Domain\Wire_Dates::normalize_day( $person['dob'] );
 		$post_id    = Import_Service::post_id_by_qid( $person['qid'] );
 
 		if ( ! $post_id ) {
@@ -350,7 +344,7 @@ final class Death_Wire {
 
 	/** Queue handler: process a bounded slice of candidate feed items. */
 	public static function handle_wire_batch( array $payload ): array|\WP_Error {
-		$paused = self::paused_error();
+		$paused = Wikimedia_Client::paused_error();
 		if ( $paused ) {
 			return $paused;
 		}
@@ -482,7 +476,7 @@ final class Death_Wire {
 				return 'created_provisional';
 			}
 		}
-		$enwiki_guess = self::wiki_search_title( $group );
+		$enwiki_guess = Wikimedia_Client::search_title( $group );
 		if ( is_wp_error( $enwiki_guess ) ) {
 			++$stats['wire_search_deferred'];
 			return 'search_deferred';
@@ -543,7 +537,7 @@ final class Death_Wire {
 
 	/** Queue handler: confirm one story against the subject's Wikipedia article. */
 	public static function handle_wire_check( array $payload ): array|\WP_Error {
-		$paused = self::paused_error();
+		$paused = Wikimedia_Client::paused_error();
 		if ( $paused ) {
 			return $paused;
 		}
@@ -558,7 +552,7 @@ final class Death_Wire {
 			self::settle_story( $item_id, 'no_anchor' );
 			return array( 'ok' => true, 'note' => 'No article to check.' );
 		}
-		$article = self::wiki_article( $enwiki );
+		$article = Wikimedia_Client::article( $enwiki );
 		if ( is_wp_error( $article ) ) {
 			// Parked on a rate limit or a network failure. Leave the story
 			// recoverable — never stuck in 'check_queued' — so the sweep
@@ -622,8 +616,8 @@ final class Death_Wire {
 		// New name: import the draft, then hand the editors the case. The
 		// QID came back in the same cached request that fetched the wikitext.
 		$qid      = (string) $article['qid'];
-		$birth    = '' !== $qid ? self::birth_year_from_wikitext( $wikitext ) : '';
-		$deathstr = self::death_date_from_wikitext( $wikitext, $year );
+		$birth    = '' !== $qid ? \Obitleague\Domain\Wire_Wikitext::birth_year( $wikitext ) : '';
+		$deathstr = \Obitleague\Domain\Wire_Wikitext::death_date( $wikitext, $year );
 		if ( '' === $qid || '' === $birth ) {
 			++$stats['wire_new_unconfirmed'];
 			self::settle_story( $item_id, 'identity_mismatch' );
@@ -695,76 +689,11 @@ final class Death_Wire {
 	 * ------------------------------------------------------------------- */
 
 	/**
-	 * The subject group of a headline: the name before the dash/colon, with
-	 * tail pieces (publications, sections, ellipses) stripped.
+	 * The subject group of a headline. Thin delegate to the pure domain
+	 * matcher so the public surface (admin, tests) is unchanged.
 	 */
 	public static function match_group( string $title ): ?string {
-		$t = trim( preg_replace( '/\s+/u', ' ', $title ) ?? $title );
-		$t = preg_replace( '/\s*[|·]\s*.*/u', '', $t ) ?? $t;
-		if ( preg_match( '/^(.{3,191}?)\s+[—–-]\s+\S/u', $t, $m ) ) {
-			$t = trim( $m[1] );
-		} elseif ( preg_match( '/^(.{3,191}?):\s+\S/u', $t, $m ) ) {
-			$t = trim( $m[1] );
-		}
-		$t = preg_replace( '/\s*\.{3,}$/u', '', $t ) ?? $t;
-		// Obituary-desk suffixes: "Mighty Sparrow obituary" names Mighty
-		// Sparrow, not a person called "Mighty Sparrow obituary".
-		$t = preg_replace( '/\s+\b(obituary|obit|tribute|appreciation)\b\s*:?.*$/iu', '', $t ) ?? $t;
-		$t = trim( $t );
-		if ( '' === $t || mb_strlen( $t ) > 191 ) {
-			return null;
-		}
-		// Broad-sheet obituaries sign the subject before a comma and describe
-		// them after it: "Bob Pettit, N.B.A. Great for the Hawks, Dies at 93".
-		// That is a name, not prose — but only the leading segment, and only
-		// when it reads as one, so descriptors ("Kris Jenner's mom, …") and
-		// sentences are still refused.
-		$leading = self::leading_name( $t );
-		if ( null !== $leading ) {
-			return $leading;
-		}
-		// A group is a name, not a sentence: general-news headlines
-		// ("UK diesel price hits all-time high, RAC says") produce sentence
-		// fragments that Wikipedia search happily mis-anchors to some
-		// unrelated article. Refuse anything that reads like prose — more
-		// than a handful of words, or still carrying desk furniture.
-		$words = preg_split( '/\s+/u', $t ) ?: array();
-		if ( count( $words ) > 7 ) {
-			return null;
-		}
-		if ( preg_match( '/\b(says|warns|hits|review|price|ban|named|pictures|heartbroken|slams|urges|faces|amid)\b/iu', $t ) ) {
-			return null;
-		}
-		return $t;
-	}
-
-	/**
-	 * The subject of a "Name, descriptor, dies at NN" headline: the segment
-	 * before the first comma, when — and only when — it reads as a personal
-	 * name (two to four capitalised tokens, no digits, no lowercase words).
-	 */
-	private static function leading_name( string $title ): ?string {
-		$comma = mb_strpos( $title, ',' );
-		if ( false === $comma ) {
-			return null;
-		}
-		$head = trim( mb_substr( $title, 0, $comma ) );
-		if ( '' === $head || mb_strlen( $head ) > 191 || preg_match( '/\d/u', $head ) ) {
-			return null;
-		}
-		$tokens = preg_split( '/\s+/u', $head ) ?: array();
-		if ( count( $tokens ) < 2 || count( $tokens ) > 4 ) {
-			return null;
-		}
-		foreach ( $tokens as $token ) {
-			// A name part starts with a capital and carries only name
-			// characters: initials ("G."), apostrophes ("O’Neill") and
-			// hyphens ("Ruth-Bader") included.
-			if ( ! preg_match( '/^\p{Lu}[\p{L}\'’.\-]*$/u', $token ) ) {
-				return null;
-			}
-		}
-		return $head;
+		return \Obitleague\Domain\Wire_Headline::group( $title );
 	}
 
 
@@ -799,7 +728,7 @@ final class Death_Wire {
 			)
 		);
 		// Search Wikipedia for the article, then collect its records too.
-		$search = self::wiki_search_title( $group );
+		$search = Wikimedia_Client::search_title( $group );
 		if ( is_wp_error( $search ) ) {
 			// The search is unavailable. With direct matches in hand we can
 			// still act; with none, defer rather than read an outage as proof
@@ -1281,7 +1210,7 @@ final class Death_Wire {
 			array(
 				'timeout'    => 15,
 				'limit_response_size' => 524288,
-				'user-agent' => self::USER_AGENT,
+				'user-agent' => Wikimedia_Client::USER_AGENT,
 			)
 		);
 		if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
@@ -1304,18 +1233,11 @@ final class Death_Wire {
 	}
 
 	/**
-	 * Classifier score as an honest 0–95 obituary likelihood. The weighted
-	 * classifier already scores on that scale; first-generation cue-counter
-	 * rows (small positive ints) are mapped ×10 as before.
+	 * Classifier score as an honest 0–95 obituary likelihood. Thin delegate
+	 * to the pure domain mapping.
 	 */
 	public static function likelihood_pct( int $score ): int {
-		if ( $score <= 0 ) {
-			return 0;
-		}
-		if ( $score >= \Obitleague\Domain\Feed_Classifier::THRESHOLD_REVIEW ) {
-			return (int) min( 95, $score );
-		}
-		return (int) min( 95, $score * 10 );
+		return \Obitleague\Domain\Wire_Score::likelihood_pct( $score );
 	}
 
 	/** The person record a story title matches, for queue display. */
@@ -1473,215 +1395,12 @@ final class Death_Wire {
 		update_post_meta( $post_id, 'obit_death_flag_at', current_time( 'mysql', true ) );
 	}
 
-	/* ---------------------------------------------------------------------
-	 * Wikimedia access (shared pause, global queue).
-	 * ------------------------------------------------------------------- */
-
-	private static function paused_error(): ?\WP_Error {
-		$pause = Discovery_Service::rate_limit_pause_until();
-		if ( $pause > time() ) {
-			return new \WP_Error( 'obitleague_discovery_paused', sprintf( 'Wikimedia pause until %s UTC.', gmdate( 'Y-m-d H:i:s', $pause ) ) );
-		}
-		return null;
-	}
-
-	/** One WDQS page (politeness handled by the caller's queue context). */
-	private static function sparql( string $query ): array|\WP_Error {
-		$response = wp_remote_get(
-			'https://query.wikidata.org/sparql?format=json&query=' . rawurlencode( $query ),
-			array(
-				'timeout'    => 60,
-				'user-agent' => self::USER_AGENT,
-				'headers'    => array( 'Accept' => 'application/sparql-results+json' ),
-			)
-		);
-		if ( is_wp_error( $response ) ) {
-			return new \WP_Error( 'obitleague_discovery_network', 'Wikidata could not be reached: ' . $response->get_error_message() );
-		}
-		$code = (int) wp_remote_retrieve_response_code( $response );
-		if ( in_array( $code, array( 429, 503 ), true ) ) {
-			$retry_after = wp_remote_retrieve_header( $response, 'retry-after' );
-			$retry_after = is_array( $retry_after ) ? (string) reset( $retry_after ) : (string) $retry_after;
-			$pause_until = Discovery_Service::note_rate_limit( $retry_after );
-			return new \WP_Error( 'obitleague_discovery_paused', sprintf( 'Wikidata asked us to slow down until %s UTC.', gmdate( 'Y-m-d H:i:s', $pause_until ) ) );
-		}
-		if ( 200 !== $code ) {
-			return new \WP_Error( 'obitleague_discovery_http', 'Wikidata returned HTTP ' . $code . '.' );
-		}
-		Discovery_Service::note_success();
-		$body  = json_decode( (string) wp_remote_retrieve_body( $response ), true );
-		$cards = is_array( $body ) ? (array) ( $body['results']['bindings'] ?? array() ) : array();
-		return array_map( static fn ( $b ): array => is_array( $b ) ? $b : array(), $cards );
-	}
-
-	private static function enwiki_title_from_uri( string $uri ): string {
-		// https://en.wikipedia.org/wiki/Title → Title (URL-decoded).
-		$marker = '/wiki/';
-		$pos    = strpos( $uri, $marker );
-		if ( false === $pos ) {
-			return '';
-		}
-		return rawurldecode( substr( $uri, $pos + strlen( $marker ) ) );
-	}
-
 	/**
-	 * Wikipedia search: the best article title for a name, cached briefly.
-	 *
-	 * Only a definitive answer is cached: a hit, or a genuine empty result.
-	 * A transport error, a 429/503 throttle or a malformed body is a failure
-	 * to ask, not proof that no article exists, so it returns a WP_Error and
-	 * caches nothing. The caller defers the story and retries it later.
-	 */
-	private static function wiki_search_title( string $term ): string|\WP_Error {
-		$term   = trim( $term );
-		if ( '' === $term ) {
-			return '';
-		}
-		$cache_key = 'obit_wikisearch_' . md5( mb_strtolower( $term ) );
-		$cached    = get_transient( $cache_key );
-		if ( is_string( $cached ) ) {
-			return $cached;
-		}
-		$paused = self::paused_error();
-		if ( $paused ) {
-			return $paused; // A global pause is not an answer about the name.
-		}
-		$response = wp_remote_get(
-			'https://en.wikipedia.org/w/api.php?action=query&list=search&format=json&formatversion=2&srlimit=3&srsearch=' . rawurlencode( $term ),
-			array( 'timeout' => 15, 'user-agent' => self::USER_AGENT )
-		);
-		$transport_error = is_wp_error( $response );
-		$code            = $transport_error ? 0 : (int) wp_remote_retrieve_response_code( $response );
-		$body            = ( ! $transport_error && 200 === $code )
-			? json_decode( (string) wp_remote_retrieve_body( $response ), true )
-			: null;
-		$verdict = \Obitleague\Domain\Wire_Search::interpret( $transport_error, $code, $body );
-		if ( \Obitleague\Domain\Wire_Search::THROTTLED === $verdict['outcome'] ) {
-			$retry_after = wp_remote_retrieve_header( $response, 'retry-after' );
-			$retry_after = is_array( $retry_after ) ? (string) reset( $retry_after ) : (string) $retry_after;
-			$pause_until = Discovery_Service::note_rate_limit( $retry_after );
-			return new \WP_Error( 'obitleague_discovery_paused', sprintf( 'Wikipedia asked us to slow down until %s UTC.', gmdate( 'Y-m-d H:i:s', $pause_until ) ) );
-		}
-		if ( ! \Obitleague\Domain\Wire_Search::is_definitive( $verdict['outcome'] ) ) {
-			// Never cache a failure as "no article": the story retries instead.
-			return new \WP_Error( 'obitleague_discovery_network', 'Wikipedia search failed for "' . $term . '".' );
-		}
-		// Both a hit and a genuine empty result are definitive: cache them.
-		Discovery_Service::note_success();
-		set_transient( $cache_key, $verdict['title'], self::WIRE_SEARCH_TTL );
-		return $verdict['title'];
-	}
-
-	/**
-	 * One cached enwiki request carrying everything the wire needs about a
-	 * person: the article wikitext AND the Wikidata QID behind it (both live
-	 * in a single action=query&prop=revisions|pageprops call). Consumers:
-	 * death-year check, exact death-date extraction, birth year, and the
-	 * wordcloud stored on the record for same-name disambiguation.
-	 *
-	 * @return array{wikitext:string, qid:string}|\WP_Error Cached arrays are
-	 *         shared by reference discipline — callers must not mutate.
-	 */
-	public static function wiki_article( string $title ): array|\WP_Error {
-		$title = str_replace( ' ', '_', trim( $title ) );
-		if ( '' === $title ) {
-			return array( 'wikitext' => '', 'qid' => '' );
-		}
-		$cache_key = 'obit_wikiart_' . md5( $title );
-		$cached    = get_transient( $cache_key );
-		if ( is_array( $cached ) && isset( $cached['wikitext'] ) ) {
-			return $cached;
-		}
-		$response = wp_remote_get(
-			'https://en.wikipedia.org/w/api.php?action=query&prop=revisions%7Cpageprops&rvprop=content&rvslots=main&format=json&formatversion=2&maxlag=5&titles=' . rawurlencode( $title ),
-			array( 'timeout' => 20, 'user-agent' => self::USER_AGENT )
-		);
-		if ( is_wp_error( $response ) ) {
-			return new \WP_Error( 'obitleague_discovery_network', 'Wikipedia could not be reached: ' . $response->get_error_message() );
-		}
-		$code = (int) wp_remote_retrieve_response_code( $response );
-		if ( in_array( $code, array( 429, 503 ), true ) ) {
-			$retry_after = wp_remote_retrieve_header( $response, 'retry-after' );
-			$retry_after = is_array( $retry_after ) ? (string) reset( $retry_after ) : (string) $retry_after;
-			$pause_until = Discovery_Service::note_rate_limit( $retry_after );
-			return new \WP_Error( 'obitleague_discovery_paused', sprintf( 'Wikipedia asked us to slow down until %s UTC.', gmdate( 'Y-m-d H:i:s', $pause_until ) ) );
-		}
-		if ( 200 !== $code ) {
-			// Negative answers cache too: dead titles stay dead for the TTL.
-			$empty = array( 'wikitext' => '', 'qid' => '' );
-			set_transient( $cache_key, $empty, self::WIKI_TTL );
-			return $empty;
-		}
-		Discovery_Service::note_success();
-		$body  = json_decode( (string) wp_remote_retrieve_body( $response ), true );
-		$page  = (array) ( $body['query']['pages'][0] ?? array() );
-		$out   = array(
-			'wikitext' => (string) ( $page['revisions'][0]['slots']['main']['content'] ?? '' ),
-			'qid'      => (string) ( $page['pageprops']['wikibase_item'] ?? '' ),
-		);
-		if ( '' === $out['qid'] || ! preg_match( '/^Q\d+$/', $out['qid'] ) ) {
-			$out['qid'] = '';
-		}
-		set_transient( $cache_key, $out, self::WIKI_TTL );
-		return $out;
-	}
-
-	/** Raw wikitext of one enwiki article via the combined cached fetch. */
-	private static function wiki_article_wikitext( string $title ): string|\WP_Error {
-		$result = self::wiki_article( $title );
-		if ( is_wp_error( $result ) ) {
-			return $result;
-		}
-		return (string) $result['wikitext'];
-	}
-
-	/**
-	 * Does the wikitext record a death in the given year? Reads the
-	 * death_date infobox field first, then plain-text death wording.
+	 * Does the wikitext record a death in the given year? Thin delegate to the
+	 * pure domain extraction.
 	 */
 	public static function wiki_death_year( string $wikitext, int $year ): bool {
-		if ( '' === $wikitext ) {
-			return false;
-		}
-		if ( preg_match( '/\|\s*death_date\s*=\s*([^\n|]*)/i', $wikitext, $m ) ) {
-			if ( preg_match( '/(^|[|\s])' . $year . '(?![0-9])/', $m[1] ) ) {
-				return true;
-			}
-		}
-		if ( preg_match( '/(?:died|death|passed away)[^.\n]{0,120}\b' . $year . '\b/i', $wikitext ) ) {
-			return true;
-		}
-		return false;
-	}
-
-	/** First birth year found in the article text ('' when absent). */
-	private static function birth_year_from_wikitext( string $wikitext ): string {
-		// Most modern infoboxes use the birth-date template, whose value is
-		// pipe-separated ({{birth date|1932|12|12}}) and so is destroyed by a
-		// naive "up to the next pipe" capture.
-		if ( preg_match( '/\|\s*birth_date\s*=\s*\{\{\s*(?:birth date(?: and age)?|bda)\s*\|\s*(\d{4})/i', $wikitext, $template ) ) {
-			return $template[1];
-		}
-		if ( preg_match( '/\|\s*birth_date\s*=\s*([^\n|]*)/i', $wikitext, $m ) && preg_match( '/\b(1[89]\d{2}|20[0-2]\d)\b/', $m[1], $y ) ) {
-			return $y[1];
-		}
-		if ( preg_match( '/\(born[^)]*?\b(1[89]\d{2}|20[0-2]\d)\b/i', $wikitext, $m2 ) ) {
-			return $m2[1];
-		}
-		return '';
-	}
-
-	/** Best exact death date for the season year from the article ('' when absent). */
-	private static function death_date_from_wikitext( string $wikitext, int $year ): string {
-		if ( preg_match( '/\|\s*death_date\s*=\s*\{\{[^|}]*\|(' . $year . ')\|(\d{1,2})\|(\d{1,2})/i', $wikitext, $m ) ) {
-			return sprintf( '%04d-%02d-%02d', $year, min( 12, max( 1, (int) $m[2] ) ), min( 31, max( 1, (int) $m[3] ) ) );
-		}
-		$months = 'January|February|March|April|May|June|July|August|September|October|November|December';
-		if ( preg_match( '/\b(\d{1,2})\s+(' . $months . ')\s+' . $year . '\b/i', $wikitext, $m2 ) ) {
-			$month = (int) ( array_search( ucfirst( strtolower( $m2[2] ) ), explode( '|', $months ), true ) + 1 );
-			return sprintf( '%04d-%02d-%02d', $year, $month, min( 31, max( 1, (int) $m2[1] ) ) );
-		}
-		return (string) $year;
+		return \Obitleague\Domain\Wire_Wikitext::death_year( $wikitext, $year );
 	}
 
 	/** The stored identity anchor for a record (citation or QID lookup). */
@@ -1707,28 +1426,6 @@ final class Death_Wire {
 	/* ---------------------------------------------------------------------
 	 * Small utilities.
 	 * ------------------------------------------------------------------- */
-
-	/** '2026-09-14T00:00:00Z' → '2026-09-14'; precision placeholders drop. */
-	private static function normalize_day( string $iso ): string {
-		if ( '' === $iso ) {
-			return '';
-		}
-		if ( preg_match( '/^(\d{4})-00-00T/', $iso, $m ) ) {
-			return $m[1];
-		}
-		if ( preg_match( '/^(\d{4})-(\d{2})-00T/', $iso, $m ) ) {
-			return $m[1] . '-' . $m[2];
-		}
-		if ( preg_match( '/^(\d{4}-\d{2}-\d{2})T/', $iso, $m ) ) {
-			return $m[1];
-		}
-		return '';
-	}
-
-	private static function next_month( string $month ): string {
-		[ $y, $m ] = array_map( 'intval', explode( '-', $month ) );
-		return $m === 12 ? ( ( $y + 1 ) . '-01' ) : sprintf( '%04d-%02d', $y, $m + 1 );
-	}
 
 	private static function fresh_stats( string $run ): array {
 		$stats            = self::last_run();
