@@ -69,7 +69,7 @@ final class Wire_Headline {
 	 * before the first comma, when — and only when — it reads as a personal
 	 * name (two to four capitalised tokens, no digits, no lowercase words).
 	 */
-	public static function leading_name( string $title ): ?string {
+	private static function leading_name( string $title ): ?string {
 		$comma = mb_strpos( $title, ',' );
 		if ( false === $comma ) {
 			return null;

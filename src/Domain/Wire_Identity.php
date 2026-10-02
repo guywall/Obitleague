@@ -2,8 +2,8 @@
 /**
  * Does a wire story's name group actually refer to a given Wikipedia article?
  *
- * `wiki_search_title()` returns the first hit of a fuzzy search, which is
- * frequently a different person entirely ("Cal Swann obituary" → "Rich
+ * `Wikimedia_Client::search_title()` returns the first hit of a fuzzy search,
+ * which is frequently a different person entirely ("Cal Swann obituary" → "Rich
  * Swann", "David Willey obituary" → "Willey Reveley"). Importing on that
  * signal manufactures wrong people, so identity is proved before anything
  * is created: every significant token of the story's name must appear in
