@@ -1122,7 +1122,9 @@ final class Death_Wire {
 		$cache_key = 'obit_sig_' . md5( $source_url );
 		$cached    = get_transient( $cache_key );
 		if ( is_array( $cached ) ) {
-			return $cached;
+			// An empty array is the cached "no signature" marker, not a result:
+			// return null so the caller does not read absent keys off it.
+			return array() === $cached ? null : $cached;
 		}
 		$parsed = \Obitleague\Domain\Obituary_Article::parse( self::article_text( $source_url ) );
 		if ( '' === $parsed['name'] || '' === $parsed['death_date'] ) {
