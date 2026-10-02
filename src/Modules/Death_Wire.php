@@ -609,6 +609,9 @@ final class Death_Wire {
 			self::mark_provisional( $new_id );
 			self::open_case_for( $new_id, 'Wire story ' . $source_url . ' and the Wikipedia article confirm a ' . $year . ' death. Editor confirmation required.' );
 		self::attach_source( $new_id, $source_name, $source_url, (string) current_time( 'mysql', true ) );
+		if ( self::maybe_auto_confirm( $new_id ) ) {
+			++$stats['auto_confirmed'];
+		}
 		++$stats['new_candidates'];
 		self::save_stats( $stats );
 		return array( 'ok' => true, 'note' => 'Imported ' . $enwiki . ' with an open review case.' );
@@ -1161,6 +1164,7 @@ final class Death_Wire {
 		self::mark_provisional( $post_id );
 		self::open_case_for( $post_id, 'Obituary desk signature: ' . $source_name . ' records a death on ' . $death_date . '; corroboration pending.' );
 		self::attach_source( $post_id, $source_name, $source_url, (string) gmdate( 'Y-m-d H:i:s' ) );
+		self::maybe_auto_confirm( $post_id );
 		Person_Content::regenerate( $post_id );
 		return $post_id;
 	}
