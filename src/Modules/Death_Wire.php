@@ -214,7 +214,7 @@ final class Death_Wire {
 	}
 
 	/** Queue handler: one month section of the Wikipedia list. */
-	public static function handle_list_page( array $payload ): array|WP_Error {
+	public static function handle_list_page( array $payload ): array|\WP_Error {
 		$month = (string) ( $payload['month'] ?? '' );
 		if ( ! preg_match( '/^\d{4}-\d{2}$/', $month ) ) {
 			return array( 'ok' => true, 'note' => 'No month given.' );
@@ -347,7 +347,7 @@ final class Death_Wire {
 	 * ------------------------------------------------------------------- */
 
 	/** Queue handler: process a bounded slice of candidate feed items. */
-	public static function handle_wire_batch( array $payload ): array|WP_Error {
+	public static function handle_wire_batch( array $payload ): array|\WP_Error {
 		$paused = self::paused_error();
 		if ( $paused ) {
 			return $paused;
@@ -522,7 +522,7 @@ final class Death_Wire {
 	}
 
 	/** Queue handler: confirm one story against the subject's Wikipedia article. */
-	public static function handle_wire_check( array $payload ): array|WP_Error {
+	public static function handle_wire_check( array $payload ): array|\WP_Error {
 		$paused = self::paused_error();
 		if ( $paused ) {
 			return $paused;
@@ -638,6 +638,15 @@ final class Death_Wire {
 		if ( '' === $t || mb_strlen( $t ) > 191 ) {
 			return null;
 		}
+		// Broad-sheet obituaries sign the subject before a comma and describe
+		// them after it: "Bob Pettit, N.B.A. Great for the Hawks, Dies at 93".
+		// That is a name, not prose — but only the leading segment, and only
+		// when it reads as one, so descriptors ("Kris Jenner's mom, …") and
+		// sentences are still refused.
+		$leading = self::leading_name( $t );
+		if ( null !== $leading ) {
+			return $leading;
+		}
 		// A group is a name, not a sentence: general-news headlines
 		// ("UK diesel price hits all-time high, RAC says") produce sentence
 		// fragments that Wikipedia search happily mis-anchors to some
@@ -651,6 +660,35 @@ final class Death_Wire {
 			return null;
 		}
 		return $t;
+	}
+
+	/**
+	 * The subject of a "Name, descriptor, dies at NN" headline: the segment
+	 * before the first comma, when — and only when — it reads as a personal
+	 * name (two to four capitalised tokens, no digits, no lowercase words).
+	 */
+	private static function leading_name( string $title ): ?string {
+		$comma = mb_strpos( $title, ',' );
+		if ( false === $comma ) {
+			return null;
+		}
+		$head = trim( mb_substr( $title, 0, $comma ) );
+		if ( '' === $head || mb_strlen( $head ) > 191 || preg_match( '/\d/u', $head ) ) {
+			return null;
+		}
+		$tokens = preg_split( '/\s+/u', $head ) ?: array();
+		if ( count( $tokens ) < 2 || count( $tokens ) > 4 ) {
+			return null;
+		}
+		foreach ( $tokens as $token ) {
+			// A name part starts with a capital and carries only name
+			// characters: initials ("G."), apostrophes ("O’Neill") and
+			// hyphens ("Ruth-Bader") included.
+			if ( ! preg_match( '/^\p{Lu}[\p{L}\'’.\-]*$/u', $token ) ) {
+				return null;
+			}
+		}
+		return $head;
 	}
 
 

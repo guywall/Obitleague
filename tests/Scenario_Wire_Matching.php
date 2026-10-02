@@ -48,4 +48,13 @@ final class Scenario_Wire_Matching {
 		$t->check( null === Death_Wire::match_group( 'One two three four five six seven eight' ), __METHOD__, 'eight-word fragment is refused' );
 		$t->check( null !== Death_Wire::match_group( 'Dai Owen obituary' ), __METHOD__, 'two-word name passes' );
 	}
+
+	public function test_broadsheet_obituaries_yield_the_leading_name( Runner $t ): void {
+		$t->check( 'Bob Pettit' === Death_Wire::match_group( 'Bob Pettit, N.B.A. Great for the Hawks, Dies at 93' ), __METHOD__, 'descriptor after the comma yields the name' );
+		$t->check( 'Sam Neill' === Death_Wire::match_group( "Sam Neill, 'Jurassic Park' actor, dies at 78" ), __METHOD__, 'quoted descriptor yields the name' );
+		$t->check( 'Bonnie Tyler' === Death_Wire::match_group( "Bonnie Tyler, husky-voiced singer of 'Total Eclipse of the Heart,' dies at 75" ), __METHOD__, 'long descriptor yields the name' );
+		$t->check( 'Arthur Hancock III' === Death_Wire::match_group( 'Arthur Hancock III, Derby Breeder With a Flair for Bluegrass, Dies at 83' ), __METHOD__, 'suffix numeral stays part of the name' );
+		$t->check( null === Death_Wire::match_group( "Kris Jenner's mom, beloved matriarch Mary Jo 'MJ' Shannon, dies at 91" ), __METHOD__, 'a lowercase descriptor is not a name' );
+		$t->check( null === Death_Wire::match_group( 'Former NFL player Jordan Devey, who won Super Bowl with Patriots, dies by suicide' ), __METHOD__, 'a prose lead is not a name' );
+	}
 }
