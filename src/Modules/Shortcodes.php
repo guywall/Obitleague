@@ -486,7 +486,9 @@ final class Shortcodes {
 				static function ( int $a_id, int $b_id ) use ( $pick_counts ): int {
 					$a_uuid = (string) get_post_meta( $a_id, 'obit_uuid', true );
 					$b_uuid = (string) get_post_meta( $b_id, 'obit_uuid', true );
-					return ( $pick_counts[ $b_uuid ] ?? 0 ) <=> ( $pick_counts[ $a_uuid ] ?? 0 ) || ( $a_id <=> $b_id );
+					$by_picks = ( $pick_counts[ $b_uuid ] ?? 0 ) <=> ( $pick_counts[ $a_uuid ] ?? 0 );
+					// Break a tie on id, without letting || collapse the int to bool.
+					return 0 !== $by_picks ? $by_picks : ( $a_id <=> $b_id );
 				}
 			);
 			$offset      = ( $paged - 1 ) * $per_page;
