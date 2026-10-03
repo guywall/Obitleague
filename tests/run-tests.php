@@ -43,6 +43,7 @@ require_once __DIR__ . '/../src/Domain/Wire_Score.php';
 require_once __DIR__ . '/../src/Domain/Discovery_Rules.php';
 require_once __DIR__ . '/../src/Modules/Death_Wire.php';
 require_once __DIR__ . '/../src/Modules/People_Sync.php';
+require_once __DIR__ . '/../src/Modules/Person_Content.php';
 require_once __DIR__ . '/../src/Modules/Public_Scope.php';
 
 require_once __DIR__ . '/Scenario_Scoring.php';
@@ -67,6 +68,7 @@ require_once __DIR__ . '/Scenario_Discovery.php';
 require_once __DIR__ . '/Scenario_Agents.php';
 require_once __DIR__ . '/Scenario_Wiring.php';
 require_once __DIR__ . '/Scenario_People_Sync.php';
+require_once __DIR__ . '/Scenario_Content.php';
 require_once __DIR__ . '/Scenario_Public_Scope.php';
 
 // Domain tests must never depend on WordPress; each scenario pulls only
@@ -141,5 +143,6 @@ $runner->run( Scenario_Discovery::class );
 $runner->run( Scenario_Agents::class );
 $runner->run( Scenario_Wiring::class );
 $runner->run( Scenario_People_Sync::class );
+$runner->run( Scenario_Content::class );
 $runner->run( Scenario_Public_Scope::class );
 exit( $runner->summary() );
