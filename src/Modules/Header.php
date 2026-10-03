@@ -3,9 +3,12 @@
  * Site header: brand, primary navigation, people search and account actions.
  *
  * Rendered at wp_body_open; styled by assets/chrome.css, behaviour by
- * assets/header.js (mobile sheet, mega-menu toggles). The primary items and
- * their mega panels come from the ob_header_settings theme mod, with these
- * defaults standing in when the Customizer has not been used.
+ * assets/header.js (mobile sheet, mega-menu toggles, and the collapsing
+ * people search). Every primary item opens a mega panel. On desktop the
+ * search is a magnifier that expands the field; on phones the field is part
+ * of the menu sheet. The primary items and their mega panels come from the
+ * ob_header_settings theme mod, with these defaults standing in when the
+ * Customizer has not been used.
  *
  * @package Obitleague
  */
@@ -110,24 +113,34 @@ final class Header {
 
 		<button class="ob-header__toggle" type="button" aria-expanded="false" aria-controls="ob-header-menu" aria-label="<?php esc_attr_e( 'Menu', 'obitleague' ); ?>">
 			<span></span><span></span><span></span>
-		</button>
+		</button>			<nav class="ob-header__panel" id="ob-header-menu" aria-label="Site menu">
+				<div class="ob-header__search" data-ob-search>
+					<button
+						class="ob-header__search-toggle"
+						type="button"
+						aria-expanded="false"
+						aria-controls="ob-header-search"
+						aria-label="<?php esc_attr_e( 'Search people', 'obitleague' ); ?>"
+					>
+						<span class="ob-header__search-icon" aria-hidden="true">
+							<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" focusable="false"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
+						</span>
+					</button>
+					<?php if ( $search_url ) : ?>
+					<form class="ob-header__search-form" id="ob-header-search" method="get" action="<?php echo esc_url( $search_url ); ?>" role="search" aria-label="Search people">
+						<input
+							type="search"
+							name="s"
+							placeholder="Search people"
+							autocomplete="off"
+							aria-label="Search people"
+							required
+						/>
+						<button type="submit" class="ob-btn ob-btn--secondary"><?php esc_html_e( 'Search', 'obitleague' ); ?></button>
+					</form>
+					<?php endif; ?>
+				</div>
 
-		<nav class="ob-header__panel" id="ob-header-menu" aria-label="Site menu">
-			<div class="ob-header__search">
-				<?php if ( $search_url ) : ?>
-				<form class="ob-header__search-form" method="get" action="<?php echo esc_url( $search_url ); ?>" role="search" aria-label="Search people">
-					<input
-						type="search"
-						name="s"
-						placeholder="Search people"
-						autocomplete="off"
-						aria-label="Search people"
-						required
-					/>
-					<button type="submit" class="ob-btn ob-btn--secondary"><?php esc_html_e( 'Search', 'obitleague' ); ?></button>
-				</form>
-				<?php endif; ?>
-			</div>
 
 			<div class="ob-header__actions">
 				<?php foreach ( $primary as $item ) : ?>
@@ -229,8 +242,8 @@ final class Header {
 				array( 'label' => 'People',     'url' => home_url( '/people/' ),      'mega' => 'yes' ),
 				array( 'label' => 'Teams',      'url' => home_url( '/teams/' ),       'mega' => 'yes' ),
 				array( 'label' => 'Obituaries', 'url' => home_url( '/obituaries/' ),  'mega' => 'yes' ),
-				array( 'label' => 'Standings',  'url' => home_url( '/standings/' ),   'mega' => 'no' ),
-				array( 'label' => 'Stats',      'url' => home_url( '/stats/' ),       'mega' => 'no' ),
+				array( 'label' => 'Standings',  'url' => home_url( '/standings/' ),   'mega' => 'yes' ),
+				array( 'label' => 'Stats',      'url' => home_url( '/stats/' ),       'mega' => 'yes' ),
 			),
 			'hero_cta_label' => '',
 		);
@@ -251,6 +264,10 @@ final class Header {
 				return self::team_columns();
 			case 'Obituaries':
 				return self::death_columns();
+			case 'Standings':
+				return self::standings_columns();
+			case 'Stats':
+				return self::stats_columns();
 			default:
 				return array();
 		}
@@ -284,6 +301,44 @@ final class Header {
 					array( 'label' => 'All teams',  'url' => home_url( '/teams/' ) ),
 					array( 'label' => 'My leagues', 'url' => home_url( '/my-leagues/' ) ),
 					array( 'label' => 'AI entrants', 'url' => home_url( '/ai/' ) ),
+				),
+			),
+		);
+	}
+
+	private static function standings_columns(): array {
+		return array(
+			array(
+				'heading' => 'The table',
+				'links'   => array(
+					array( 'label' => 'Standings', 'url' => home_url( '/standings/' ) ),
+					array( 'label' => 'Stats',     'url' => home_url( '/stats/' ) ),
+				),
+			),
+			array(
+				'heading' => 'How it works',
+				'links'   => array(
+					array( 'label' => 'Rules',       'url' => home_url( '/rules/' ) ),
+					array( 'label' => 'AI entrants', 'url' => home_url( '/ai/' ) ),
+				),
+			),
+		);
+	}
+
+	private static function stats_columns(): array {
+		return array(
+			array(
+				'heading' => 'Most picked',
+				'links'   => array(
+					array( 'label' => 'Most picked',            'url' => home_url( '/stats/#most-picked' ) ),
+					array( 'label' => 'Flying under the radar', 'url' => home_url( '/stats/#under-radar' ) ),
+				),
+			),
+			array(
+				'heading' => 'Explore',
+				'links'   => array(
+					array( 'label' => 'People',     'url' => home_url( '/people/' ) ),
+					array( 'label' => 'Obituaries', 'url' => home_url( '/obituaries/' ) ),
 				),
 			),
 		);

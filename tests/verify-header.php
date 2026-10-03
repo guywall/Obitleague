@@ -56,6 +56,18 @@ try {
 	if ( ! str_contains( $html, 'pick=missed' ) ) {
 		$failures[] = 'Obituaries submenu should expose the misses view (?pick=missed)';
 	}
+	if ( ! str_contains( $html, 'data-ob-search' ) ) {
+		$failures[] = 'Header search should be wired for the collapsing toggle (data-ob-search)';
+	}
+	if ( ! str_contains( $html, 'ob-header__search-toggle' ) ) {
+		$failures[] = 'Header should render the collapsing search icon control';
+	}
+	// Every primary item opens a mega panel; the last two were plain links.
+	foreach ( array( 'Standings', 'Stats' ) as $label ) {
+		if ( ! str_contains( $html, 'ob-sub-' . $label ) ) {
+			$failures[] = 'Header mega menu should include a panel for ' . $label;
+		}
+	}
 } catch ( Throwable $error ) {
 	ob_end_clean();
 	$failures[] = 'Header rendering failed: ' . $error->getMessage();

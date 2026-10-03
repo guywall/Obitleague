@@ -262,6 +262,65 @@ body.ob-on a.skip-link.screen-reader-text {
 	display: flex;
 	align-items: center;
 	gap: 8px;
+	transition: max-width 0.25s var(--ob-ease), opacity 0.2s var(--ob-ease), visibility 0.2s;
+}
+
+/* The search is a magnifier that expands the field. header.js adds
+   .ob-search-ready; without it (or without JavaScript) the field stays
+   visible, so search still works. On phones it is always the field inside
+   the menu sheet and the magnifier is not shown. */
+.ob-header__search-toggle.ob-header__search-toggle {
+	display: none;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	padding: 0;
+	background: rgba(255, 255, 255, 0.06);
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	border-radius: 3px;
+	color: rgba(255, 255, 255, 0.86);
+	cursor: pointer;
+	transition: background 0.2s, color 0.2s;
+}
+
+.ob-header__search-toggle.ob-header__search-toggle:hover,
+.ob-header__search-toggle.ob-header__search-toggle[aria-expanded="true"] {
+	background: rgba(255, 255, 255, 0.16);
+	color: #ffffff;
+}
+
+.ob-header__search-toggle.ob-header__search-toggle:focus-visible {
+	outline: 2px solid #cccccc;
+	outline-offset: 2px;
+}
+
+.ob-header__search-icon {
+	display: inline-flex;
+	line-height: 0;
+}
+
+/* Desktop only: collapse the field behind the toggle once JS is ready. */
+@media (min-width: 1024px) {
+	.ob-header__search.ob-search-ready .ob-header__search-toggle {
+		display: inline-flex;
+		flex: 0 0 auto;
+	}
+
+	.ob-header__search.ob-search-ready .ob-header__search-form.ob-header__search-form {
+		max-width: 0;
+		opacity: 0;
+		visibility: hidden;
+		overflow: hidden;
+		pointer-events: none;
+	}
+
+	.ob-header__search.ob-search-ready.is-open .ob-header__search-form.ob-header__search-form {
+		max-width: 320px;
+		opacity: 1;
+		visibility: visible;
+		pointer-events: auto;
+	}
 }
 
 .ob-header__search.ob-header__search input,

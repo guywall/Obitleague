@@ -67,6 +67,41 @@ function onHeader(){
 		})(items[i]);
 	}
 
+	// Collapsing search: the magnifier expands the field. Progressive
+	// enhancement — without .ob-search-ready the field stays visible.
+	var search = header.querySelector('[data-ob-search]');
+	if(search){
+		search.classList.add('ob-search-ready');
+		var searchToggle = search.querySelector('.ob-header__search-toggle');
+		var searchInput  = search.querySelector('input[type="search"]');
+
+		var setSearchOpen = function(open){
+			search.classList.toggle('is-open', open);
+			if(searchToggle){ searchToggle.setAttribute('aria-expanded', open ? 'true' : 'false'); }
+			if(open && searchInput){ searchInput.focus(); }
+		};
+
+		if(searchToggle){
+			searchToggle.addEventListener('click', function(event){
+				event.stopPropagation();
+				setSearchOpen(!search.classList.contains('is-open'));
+			});
+		}
+
+		document.addEventListener('click', function(event){
+			if(search.classList.contains('is-open') && !search.contains(event.target)){
+				setSearchOpen(false);
+			}
+		});
+
+		document.addEventListener('keydown', function(event){
+			if(event.key === 'Escape' && search.classList.contains('is-open')){
+				setSearchOpen(false);
+				if(searchToggle){ searchToggle.focus(); }
+			}
+		});
+	}
+
 	// Close after choosing a destination, and on Escape.
 	if(panel){
 		panel.addEventListener('click', function(event){

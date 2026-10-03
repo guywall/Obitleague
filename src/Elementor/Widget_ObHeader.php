@@ -87,8 +87,8 @@ final class Widget_ObHeader extends \Elementor\Widget_Base {
 				'default'     => array(
 					array( 'label' => 'People', 'url' => '', 'mega' => 'yes' ),
 					array( 'label' => 'Picks', 'url' => '', 'mega' => 'yes' ),
-					array( 'label' => 'Standings', 'url' => '', 'mega' => 'no' ),
-					array( 'label' => 'Stats', 'url' => '', 'mega' => 'no' ),
+					array( 'label' => 'Standings', 'url' => '', 'mega' => 'yes' ),
+					array( 'label' => 'Stats', 'url' => '', 'mega' => 'yes' ),
 					array( 'label' => 'Rules', 'url' => '', 'mega' => 'no' ),
 					array( 'label' => 'Forum', 'url' => '', 'mega' => 'no' ),
 				),
@@ -238,9 +238,20 @@ final class Widget_ObHeader extends \Elementor\Widget_Base {
 			<span class="ob-header__name">Obitleague</span>				<span class="ob-header__season"><?php echo esc_html( (string) \Obitleague\Modules\Pick_Stats::season_in_play() ); ?></span>
 		</a>
 
-		<div class="ob-header__search">
+		<div class="ob-header__search" data-ob-search>
+			<button
+				class="ob-header__search-toggle"
+				type="button"
+				aria-expanded="false"
+				aria-controls="ob-header-search"
+				aria-label="<?php esc_attr_e( 'Search people', 'obitleague' ); ?>"
+			>
+				<span class="ob-header__search-icon" aria-hidden="true">
+					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" focusable="false"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
+				</span>
+			</button>
 			<?php if ( $search_url ) : ?>
-			<form class="ob-header__search-form" method="get" action="<?php echo esc_url( $search_url ); ?>" role="search" aria-label="Search people">
+			<form class="ob-header__search-form" id="ob-header-search" method="get" action="<?php echo esc_url( $search_url ); ?>" role="search" aria-label="Search people">
 				<input
 					type="search"
 					name="s"
@@ -249,7 +260,7 @@ final class Widget_ObHeader extends \Elementor\Widget_Base {
 					aria-label="Search people"
 					required
 				/>
-				<button type="submit" class="ob-btn ob-btn--secondary">Search</button>
+				<button type="submit" class="ob-btn ob-btn--secondary"><?php esc_html_e( 'Search', 'obitleague' ); ?></button>
 			</form>
 			<?php endif; ?>
 		</div>
