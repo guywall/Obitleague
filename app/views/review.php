@@ -1,0 +1,1 @@
+<?php $title = 'Review deaths — Obitleague'; $view = 'review-content.php'; require __DIR__ . '/layout.php';

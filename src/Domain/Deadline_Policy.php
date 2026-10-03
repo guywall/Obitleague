@@ -98,4 +98,14 @@ final class Deadline_Policy {
 	public static function accepts_new_awards( int $season, \DateTimeImmutable $approved_at, int $first_season = 2027 ): bool {
 		return $season >= $first_season && $approved_at <= self::settlement_instant( $season );
 	}
+
+	/**
+	 * True once a season has settled: its standings are final and no new award
+	 * may be created. The settlement instant is the inclusive close, so the
+	 * season is settled strictly after it — an approval exactly at the instant
+	 * is still accepted, matching {@see self::accepts_new_awards()}.
+	 */
+	public static function is_settled( int $season, \DateTimeImmutable $at ): bool {
+		return $at > self::settlement_instant( $season );
+	}
 }
