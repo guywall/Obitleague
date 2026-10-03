@@ -31,7 +31,7 @@ Safety invariants:
 
 Current source values (verify before relying on these):
 
-- WordPress plugin header / `OBITLEAGUE_VERSION`: `0.14.1` (`obitleague.php`); DB schema `OBITLEAGUE_DB_VERSION`: `0.6.0` (adds `wp_obitleague_wiki_queue`)
+- WordPress plugin header / `OBITLEAGUE_VERSION`: `0.15.2` (`obitleague.php`); DB schema `OBITLEAGUE_DB_VERSION`: `0.8.1` (adds `wp_obitleague_wiki_queue`)
 - `OBITLEAGUE_DB_VERSION`: `0.5.0` (`obitleague.php`; additive migrations in `src/Modules/Setup.php`)
 - Ruleset: `Ruleset::VERSION = '1'` (`src/Domain/Value/Ruleset.php`)
 - Requirements: WordPress 6.4+, PHP 8.2+ (activation blocks older PHP), MySQL 8 / MariaDB 10.6+.
