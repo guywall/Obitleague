@@ -71,9 +71,9 @@ That needs GitHub's own tool, `gh`, installed once
 
 # Current state (2026-10-03)
 
-- `main` contains ALL work through plugin version 0.15.2 — every feature
+- `main` contains ALL work through plugin version 0.15.3 — every feature
   branch was merged in and then removed.
-- The live site obitleague.co.uk is running 0.15.2 (deployed 2026-10-03),
+- The live site obitleague.co.uk is running 0.15.3 (deployed 2026-10-03),
   and the stored person pages were recomposed so the current prose shows.
 - The live site only changes when you run `deploy-live.sh`.
 - The GitHub CLI (`gh`) is installed per-user and logged in as `guywall`
