@@ -76,5 +76,7 @@ That needs GitHub's own tool, `gh`, installed once
 - The live site obitleague.co.uk is running 0.15.2 (deployed 2026-10-03),
   and the stored person pages were recomposed so the current prose shows.
 - The live site only changes when you run `deploy-live.sh`.
-- The GitHub CLI (`gh`) is installed per-user, but not yet logged in;
-  run `gh auth login` once before using pull requests.
+- The GitHub CLI (`gh`) is installed per-user and logged in as `guywall`
+  (2026-10-03), so pull requests work. Its token lacks `read:org`, so
+  commands that need org membership warn; run `gh auth refresh -h
+  github.com` (one browser click) if that ever matters.
