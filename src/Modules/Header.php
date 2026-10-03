@@ -236,7 +236,12 @@ final class Header {
 <?php
 	}
 
-	private static function settings(): array {
+	/**
+	 * Resolved header settings: the theme mod merged over the defaults.
+	 * Public so the wp-cli verification script can assert the wiring against
+	 * the same values the header renders from.
+	 */
+	public static function settings(): array {
 		$defaults = array(
 			'primary'        => array(
 				array( 'label' => 'People',     'url' => home_url( '/people/' ),      'mega' => 'yes' ),
