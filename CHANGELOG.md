@@ -9,8 +9,9 @@ header in `obitleague.php`; each released version is tagged in git.
 
 - **The header search now puts the caret in the box.** The field is
   `visibility: hidden` until it opens, and a hidden element cannot take focus,
-  so the opening click left the user to click the field a second time. Focus now
-  happens on the next frame. On phones the field also lost a stray 30px indent —
+  so the opening click left the user to click the field a second time. The
+  opening click now retries the focus across the first frames of the transition,
+  so the caret lands in the box. On phones the field also lost a stray 30px indent —
   the desktop auto-margin leaked into the stacked menu sheet — and it is wide
   enough that the "Search people" placeholder is no longer clipped.
 - **The homepage hero states the deadline.** With entries now closing at the end
