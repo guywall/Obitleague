@@ -325,7 +325,9 @@ body.ob-on a.skip-link.screen-reader-text {
 
 .ob-header__search.ob-header__search input,
 .ob-header__search.ob-header__search input[type="search"] {
-	width: 130px;
+	/* Wide enough that the "Search people" placeholder is not clipped now
+	   that the field only appears when it is asked for. */
+	width: 150px;
 	min-width: 0;
 	flex: 1 1 auto;
 	padding: 8px 10px;
@@ -671,6 +673,9 @@ body.ob-on a.skip-link.screen-reader-text {
 		padding: 8px 0 12px;
 		border-bottom: 1px solid rgba(255, 255, 255, 0.09);
 		margin-bottom: 8px;
+		/* Reset the desktop auto-margin: in the stacked sheet it pushed the
+		   search 30px in from the row edge every other item shares. */
+		margin-left: 0;
 	}
 
 	.ob-header.ob-header .ob-header__search input {

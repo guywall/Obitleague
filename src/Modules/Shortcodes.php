@@ -13,7 +13,9 @@ declare( strict_types = 1 );
 
 namespace Obitleague\Modules;
 
+use Obitleague\Domain\Deadline_Policy;
 use Obitleague\Domain\Value\Cause_Status;
+use Obitleague\Support\Time;
 
 final class Shortcodes {
 
@@ -184,6 +186,14 @@ final class Shortcodes {
 		$out    = '<section class="ob-hero ob-anim"><span class="ob-hero__kicker">' . esc_html( $kicker ) . '</span>';
 		$out   .= '<h1>Pick ten lives. Follow the year.</h1>';
 		$out   .= '<p>Every confirmed, editor-approved death of a picked figure scores points — younger lives score more.</p>';
+		// The deadline is the one fact a first-time visitor needs before the
+		// buttons: when the season's entry window closes. It is derived from
+		// the same policy the game enforces, so it cannot drift from it.
+		$deadline = Deadline_Policy::entry_deadline( $season );
+		$note     = Deadline_Policy::in_entry_window( $season, Time::now() )
+			? 'Entries for ' . $season . ' are open now, and close at 23:59 London time on ' . $deadline->format( 'j F Y' ) . '.'
+			: 'Entries for ' . $season . ' have closed.';
+		$out   .= '<p class="ob-hero__note">' . esc_html( $note ) . '</p>';
 		$out   .= '<div class="ob-hero__cta">';
 		$out   .= '<a class="ob-btn" href="' . esc_url( '/person/' ) . '">Browse the catalogue</a>';
 		$out   .= '<a class="ob-btn ob-btn--ghost" href="' . esc_url( '/standings/' ) . '">View standings</a>';

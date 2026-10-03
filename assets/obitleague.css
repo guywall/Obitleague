@@ -156,6 +156,19 @@
 	color: rgba(255, 255, 255, 0.72);
 	max-width: 58ch;
 }
+/* The entry deadline, stated where a first-time visitor reads what the game
+   is. Quieter than the description, and the only line that answers "when do
+   I have to decide?". */
+.ob-hero .ob-hero__note {
+	position: relative;
+	margin: 0;
+	font-family: var(--ob-font-body);
+	font-size: 0.82rem;
+	line-height: 1.6;
+	letter-spacing: 0.02em;
+	color: rgba(255, 255, 255, 0.6);
+	max-width: 58ch;
+}
 .ob-hero__cta {
 	position: relative;
 	display: flex;

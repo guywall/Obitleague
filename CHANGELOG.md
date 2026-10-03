@@ -5,6 +5,21 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Fixed — The first minute: the search lands, and the hero says when entries close
+
+- **The header search now puts the caret in the box.** The field is
+  `visibility: hidden` until it opens, and a hidden element cannot take focus,
+  so the opening click left the user to click the field a second time. Focus now
+  happens on the next frame. On phones the field also lost a stray 30px indent —
+  the desktop auto-margin leaked into the stacked menu sheet — and it is wide
+  enough that the "Search people" placeholder is no longer clipped.
+- **The homepage hero states the deadline.** With entries now closing at the end
+  of the year before the season, a first-time visitor had no way to learn when to
+  act. The hero carries one quiet line — "Entries for 2027 are open now, and
+  close at 23:59 London time on 31 December 2026." — derived from the same
+  deadline policy the game enforces, so it cannot drift from it; once the window
+  has closed it says so instead.
+
 ### Changed — The person page talks about the person, not the game
 
 - **The raw scoring formula no longer appears anywhere a reader or an agent can
