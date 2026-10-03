@@ -119,9 +119,10 @@ final class Outbox_Service {
 				continue;
 			}
 
-			// Rolling entry: a selection scores only for a death after the
-			// team's own submission instant. Entries submitted under v1 read
-			// a season-start floor, so their scoring is exactly as before.
+			// A selection scores only for a death on or after the team's floor
+			// (the season start for every valid entry, since entries close before
+			// the season begins). Entries submitted under v1 read the same
+			// season-start floor, so their scoring is exactly as before.
 			if ( $death_at < Entry_Service::submission_floor( (int) $pick->entry_id, $season ) ) {
 				continue;
 			}

@@ -1,6 +1,6 @@
 <?php
 /**
- * Humans vs AI scenarios: agent invariants, rolling-entry parity, the
+ * Humans vs AI scenarios: agent invariants, entry-window parity, the
  * submission-instant floor and rate-limit bounds.
  *
  * Pure domain only — no WordPress. The WordPress-facing services are
@@ -47,12 +47,12 @@ final class Scenario_Agents {
 		$t->check( 10 === Ruleset::TEAM_SIZE, __METHOD__, 'agents play the same ten-pick team size' );
 		$t->check( 90 === Ruleset::points_for_age( 10 ), __METHOD__, 'agents play the same points formula' );
 		$t->check( '1' === Ruleset::VERSION, __METHOD__, 'no ruleset fork for AI participation' );
-		$t->check( true === Ruleset::ROLLING_ENTRY, __METHOD__, 'rolling entry is the active ruleset flag' );
+		$t->check( 1 === Ruleset::ENTRY_WINDOW_YEARS_AHEAD, __METHOD__, 'entries are made in the year before the season' );
 	}
 
-	public function test_rolling_entry_matches_v1_scoring_for_season_start_teams( Runner $t ): void {
-		// A team submitted at (or before) the season start behaves exactly as
-		// a v1 team: the floor is the season start instant.
+	public function test_season_window_matches_v1_scoring_for_season_start_teams( Runner $t ): void {
+		// Every valid entry commits in the preceding year, so its scoring floor
+		// is the season start — exactly the v1 calendar behaviour.
 		$season_start = Deadline_Policy::season_start( 2027 );
 		$floor = Deadline_Policy::death_scores_for_pick( 2027, $season_start );
 		$t->check( $floor == $season_start, __METHOD__, 'season-start submission: floor equals season start' );
@@ -64,40 +64,33 @@ final class Scenario_Agents {
 		$t->check( new \DateTimeImmutable( '2026-12-31T00:00:00+00:00' ) < $floor, __METHOD__, 'a death before the season never scores' );
 	}
 
-	public function test_late_entry_scores_nothing_retrospectively( Runner $t ): void {
-		// Join in November: deaths before the submission instant score zero.
-		$submitted = new \DateTimeImmutable( '2027-11-15T10:30:00+00:00' );
-		$floor = Deadline_Policy::death_scores_for_pick( 2027, $submitted );
-		$t->check( $floor == $submitted, __METHOD__, 'late floor is the exact submission instant' );
+	public function test_every_valid_entry_scores_from_the_season_start( Runner $t ): void {
+		// Entries open 1 January S−1 and close before 1 January S, so whatever
+		// instant within that window a team commits, its floor is the season
+		// start — never the submission instant. No entry can miss early deaths
+		// or gain a handicap by joining later.
+		$open_instant = Deadline_Policy::entry_window_open( 2027 );
+		$last_moment  = Deadline_Policy::entry_deadline( 2027 )->modify( '-1 second' );
 
-		$nov_10_death = new \DateTimeImmutable( '2027-11-10T00:00:00+00:00' );
-		$nov_20_death = new \DateTimeImmutable( '2027-11-20T00:00:00+00:00' );
-		$t->check( $nov_10_death < $floor, __METHOD__, 'death before join scores zero (skip)' );
-		$t->check( $nov_20_death >= $floor, __METHOD__, 'death after join scores' );
+		$at_open = Deadline_Policy::death_scores_for_pick( 2027, $open_instant );
+		$at_last = Deadline_Policy::death_scores_for_pick( 2027, $last_moment );
+		$season_start = Deadline_Policy::season_start( 2027 );
 
-		// Same-day death at midnight: the verified date carries no time, so
-		// it cannot be proven to have happened after a daytime submission.
-		$same_day = new \DateTimeImmutable( '2027-11-15T00:00:00+00:00' );
-		$t->check( $same_day < $floor, __METHOD__, 'a same-day death cannot be proven after the submission and does not score' );
+		$t->check( $at_open == $season_start, __METHOD__, 'joining at the window open still floors at the season start' );
+		$t->check( $at_last == $season_start, __METHOD__, 'joining at the last moment still floors at the season start' );
 
-		// No handicaps: an earlier joiner's floor is never *later* than a
-		// later joiner's (join earlier, score more window — that's it).
-		$jan = Deadline_Policy::death_scores_for_pick( 2027, new \DateTimeImmutable( '2027-01-01T00:00:00+00:00' ) );
-		$dec = Deadline_Policy::death_scores_for_pick( 2027, new \DateTimeImmutable( '2027-12-01T00:00:00+00:00' ) );
-		$t->check( $jan < $dec, __METHOD__, 'earlier joiners have a strictly earlier floor; nobody gets a bonus' );
-	}
-
-	public function test_amendment_restamps_the_floor( Runner $t ): void {
-		// Amend in December: the competing revision's floor moves forward.
-		$original = Deadline_Policy::death_scores_for_pick( 2027, new \DateTimeImmutable( '2027-02-01T00:00:00+00:00' ) );
-		$amended  = Deadline_Policy::death_scores_for_pick( 2027, new \DateTimeImmutable( '2027-12-10T00:00:00+00:00' ) );
-		$t->check( $amended > $original, __METHOD__, 'an amendment cannot backdate the scoring floor' );
+		// A death on the season-start date still scores; one before never does.
+		$t->check( $season_start <= new \DateTimeImmutable( '2027-01-01T00:00:00+00:00' ), __METHOD__, 'a death dated season start scores' );
+		$t->check( new \DateTimeImmutable( '2026-12-31T00:00:00+00:00' ) < $season_start, __METHOD__, 'a death before the season never scores' );
 	}
 
 	public function test_entry_window_and_settlement_bounds( Runner $t ): void {
-		// Open all year; close strictly before the instant; settlement unchanged.
-		$t->check( Deadline_Policy::is_entry_open( 2027, new \DateTimeImmutable( '2027-07-01T00:00:00+00:00' ) ), __METHOD__, 'mid-season entries are open' );
-		$t->check( ! Deadline_Policy::is_entry_open( 2027, new \DateTimeImmutable( '2027-12-31T23:59:59+00:00' ) ), __METHOD__, 'entries close at the season end instant' );
+		// The window is the preceding calendar year: opens 1 Jan S−1, closes
+		// strictly before 23:59:59 on 31 Dec S−1, and never reopens in S.
+		$t->check( Deadline_Policy::is_entry_open( 2027, new \DateTimeImmutable( '2026-07-01T00:00:00+00:00' ) ), __METHOD__, 'mid-window entries are open' );
+		$t->check( ! Deadline_Policy::is_entry_open( 2027, new \DateTimeImmutable( '2025-12-31T23:59:59+00:00' ) ), __METHOD__, 'entries are closed before the window opens' );
+		$t->check( ! Deadline_Policy::is_entry_open( 2027, new \DateTimeImmutable( '2026-12-31T23:59:59+00:00' ) ), __METHOD__, 'entries close strictly before the instant' );
+		$t->check( ! Deadline_Policy::is_entry_open( 2027, new \DateTimeImmutable( '2027-01-01T00:00:00+00:00' ) ), __METHOD__, 'entries are closed once the season begins' );
 
 		$settlement = Deadline_Policy::settlement_instant( 2027 );
 		$t->check( '2028-01-31 23:59:59' === $settlement->format( 'Y-m-d H:i:s' ), __METHOD__, 'settlement remains 31 January' );
@@ -115,9 +108,11 @@ final class Scenario_Agents {
 	}
 
 	public function test_deadline_rule_strings_honest( Runner $t ): void {
-		// The rules page renders from constants; the rolling text must not
-		// silently claim the v1 deadline.
-		$t->check( str_contains( Ruleset::ENTRY_OPEN_UNTIL_RULE, '31 December' ), __METHOD__, 'rolling deadline rule names 31 December' );
+		// The rules page renders from constants; the entry text must not
+		// silently claim the v1 deadline (31 December of the season year).
+		$t->check( str_contains( Ruleset::ENTRY_OPEN_UNTIL_RULE, '31 December' ), __METHOD__, 'entry deadline rule names 31 December' );
+		$t->check( str_contains( Ruleset::ENTRY_OPEN_UNTIL_RULE, 'before the season' ), __METHOD__, 'entry deadline rule scopes to the year before the season' );
+		$t->check( str_contains( Ruleset::DEADLINE_RULE, 'preceding year' ), __METHOD__, 'deadline rule describes the preceding-year window' );
 		$t->check( str_contains( Ruleset::SETTLEMENT_RULE, '31 January' ), __METHOD__, 'settlement rule unchanged' );
 	}
 }

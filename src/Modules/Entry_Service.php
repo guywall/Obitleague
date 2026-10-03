@@ -24,11 +24,13 @@ final class Entry_Service {
 	/**
 	 * Earliest death instant the entry's competing revision may score.
 	 *
-	 * With rolling entry a team's picks score only for deaths after its own
-	 * submission instant; `submitted_at` on the competing revision is that
-	 * instant, recorded server-side in UTC at commit time. Revisions written
-	 * before the column was stamped (v1 entries) read as 1 January 00:00:00 —
-	 * the season start — which keeps their scoring exactly as it was.
+	 * Because entries now close before the season begins, the floor is the
+	 * season start for every valid entry. `submitted_at` on the competing
+	 * revision is the team's own submission instant, recorded server-side in
+	 * UTC at commit time; `death_scores_for_pick()` takes the later of it and
+	 * the season start. Revisions written before the column was stamped (v1
+	 * entries) read as 1 January 00:00:00 — the season start — which keeps
+	 * their scoring exactly as it was.
 	 */
 	public static function submission_floor( int $entry_id, int $season ): \DateTimeImmutable {
 		$revision = self::submitted_revision( $entry_id );
@@ -365,8 +367,8 @@ final class Entry_Service {
 				$normalised,
 				Ruleset::VERSION,
 				$txn_started,
-				// Receipt deadline is the instant this submission beat: 31 Dec
-				// under rolling entry, 1 Jan for pre-flag submissions.
+				// Receipt deadline is the instant this submission beat: 23:59:59
+				// London on 31 December of the year before the season.
 				Deadline_Policy::entry_deadline( (int) $entry->season )
 			);
 		} catch ( \Throwable $exception ) {

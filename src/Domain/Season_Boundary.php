@@ -33,6 +33,11 @@ final class Season_Boundary {
 		return Deadline_Policy::entry_deadline( $season );
 	}
 
+	/** 00:00 Europe/London on 1 January of the year before the season. */
+	public function entry_window_open( int $season ): \DateTimeImmutable {
+		return Deadline_Policy::entry_window_open( $season );
+	}
+
 	/** 00:00 Europe/London on 1 January of the season year. */
 	public function season_start( int $season ): \DateTimeImmutable {
 		return Deadline_Policy::season_start( $season );
@@ -48,7 +53,7 @@ final class Season_Boundary {
 
 	/** True while picks may still be submitted or replaced for the season. */
 	public function is_entry_open( int $season, \DateTimeImmutable $now ): bool {
-		return $now < $this->entry_deadline( $season );
+		return Deadline_Policy::in_entry_window( $season, $now );
 	}
 
 	/**

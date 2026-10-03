@@ -2,17 +2,18 @@
 /**
  * Deadline policy.
  *
- * Pure season-boundary decisions. Mirrors the ruleset: with rolling entry
- * (Ruleset::ROLLING_ENTRY), entries commit strictly before 23:59:59
- * Europe/London on 31 December of the season year; standings settle at
- * 23:59:59 on 31 January the following year. Callers pass the instant that
- * governs the decision — for writes that is the time the transaction
- * started, not the time the check runs.
+ * Pure season-boundary decisions. Mirrors the ruleset: entries for season S
+ * are made throughout the preceding year and must commit strictly before
+ * 23:59:59 Europe/London on 31 December S−1; the season then runs 1 January
+ * – 31 December S, and standings settle at 23:59:59 on 31 January S+1.
+ * Callers pass the instant that governs the decision — for writes that is the
+ * time the transaction started, not the time the check runs.
  *
- * The submission-instant scoring floor keeps historic results exact: a
- * selection earns points only for deaths after the team's own submission
- * instant (equal instant never scores). Entries submitted under v1
- * (before 1 January) therefore behave exactly as they always did.
+ * The submission-instant scoring floor keeps results exact: a selection earns
+ * points only for deaths after the team's own submission instant (equal
+ * instant never scores). Because every valid entry now commits before the
+ * season begins, the floor is the season start for every entry, matching the
+ * historic calendar behaviour.
  *
  * @package Obitleague
  */
@@ -28,22 +29,35 @@ final class Deadline_Policy {
 	private function __construct() {}
 
 	/**
-	 * The instant a write must commit strictly before to be on time.
-	 *
-	 * Under rolling entry this is 23:59:59 London on 31 December of the
-	 * season year; under v1 it was 00:00 London on 1 January.
+	 * The instant a write must commit strictly before to be on time:
+	 * 23:59:59 Europe/London on 31 December of the year *before* the season.
+	 * Entries for season S are made throughout S−1.
 	 */
 	public static function entry_deadline( int $season ): \DateTimeImmutable {
-		if ( Ruleset::ROLLING_ENTRY ) {
-			return new \DateTimeImmutable(
-				sprintf( 'last day of December %04d 23:59:59', $season ),
-				new \DateTimeZone( 'Europe/London' )
-			);
-		}
 		return new \DateTimeImmutable(
-			sprintf( 'first day of January %04d 00:00:00', $season ),
+			sprintf( 'last day of December %04d 23:59:59', $season - Ruleset::ENTRY_WINDOW_YEARS_AHEAD ),
 			new \DateTimeZone( 'Europe/London' )
 		);
+	}
+
+	/**
+	 * The instant the entry window opens: 00:00 Europe/London on 1 January of
+	 * the year before the season. Inclusive: a write at exactly this instant
+	 * is on time.
+	 */
+	public static function entry_window_open( int $season ): \DateTimeImmutable {
+		return new \DateTimeImmutable(
+			sprintf( 'first day of January %04d 00:00:00', $season - Ruleset::ENTRY_WINDOW_YEARS_AHEAD ),
+			new \DateTimeZone( 'Europe/London' )
+		);
+	}
+
+	/**
+	 * True while the entry window is open: at or after the opening instant
+	 * and strictly before the closing instant.
+	 */
+	public static function in_entry_window( int $season, \DateTimeImmutable $at ): bool {
+		return $at >= self::entry_window_open( $season ) && $at < self::entry_deadline( $season );
 	}
 
 	/** 23:59:59 Europe/London on 31 January following the season. */
@@ -54,18 +68,19 @@ final class Deadline_Policy {
 		);
 	}
 
-	/** True while picks may be saved or submitted (inclusive-open bound). */
+	/** True while picks may be saved or submitted: inside the entry window. */
 	public static function is_entry_open( int $season, \DateTimeImmutable $at ): bool {
-		return $at < self::entry_deadline( $season );
+		return self::in_entry_window( $season, $at );
 	}
 
 	/**
 	 * True when a write that *committed* at $at still counts as on time.
 	 * Applied to the transaction's start instant so a commit that lands on or
-	 * after the deadline is late regardless of request start time.
+	 * after the deadline is late regardless of request start time, and one
+	 * that lands before the window opens is too early.
 	 */
 	public static function commit_on_time( int $season, \DateTimeImmutable $transaction_started_at ): bool {
-		return $transaction_started_at < self::entry_deadline( $season );
+		return self::in_entry_window( $season, $transaction_started_at );
 	}
 
 	/** 00:00 Europe/London on 1 January of the season year. */
@@ -81,14 +96,10 @@ final class Deadline_Policy {
 	 * may score. Callers skip a pick when the verified death instant is
 	 * strictly before this floor.
 	 *
-	 * The floor is season start (1 January London) no matter when the team
-	 * joined; a submission instant later in the season raises it. Season
-	 * start equals the instant every pre-flag (v1) entry was submitted by,
-	 * so the floor can never move a historic award — deaths dated the
-	 * season-start instant itself score exactly as they did under v1.
-	 * Verified deaths are recorded as dates (compared at midnight), so a
-	 * death dated the same calendar day as a daytime submission cannot be
-	 * proven to have happened after it and does not score.
+	 * Every valid entry now commits before the season begins, so the floor is
+	 * the season start (1 January London) for every entry. Verified deaths
+	 * are recorded as dates (compared at midnight), so a death dated the
+	 * season-start instant itself still scores.
 	 */
 	public static function death_scores_for_pick( int $season, \DateTimeImmutable $submitted_at ): \DateTimeImmutable {
 		return max( self::season_start( $season ), $submitted_at );

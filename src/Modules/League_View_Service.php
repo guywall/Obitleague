@@ -86,9 +86,9 @@ final class League_View_Service {
 			return array();
 		}
 		/*
-		 * Picks become public once the season's entry window closes. Under
-		 * rolling entry that is the end of the season year; v1 seasons kept
-		 * their 1 January instant, so existing behaviour is unchanged.
+		 * Picks become public once the season's entry window closes: 23:59:59
+		 * London on 31 December of the year before the season, so picks are
+		 * public across the whole season.
 		 */
 		$locked = ! \Obitleague\Domain\Deadline_Policy::is_entry_open( $season, new \DateTimeImmutable( 'now', new \DateTimeZone( 'Europe/London' ) ) );
 		$entry_ids = array_map( static fn ( $row ): int => (int) ( $row['entry_id'] ?? 0 ), $rows );

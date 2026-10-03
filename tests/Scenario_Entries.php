@@ -69,11 +69,11 @@ final class Scenario_Entries {
 	}
 
 	public function test_commit_time_rule_on_deadline_boundary( Runner $t ): void {
-		$before = new \DateTimeImmutable( '2027-12-31T23:59:58+00:00' );
-		$at     = new \DateTimeImmutable( '2027-12-31T23:59:59+00:00' );
+		$before = new \DateTimeImmutable( '2026-12-31T23:59:58+00:00' );
+		$at     = new \DateTimeImmutable( '2026-12-31T23:59:59+00:00' );
 
-		$t->check( Deadline_Policy::commit_on_time( 2027, $before ), __METHOD__, 'commit before the rolling close is on time' );
-		$t->check( ! Deadline_Policy::commit_on_time( 2027, $at ), __METHOD__, 'commit at the rolling close is late' );
+		$t->check( Deadline_Policy::commit_on_time( 2027, $before ), __METHOD__, 'commit before the close is on time' );
+		$t->check( ! Deadline_Policy::commit_on_time( 2027, $at ), __METHOD__, 'commit at the close is late' );
 		$t->check( ! Deadline_Policy::is_entry_open( 2027, $at ), __METHOD__, 'entry closed at the instant' );
 	}
 

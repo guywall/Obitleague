@@ -36,6 +36,11 @@ final class Time {
 		return Deadline_Policy::entry_deadline( $season );
 	}
 
+	/** 00:00 Europe/London on 1 January of the year before the season. */
+	public static function entry_window_open( int $season ): \DateTimeImmutable {
+		return Deadline_Policy::entry_window_open( $season );
+	}
+
 	/** 00:00 Europe/London on 1 January of the season year. */
 	public static function season_start( int $season ): \DateTimeImmutable {
 		return Deadline_Policy::season_start( $season );

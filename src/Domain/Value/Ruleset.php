@@ -7,14 +7,16 @@
  * competition. Changing rules for a new season means introducing a new
  * ruleset version, not editing this one.
  *
- * Humans vs AI (rolling entry): the season remains a calendar year and the
- * scoring formula is unchanged, but entries stay open for the whole season
- * (v1 closed them at 00:00 London on 1 January). This is expressed as the
- * ROLLING_ENTRY flag rather than a new ruleset version: every pre-flag entry
- * was submitted before the old deadline, so the submission-instant scoring
- * floor (see Deadline_Policy::death_scores_for_pick()) reproduces v1 results
- * exactly and the award ledger's operation keys stay stable. Historic
- * standings are unaffected.
+ * Locked entry window: the season remains a calendar year, but entries for
+ * season S are made throughout the *preceding* year. The window opens at
+ * 00:00 Europe/London on 1 January S−1 and closes at 23:59:59 Europe/London
+ * on 31 December S−1; the season itself then runs 1 January – 31 December S.
+ * Because every valid entry commits before the season begins, the
+ * submission-instant scoring floor (see Deadline_Policy::death_scores_for_pick())
+ * is the season start for every entry, so results match the old calendar
+ * behaviour and the award ledger's operation keys stay stable. This is a
+ * deadline-semantics change only; the scoring formula is unchanged, so the
+ * ruleset version stays `1`.
  *
  * @package Obitleague
  */
@@ -28,25 +30,25 @@ final class Ruleset {
 	public const VERSION = '1';
 
 	/**
-	 * Entries remain open for the entire season year. Teams may join,
-	 * submit and amend at any point until 23:59:59 Europe/London on 31
-	 * December; a selection only scores for a death after the team's own
-	 * submission instant, so late joiners gain no retrospective points.
+	 * Entries for season S are made throughout the preceding year: they open
+	 * at 00:00 Europe/London on 1 January S−1 and close at 23:59:59
+	 * Europe/London on 31 December S−1. The season then runs 1 January – 31
+	 * December S. A write must commit strictly before the closing instant.
 	 */
-	public const ROLLING_ENTRY = true;
+	public const ENTRY_WINDOW_YEARS_AHEAD = 1;
 
 	/** Exact number of picks on a submitted team. */
 	public const TEAM_SIZE = 10;
 
-	/** Deadline instant (v1 behaviour): 00:00 Europe/London on 1 January. */
-	public const DEADLINE_RULE = '00:00 Europe/London on 1 January; a write must commit strictly before this instant.';
+	/** Entry window and the instant a write must commit strictly before. */
+	public const DEADLINE_RULE = 'Entries for a season are made throughout the preceding year: the window opens at 00:00 Europe/London on 1 January of the year before the season and closes at 23:59:59 Europe/London on 31 December before it. A write must commit strictly before the closing instant.';
 
 	/**
-	 * Deadline instant while rolling entry is active: 23:59:59 Europe/London
-	 * on 31 December of the season year. A write must commit strictly before
-	 * this instant.
+	 * Back-compatible alias for the entry-window rule. The window now closes
+	 * at 23:59:59 Europe/London on 31 December of the year *before* the
+	 * season, not the season year.
 	 */
-	public const ENTRY_OPEN_UNTIL_RULE = '23:59:59 Europe/London on 31 December of the season year; a write must commit strictly before this instant.';
+	public const ENTRY_OPEN_UNTIL_RULE = '23:59:59 Europe/London on 31 December of the year before the season; a write must commit strictly before this instant.';
 
 	/** Standings stay provisional until this instant after the season. */
 	public const SETTLEMENT_RULE = '23:59:59 Europe/London on 31 January following the season.';
