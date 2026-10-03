@@ -5,6 +5,55 @@ header in `obitleague.php`; each released version is tagged in git.
 
 ## [Unreleased]
 
+### Changed — The person page talks about the person, not the game
+
+- **The raw scoring formula no longer appears anywhere a reader or an agent can
+  see it.** `max(1, 100 − age)` is still the load-bearing rule (and stays in
+  `docs/RULES.md` and `Ruleset::points_for_age()`), but it is not easy to read
+  and was never meant to be shown to players. Every rendered surface now
+  describes scoring in plain words: the person scorecard tooltips, the hero
+  copy, the stats board note, the campaign demo, the review screen, the agent
+  API (`points_formula`) and the A2A card. A wiring guard fails the suite if the
+  formula reappears on any of those surfaces.
+- **Bodies no longer editorialise about the website.** `Person_Content` composes
+  a person's body from approved fields alone. The lines that talked about the
+  catalogue, the game, scoring and "what you could compare" are gone; the body
+  states the name, life span, recorded death date and age, the recorded
+  occupations, and the cause in the plugin's own terms.
+
+### Changed — One league, and a season that closes the year before it starts
+
+- **Side leagues are off by default.** The product is one canonical league.
+  The side-league machinery is kept intact but invisible unless an operator
+  opts back in with the `obitleague_side_leagues_enabled` option
+  (`League_Service::side_leagues_enabled()`, default false). While off, `/join/`
+  redirects to `/my-leagues/`, `[obitleague_join]` renders nothing, `POST
+  /leagues` and `POST /leagues/join` are not registered, and the My-leagues and
+  footer join CTAs and the admin create form are hidden.
+- **Entries now close before the season begins.** Rolling entry is replaced by
+  the locked window: entries for season S open at `00:00 Europe/London` on
+  1 January S−1 and a write must commit strictly before `23:59:59 Europe/London`
+  on 31 December S−1, while the season runs 1 January – 31 December S. Because
+  every valid entry commits before the season starts, the scoring floor is the
+  season start for every entry, so historic results are unchanged and the
+  ruleset version stays `1`.
+- **The header search collapses to a magnifier.** On desktop the field expands
+  from the icon (`[data-ob-search]`), keeping the top bar clean; without JS the
+  field stays visible, and on phones it remains the field in the menu sheet.
+  Every primary item now opens a mega panel — Standings and Stats gained panels,
+  so all five items behave alike. `Widget_ObHeader` mirrors the markup and
+  `header.min.js` is regenerated in sync.
+
+### Fixed — The person body always lists recorded occupations
+
+- **A person's body dropped its occupations paragraph when the taxonomy mirror
+  lagged the stored list.** `Person_Content` read the `obit_occupation` terms
+  alone, while the rest of the page reads the recorded `obit_occupations` list.
+  A record enriched before the term backfill ran showed its occupations in the
+  hero but stayed silent about them in the body. Labels now come from
+  `Person_Content::bio_occupation_labels()` — the stored list first, the taxonomy
+  only as a fallback — and still link to the term archive when a term exists.
+
 ### Fixed — The story modal keeps your place, and pairing actually appears
 
 - **The Wikidata pairing widget never rendered.** The block in

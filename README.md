@@ -40,7 +40,7 @@ work/                     Git-ignored: seed manifests, source registers, connect
 
 ## Domain rules in one screen
 
-- Season: calendar year. Deadline: `00:00 Europe/London` on 1 January; a write must commit strictly before the deadline.
+- Season: calendar year. Entries for season S are made throughout the preceding year: the window opens `00:00 Europe/London` on 1 January S−1 and a write must commit strictly before `23:59:59 Europe/London` on 31 December S−1.
 - Team: exactly ten distinct people; one entry per player per league per season; shared picks allowed; no transfers after lock.
 - Points: `max(1, 100 − completed_age_at_death)` per pick, summed over ten picks.
 - Ranking: total points, then scoring picks, then shared position (1, 2, 2, 4).

@@ -7,29 +7,33 @@ This is the build baseline for the game rules. The implementation lives in `src/
 | Rule | Baseline |
 | --- | --- |
 | Season | Calendar year, 1 January – 31 December. |
-| Entry window (rolling) | Entries stay open for the **whole season year**: a write must commit strictly before `23:59:59 Europe/London` on 31 December of the season year. Players may join, submit and amend at any point in the year. |
+| Entry window | Entries for season *S* are made throughout the **preceding** year. The window opens at `00:00 Europe/London` on 1 January *S−1* and a write must commit strictly **before** `23:59:59 Europe/London` on 31 December *S−1*. The season itself then runs 1 January – 31 December *S*. Players may join, submit and amend at any point in the window. |
 | Age eligibility anchor | A person must meet the minimum age at the **season start** (`00:00 Europe/London` on 1 January of the season year), regardless of when the team joins. The previous baseline used the 1 January lock instant as a proxy; that proxy is now named explicitly. |
 | Team size | Exactly ten distinct people. |
 | Entries | One entry per player per league per season. Different players may hold the same pick. |
 | Privacy | Only the owner and authorised administrators see a team while its season's entry window is open. After the window closes, submitted teams are visible to league members. |
 | Late membership | A team must already be submitted in that league to score there; joins after the entry window closes create spectators. |
 
-## Rolling entry and the submission floor
+## Entry window and the submission floor
 
-Under rolling entry a team may join at any point in the year. Two rules keep
-late entry honest without handicaps or bonuses:
+Entries for season *S* are made throughout the preceding year, so every valid
+entry commits before the season begins. Two rules keep this honest without
+handicaps or bonuses:
 
-1. **A selection scores only when the verified death date is after the team's
-   own submission instant** (equal instant does not score). The floor is never
-   earlier than the season start. There are no retrospective points: if your
-   pick died in March and you joined in November, that pick scores zero.
-2. **Late joiners receive no artificial adjustments** — no handicaps, bonuses
-   or rescaled scores. Everyone competes under the same formula.
+1. **A selection scores only when the verified death date is on or after the
+   season start** (`00:00 Europe/London` on 1 January *S*). Because every valid
+   entry closes before the season begins, the team's own submission instant is
+   never later than the season start, so the floor is the season start for
+   every entry. There are no retrospective points: a death before the season
+   never scores for it.
+2. **No artificial adjustments** — no handicaps, bonuses or rescaled scores.
+   Everyone competes under the same formula.
 
-Entries submitted before the rolling-entry change (all pre-2027 seasons and any
-entry committed before 1 January) keep exactly their previous scoring: the
-season start equals the latest instant any such entry was submitted by, so the
-floor never moves a historic award.
+This is deadline semantics only; the scoring formula is unchanged, so the
+ruleset version stays `1`. Entries submitted under the previous rolling rule
+(all pre-2027 seasons) keep exactly their previous scoring: the season start
+equals the latest instant any such entry was submitted by, so the floor never
+moves a historic award.
 
 ## Scoring
 
@@ -37,6 +41,8 @@ floor never moves a historic award.
 points(pick) = max(1, 100 − completed_age_at_death)
 total        = sum over ten picks
 ```
+
+In plain words: the younger the person, the more their confirmed death is worth. Subtract their completed age at death from 100, with a floor of 1 point, so every confirmed death scores at least something.
 
 - Completed age is computed by calendar birthday, never by dividing elapsed days by 365.
 - 29 February birthday: use 1 March as the birthday in a non-leap year.
