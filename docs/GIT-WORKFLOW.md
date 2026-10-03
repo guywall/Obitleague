@@ -1,6 +1,6 @@
 # Git workflow rules — Obitleague
 
-Last updated: 2026-09-30
+Last updated: 2026-10-03
 
 Authority: this file and the explainers in `docs/git-explainers/` are the
 guidance for how work moves from an approved change to GitHub.
@@ -11,7 +11,7 @@ this file wins and the other is corrected.
 
 Every approved change reaches GitHub as a **new version of `main`**.
 A working session never pushes to `main` directly, and approved work is
-never left sitting on a session branch. The flow is always:
+never left sitting on a session branch. The default flow is:
 
 1. Do the work in the session branch (the Freebuff worktree branch).
 2. Show the user what changed and ask for approval.
@@ -20,6 +20,10 @@ never left sitting on a session branch. The flow is always:
 4. If the user does not answer within **5 minutes**, treat the change as
    approved **only if** it is exactly what was asked, scope-clean, and
    all checks pass (see "Approval timing" below). Otherwise stop and wait.
+
+One alternative exists: when the user asks to *review the work as a pull
+request* rather than merge it, follow "Pull requests" below instead of
+step 3. That is the only case in which a session branch is pushed.
 
 ## Branch rules
 
@@ -71,13 +75,57 @@ Rules:
 - Commit message on a merge commit (if one is needed):
   `Merge branch '<branch>' — <short human topic>`.
 - Push **only `main`**: `git push origin main`. Never push a session
-  branch to `origin` unless the user asks to review it on GitHub.
+  branch to `origin` unless the user asks to review it on GitHub — that is
+  the pull-request path below.
 - After a successful push, delete the local session branch
   (`git branch -d <branch>`). If a remote session branch exists, delete
   that too (`git push origin --delete <branch>`).
 - Do not force-push. Do not rewrite published history. If a push is
   rejected because `origin/main` moved, pull with `--rebase`, re-run
   checks, and push again.
+
+## Pull requests (when the user asks for review on GitHub)
+
+The default is still direct-to-`main`. A pull request is used only when
+the user asks for one — "open a PR", "let me review it on GitHub" — or
+says they want a review record for a large change. Do not impose the PR
+step on work the user asked to merge.
+
+One-off setup (Windows):
+
+- Install the GitHub CLI per-user (no admin needed):
+  `winget install --id GitHub.cli --scope user`.
+- Authenticate once: `gh auth login` (browser/device flow). A token given
+  to `gh auth login --with-token` must carry `repo`, `read:org` and
+  `workflow` scopes.
+- A working `git push` does **not** mean `gh` is authenticated. Git
+  Credential Manager holds a separate token that `gh` usually refuses
+  with `missing required scope 'read:org'`. Always confirm with
+  `gh auth status` before relying on `gh`.
+- `gh` may not be on `PATH` in the shell that installed it. Restart the
+  shell, or call it by full path under
+  `%LOCALAPPDATA%\Microsoft\WinGet\Packages\...\bin\gh.exe`.
+
+The flow:
+
+1. Do the work on the session branch and commit as usual.
+2. Push the session branch: `git push -u origin <branch>`. This is the one
+   case where a session branch is pushed.
+3. Open the PR:
+   `gh pr create --base main --title "<lead commit subject>" --body "<what and why>"`.
+4. Do **not** merge into local `main` while the PR is open — the PR is the
+   review record.
+5. Once it is approved, merge it on GitHub (or `gh pr merge --squash
+   --delete-branch` if the user asks), then `git pull origin main` and
+   delete the local session branch.
+6. Never force-push a branch under review; add commits instead.
+
+If the user asks for a PR **after** the work is already merged into
+`main` — the usual case, because the default flow merges immediately —
+there is nothing to open a PR against: a PR needs a branch that diverges
+from `main`, and `main` already contains the commits. Say so plainly, and
+offer a version tag or a GitHub release instead of inventing an empty
+branch.
 
 ## Approval timing
 
@@ -101,7 +149,9 @@ Any change to the process described here must itself be written back
 into this file, `START-HERE.md`, and (if relevant)
 `AI_PLUGIN_GUIDE.md`, in the same change that alters the process.
 The explainers in `docs/git-explainers/` must be updated whenever the
-step they explain changes.
+step they explain changes. When a new explainer file is added, list it in
+`docs/git-explainers/README.md` and mention the concept in
+`docs/GIT-EXPLAINED.md` too.
 
 ## Explanations for the user
 

@@ -1,6 +1,6 @@
  START HERE — how this project's Git works (read this first)
 
-Last updated: 2026-09-30
+Last updated: 2026-10-03
 
 # The one rule
 
@@ -46,6 +46,16 @@ versions: `docs/GIT-EXPLAINED.md` and `docs/git-explainers/`.
 | Save my edit            | `git add -A` then `git commit -m "what I did"` then `git push origin main` |
 | Put it on the live site | `bash deploy-live.sh` (refuses to run unless main is pushed and tests pass) |
 
+# If you want to review work before it lands (pull requests)
+
+The normal flow merges approved work straight into `main`. If you would
+rather look at a change on GitHub first, say "open a PR" and the AI will
+push the session branch and open a **pull request** instead of merging.
+That needs GitHub's own tool, `gh`, installed once
+(`winget install --id GitHub.cli --scope user`) and logged in once
+(`gh auth login`). Plain-English guide:
+`docs/git-explainers/07-pull-requests.md`.
+
 # Words that were confusing you
 
 - **branch** — a parallel copy of the code. We keep exactly one: `main`.
@@ -53,16 +63,18 @@ versions: `docs/GIT-EXPLAINED.md` and `docs/git-explainers/`.
   these for its own work sessions and throws them away after.
 - **origin** — the GitHub cloud copy. `origin/main` = what's on GitHub.
 - **merge** — combine one line of work into `main`.
+- **pull request (PR)** — a GitHub proposal to review a branch *before*
+  it is merged. Optional; only when you ask for it.
 - **unmerged changes** — work sitting somewhere that isn't in `main` yet.
   As of today there are **none**: every branch was verified contained in
   `main`, then deleted.
 
-# Current state (2026-09-29)
+# Current state (2026-10-03)
 
-- `main` contains ALL work through plugin version 0.13.2 — every feature
+- `main` contains ALL work through plugin version 0.15.2 — every feature
   branch was merged in and then removed.
-- The live site obitleague.co.uk only changes when you run `deploy-live.sh`.
-- The four live-site issues (duplicate header, stray `?>` output, missing
-  `header.min.js`, `/people/` 404) are fixed on `main` as of 2026-09-29.
-  If obitleague.co.uk still shows any of them, the site just needs a
-  deploy: run `bash deploy-live.sh`, then `bash tests/smoke-live.sh`.
+- The live site obitleague.co.uk is running 0.15.2 (deployed 2026-10-03),
+  and the stored person pages were recomposed so the current prose shows.
+- The live site only changes when you run `deploy-live.sh`.
+- The GitHub CLI (`gh`) is installed per-user, but not yet logged in;
+  run `gh auth login` once before using pull requests.

@@ -1,6 +1,6 @@
 # Git explained in plain words (Obitleague)
 
-Last updated: 2026-09-30
+Last updated: 2026-10-03
 
 This is the simple, non-technical version of `docs/GIT-WORKFLOW.md`.
 Read this one if the technical rulebook feels dense.
@@ -26,7 +26,10 @@ Think of the project as a photo album of the website.
 1. **The AI gets a task.** It works in its own branch (sketchbook).
 2. **The AI shows you the result.** "Here is what changed. Shall I keep it?"
 3. **You say yes or no.** Yes → it goes onto `main` and up to GitHub.
-   No → it stays in the sketchbook and can be thrown away.
+   No → it stays in the sketchbook and can be thrown away. If instead you
+   ask to *review it on GitHub first*, it is opened as a **pull request**
+   and waits there until you accept it (see
+   `docs/git-explainers/07-pull-requests.md`).
 4. **If you don't answer in 5 minutes**, the AI may go ahead anyway, but
    only if the change is exactly what was asked, all tests pass, and it
    is easy to undo. Otherwise it waits.
@@ -57,6 +60,9 @@ Each of these has its own one-page explainer in `docs/git-explainers/`:
   commit" clutter.
 - **Origin** — the nickname for the GitHub copy of the project.
 - **Worktree** — the extra folder Freebuff uses for a session.
+- **Pull request (PR)** — a proposal on GitHub asking someone to review
+  a branch before it joins `main`. Used only when you ask for it; the
+  default is to merge straight into `main`.
 - **Deploy** — putting the code onto the live website
   (`bash deploy-live.sh`). Separate from git entirely.
 

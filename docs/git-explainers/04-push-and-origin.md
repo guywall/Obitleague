@@ -16,7 +16,8 @@ both PCs match.
 
 - Only `main` is pushed: `git push origin main`.
 - Session branches stay local unless the user asks to review one on
-  GitHub; any remote session branch is deleted after its merge.
+  GitHub (see `07-pull-requests.md`); any remote session branch is deleted
+  after its merge.
 - Every push to `main` happens only after user approval (or valid
   assumed approval — see `05-approval.md`) and after checks pass.
 - No force-pushes. GitHub's copy of `main` is append-only history.

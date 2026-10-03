@@ -12,6 +12,7 @@ technical rulebook is `docs/GIT-WORKFLOW.md`, and the short version is
 - [04-push-and-origin.md](04-push-and-origin.md) — push, pull, GitHub
 - [05-approval.md](05-approval.md) — the human checkpoint and 5-minute rule
 - [06-deploy.md](06-deploy.md) — how work reaches the live website
+- [07-pull-requests.md](07-pull-requests.md) — reviewing work on GitHub before it is merged
 
 These files are live guidance: whenever the process changes, the
 matching file is updated in the same change.

@@ -1,10 +1,10 @@
 # Obitleague plugin guide for AI coding tasks
 
-> **Use this file as the task handoff map, not as an independent specification.** Before changing behavior, inspect the current source and tests named below. This guide describes the checkout when written; it is not a release declaration. Do not assume that every working-tree change is committed or deployed. Refreshed against plugin version 0.14.1 (see `git log --oneline -5` to confirm how recent this is).
+> **Use this file as the task handoff map, not as an independent specification.** Before changing behavior, inspect the current source and tests named below. This guide describes the checkout when written; it is not a release declaration. Do not assume that every working-tree change is committed or deployed. Refreshed against plugin version 0.15.2 (see `git log --oneline -5` to confirm how recent this is).
 
 ## Start here on every task
 
-0. Read `START-HERE.md` for the project's git model, then `docs/GIT-WORKFLOW.md` for the delivery rules: approved work is merged fast-forward into `main` and pushed to `origin/main` under human-readable branch names and commit messages; if the user does not answer an approval request within 5 minutes, proceed only when the change is exactly as asked, all checks pass, and it is trivially reversible (see `docs/git-explainers/05-approval.md`). Plain-English explainers for every git concept live in `docs/git-explainers/`.
+0. Read `START-HERE.md` for the project's git model, then `docs/GIT-WORKFLOW.md` for the delivery rules: approved work is merged fast-forward into `main` and pushed to `origin/main` under human-readable branch names and commit messages; if the user does not answer an approval request within 5 minutes, proceed only when the change is exactly as asked, all checks pass, and it is trivially reversible (see `docs/git-explainers/05-approval.md`). When the user asks to review the work on GitHub instead of merging it, open a pull request with `gh` (installed; needs one `gh auth login`) — see the pull-request section of `docs/GIT-WORKFLOW.md` and `docs/git-explainers/07-pull-requests.md`. Plain-English explainers for every git concept live in `docs/git-explainers/`.
 1. Read `obitleague.php` for plugin/runtime versions, bootstrap, autoloader, and module boot order.
 2. Read the relevant implementation under `src/Modules/`, `src/Domain/`, `src/Templates/`, or `src/Elementor/`.
 3. Read `docs/RULES.md` and the matching `tests/Scenario_*.php` for game semantics. Pure domain rules in `src/Domain/` and their tests are authoritative over older prose/docs.
@@ -183,7 +183,9 @@ Find the authoritative consumer with a repository search before renaming any mar
 3. Run the checks listed below; do not push with failures.
 4. `git merge --ff-only <branch>` into `main`, then `git push origin main`; never force-push.
 5. Delete the session branch (local and remote) after a successful push.
-6. If the process itself changed, update `docs/GIT-WORKFLOW.md`, `START-HERE.md`, and the relevant file in `docs/git-explainers/` in the same change.
+6. If the process itself changed, update `docs/GIT-WORKFLOW.md`, `START-HERE.md`, `AI_PLUGIN_GUIDE.md` where relevant, and the matching file in `docs/git-explainers/` (plus its `README.md` index and `docs/GIT-EXPLAINED.md` when a concept is added) in the same change.
+
+**When the user asks for a pull request instead of a merge**, replace step 4: push the session branch (`git push -u origin <branch>`), open the PR with `gh pr create --base main`, and do **not** merge into `main` while it is open. After the PR is accepted, `git pull origin main` and delete the local branch. Do not try to open a PR for work already merged into `main` — there is nothing for it to contain.
 
 ```bash
 php tests/run-tests.php

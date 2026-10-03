@@ -17,6 +17,10 @@ points are readable in `git log`.
 deleted (`git branch -d <name>`). The work is not lost — it lives in
 `main` now.
 
+**Reviewing before merging.** If you ask to look at the work on GitHub
+first, it is not merged straight away; it is opened as a pull request
+and waits there. See `07-pull-requests.md`.
+
 **Safety rules:**
 
 - Never force-push; never rewrite history that is already on GitHub.

@@ -27,7 +27,11 @@ from. It exists so the project's directives are followed from anywhere.
   `php tests/run-tests.php`, `php -l` on changed PHP,
   `node --check` on changed JS, `git diff --check`.
 - Merge with `git merge --ff-only`, push **only** `main`
-  (`git push origin main`), never force-push.
+  (`git push origin main`), never force-push. The one exception is a
+  pull request: when the user asks to review the work on GitHub, push
+  the session branch and open a PR with `gh` instead of merging, and
+  leave `main` alone until the PR is accepted
+  (see `docs/git-explainers/07-pull-requests.md`).
 - Ask the user for approval before merging/pushing; if no answer in
   **5 minutes**, proceed only when the change is exactly as asked, all
   checks pass, and it is trivially reversible — and record the assumed
@@ -35,7 +39,9 @@ from. It exists so the project's directives are followed from anywhere.
 - Delete the session branch after a successful push.
 - Keep the guidance live: any change to this process updates
   `docs/GIT-WORKFLOW.md`, `START-HERE.md`, `AI_PLUGIN_GUIDE.md`, and
-  the matching explainer file in the same change.
+  the matching explainer file in the same change — and, when a new
+  concept is added, its entry in `docs/git-explainers/README.md` and in
+  `docs/GIT-EXPLAINED.md` too.
 - The live site changes only when a human runs `bash deploy-live.sh`.
   Never deploy, and never run the data-changing scripts in `tests/`,
   without explicit authorization.
