@@ -19,7 +19,7 @@ if ( ! $user_id ) :
 		<section class="ob-hero ob-hero--archive ob-anim">
 			<span class="ob-hero__kicker">Your game</span><h1>My leagues</h1>
 			<p>Sign in to see your leagues, your position and your team status.</p>
-			<div class="ob-hero__cta"><a class="ob-btn" href="<?php echo esc_url( home_url( '/login/?redirect_to=' . rawurlencode( home_url( '/my-leagues/' ) ) ) ); ?>">Sign in</a><a class="ob-btn ob-btn--ghost" href="<?php echo esc_url( home_url( '/join/' ) ); ?>">Join a side league</a></div>
+			<div class="ob-hero__cta"><a class="ob-btn" href="<?php echo esc_url( home_url( '/login/?redirect_to=' . rawurlencode( home_url( '/my-leagues/' ) ) ) ); ?>">Sign in</a><?php if ( League_Service::side_leagues_enabled() ) : ?><a class="ob-btn ob-btn--ghost" href="<?php echo esc_url( home_url( '/join/' ) ); ?>">Join a side league</a><?php endif; ?></div>
 		</section>
 	</main>
 	<?php
@@ -45,24 +45,27 @@ $main_picks = $main_revision ? array_map( static function ( $pick ): array {
 }, Entry_Service::revision_picks( (int) $main_revision->id ) ) : array();
 $now = new DateTimeImmutable( 'now', new DateTimeZone( 'UTC' ) );
 $main_can_edit = $is_verified && $main_entry && 'member' === (string) League_Service::member_row( $main_league_id, $user_id )?->status && \Obitleague\Domain\Entry_Rules::can_edit( (string) $main_entry->state, \Obitleague\Domain\Deadline_Policy::is_entry_open( $season, $now ) );
-$memberships = (array) $wpdb->get_results(
-	$wpdb->prepare(
-		"SELECT m.league_id, m.status, m.joined_at, l.name, l.season, l.state, l.owner_user_id, l.is_main
-		 FROM {$wpdb->prefix}obitleague_league_members m
-		 JOIN {$wpdb->prefix}obitleague_leagues l ON l.id = m.league_id
-		 WHERE m.user_id = %d AND l.is_main = 0
-		 ORDER BY l.season DESC, l.name ASC",
-		$user_id
+// Side leagues are off by default; only load memberships when enabled.
+$memberships = League_Service::side_leagues_enabled()
+	? (array) $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT m.league_id, m.status, m.joined_at, l.name, l.season, l.state, l.owner_user_id, l.is_main
+			 FROM {$wpdb->prefix}obitleague_league_members m
+			 JOIN {$wpdb->prefix}obitleague_leagues l ON l.id = m.league_id
+			 WHERE m.user_id = %d AND l.is_main = 0
+			 ORDER BY l.season DESC, l.name ASC",
+			$user_id
+		)
 	)
-);
+	: array();
 $nonce = wp_create_nonce( 'wp_rest' );
 $rest_root = rest_url( 'obitleague/v1' );
 ?>
 <main class="ob-page">
 	<section class="ob-hero ob-hero--archive ob-anim">
 		<span class="ob-hero__kicker">Your game</span><h1>My leagues</h1>
-		<p><?php echo esc_html( Season_Switcher::season_story() ); ?>. Your 2026 team is live on the leaderboard while the 2027 season is open for picks until 00:00 London time on 1 January <?php echo esc_html( (string) $season ); ?>.</p>
-		<div class="ob-hero__cta"><a class="ob-btn" href="<?php echo esc_url( home_url( '/join/' ) ); ?>">Join a side league</a><a class="ob-btn ob-btn--ghost" href="<?php echo esc_url( home_url( '/standings/' ) ); ?>">Overall standings</a></div>
+		<p><?php echo esc_html( Season_Switcher::season_story() ); ?>. The <?php echo esc_html( (string) $season ); ?> season is open for picks until 23:59:59 London time on 31 December <?php echo esc_html( (string) ( $season - 1 ) ); ?>.</p>
+		<div class="ob-hero__cta"><?php if ( League_Service::side_leagues_enabled() ) : ?><a class="ob-btn" href="<?php echo esc_url( home_url( '/join/' ) ); ?>">Join a side league</a><?php endif; ?><a class="ob-btn ob-btn--ghost" href="<?php echo esc_url( home_url( '/standings/' ) ); ?>">Overall standings</a></div>
 	</section>
 
 	<?php
@@ -113,7 +116,9 @@ $rest_root = rest_url( 'obitleague/v1' );
 		</div>
 	</section>
 
-	<?php if ( ! $memberships ) : ?>
+	<?php if ( ! League_Service::side_leagues_enabled() ) : ?>
+		<?php // Side leagues are off: the whole section is hidden. ?>
+	<?php elseif ( ! $memberships ) : ?>
 		<section class="ob-card"><p><em>You have no side leagues yet. Join one with an invite code or create one on the <a href="<?php echo esc_url( home_url( '/join/' ) ); ?>">side-league page</a>.</em></p></section>
 	<?php else : ?>
 		<div class="ob-my-leagues">

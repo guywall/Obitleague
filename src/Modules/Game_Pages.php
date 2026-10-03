@@ -21,6 +21,7 @@ final class Game_Pages {
 		add_filter( 'register_url', array( self::class, 'register_url' ) );
 		add_filter( 'retrieve_password_message', array( self::class, 'password_reset_message' ), 10, 4 );
 		add_action( 'template_redirect', array( self::class, 'handle_logout' ), 1 );
+		add_action( 'template_redirect', array( self::class, 'redirect_join_when_side_leagues_off' ), 2 );
 		add_shortcode( 'obitleague_overall_standings', array( self::class, 'overall_shortcode' ) );
 		add_shortcode( 'obitleague_join', array( self::class, 'join_shortcode' ) );
 		Auth::boot();
@@ -141,9 +142,14 @@ final class Game_Pages {
 		}
 		$routes = array(
 			'my-leagues' => 'my-leagues.php',
-			'join'       => 'join-league.php',
 			'stats'      => 'stats.php',
 		);
+		// The side-league join page exists only while side leagues are enabled;
+		// otherwise /join/ falls through to WordPress (and 404s) rather than
+		// advertising a feature that is switched off.
+		if ( League_Service::side_leagues_enabled() ) {
+			$routes['join'] = 'join-league.php';
+		}
 		return isset( $routes[ $path ] ) ? OBITLEAGUE_DIR . 'src/Templates/' . $routes[ $path ] : $template;
 	}
 
@@ -153,6 +159,21 @@ final class Game_Pages {
 		}
 		status_header( 200 );
 		return OBITLEAGUE_DIR . 'src/Templates/login-page.php';
+	}
+
+	/**
+	 * While side leagues are off, the /join/ page no longer exists: send any
+	 * visitor who has the old URL to My leagues rather than a 404.
+	 */
+	public static function redirect_join_when_side_leagues_off(): void {
+		if ( League_Service::side_leagues_enabled() ) {
+			return;
+		}
+		if ( 'join' !== Auth::request_path() ) {
+			return;
+		}
+		wp_safe_redirect( home_url( '/my-leagues/' ), 301 );
+		exit;
 	}
 
 	/** Process front-end sign-out and administrator mode switch before output. */
@@ -238,7 +259,7 @@ final class Game_Pages {
 			}
 			$out .= '</td><td class="ob-pts">' . esc_html( (string) $row['points'] ) . '</td><td>' . esc_html( (string) $row['scoring_picks'] ) . '</td></tr>';
 		}
-		$out .= '</tbody></table></div><p class="ob-overall__note">Overall ranking uses each player’s canonical main-season team. Side leagues are separate competitions.</p>';
+		$out .= '</tbody></table></div><p class="ob-overall__note">Overall ranking uses each player’s canonical main-season team.' . ( League_Service::side_leagues_enabled() ? ' Side leagues are separate competitions.' : '' ) . '</p>';
 		if ( $total > $limit ) {
 			$out .= '<nav class="ob-pagination" aria-label="Overall standings pages">';
 			if ( $page > 1 ) {
@@ -255,6 +276,9 @@ final class Game_Pages {
 
 	/** Join or create optional invite-only side leagues. */
 	public static function join_shortcode( $atts = array() ): string {
+		if ( ! League_Service::side_leagues_enabled() ) {
+			return '';
+		}
 		if ( ! is_user_logged_in() ) {
 			return Shortcodes::enqueue() . '<section class="ob-card ob-join-card"><h2 class="ob-card__title">Join a side league</h2><p>Sign in to join a side league with an invite code, or create your own. Your main-season team is separate.</p><p><a class="ob-btn" href="' . esc_url( home_url( '/login/?redirect_to=' . rawurlencode( home_url( '/join/' ) ) ) ) . '">Sign in to continue</a></p></section>';
 		}

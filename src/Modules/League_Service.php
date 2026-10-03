@@ -13,7 +13,20 @@ final class League_Service {
 	public const STATE_OPEN = 'open';
 	public const STATE_CLOSED = 'closed';
 
+	/** Option that turns optional side leagues on. Off by default. */
+	public const SIDE_LEAGUES_OPTION = 'obitleague_side_leagues_enabled';
+
 	private function __construct() {}
+
+	/**
+	 * Whether optional side leagues are enabled. The product is one canonical
+	 * league; the side-league machinery is kept intact but hidden unless an
+	 * operator explicitly opts back in with the option set to a truthy value.
+	 */
+	public static function side_leagues_enabled(): bool {
+		$value = get_option( self::SIDE_LEAGUES_OPTION, false );
+		return in_array( $value, array( true, 1, '1', 'yes', 'true', 'on' ), true );
+	}
 
 	public static function ensure_main_league( int $season ): int {
 		return Main_League_Service::ensure_league( $season );

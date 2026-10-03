@@ -73,9 +73,11 @@ final class Site_Chrome {
 			'Death Archive' => home_url( '/archive/' ),
 				'Rules'         => home_url( '/rules/' ),
 				'My Leagues'    => home_url( '/my-leagues/' ),
-				'Join a league' => home_url( '/join/' ),
 				'Forum'         => home_url( '/forum/' ),
 			);
+			if ( League_Service::side_leagues_enabled() ) {
+				$links['Join a league'] = home_url( '/join/' );
+			}
 		?>
 		</main><!-- #ob-main -->
 		<footer class="ob-foot">

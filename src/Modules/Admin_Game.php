@@ -120,6 +120,14 @@ final class Admin_Game {
 			echo '<p>No leagues have been created.</p>';
 		}
 
+		// Side leagues are off by default; hide the creation form entirely
+		// while they are, so the admin matches the product's one-league model.
+		if ( ! League_Service::side_leagues_enabled() ) {
+			echo '<h2>Side leagues are disabled</h2>';
+			echo '<p class="description">Obitleague runs one league. The optional side-league feature is switched off; enable it with the site option <code>' . esc_html( League_Service::SIDE_LEAGUES_OPTION ) . '</code> to manage or create them here.</p>';
+			self::render_audit();
+			return;
+		}
 		echo '<h2 style="margin-top:2em">Create a league</h2><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'obitleague_admin_create_league' );
 		echo '<input type="hidden" name="action" value="obitleague_admin_create_league" />';
@@ -401,6 +409,9 @@ final class Admin_Game {
 
 	public static function create_league(): void {
 		self::require_post( 'obitleague_admin_create_league' );
+		if ( ! League_Service::side_leagues_enabled() ) {
+			self::redirect( array( 'error' => 'Optional side leagues are disabled.' ) );
+		}
 		$name     = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['name'] ) ) : '';
 		$season   = isset( $_POST['season'] ) ? absint( $_POST['season'] ) : 0;
 		$owner_id = isset( $_POST['owner_user_id'] ) ? absint( $_POST['owner_user_id'] ) : 0;

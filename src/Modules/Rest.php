@@ -184,14 +184,18 @@ final class Rest {
 
 	public static function register_game_routes(): void {
 		$private = array( 'permission_callback' => array( self::class, 'must_be_logged_in' ) );
-		register_rest_route( self::NAMESPACE, '/leagues', array_merge( $private, array(
-			'methods' => 'POST', 'callback' => array( self::class, 'create_league' ),
-			'args' => array( 'name' => array( 'type' => 'string', 'required' => true, 'sanitize_callback' => 'sanitize_text_field' ), 'season' => array( 'type' => 'integer', 'sanitize_callback' => 'absint' ) ),
-		) ) );
-		register_rest_route( self::NAMESPACE, '/leagues/join', array_merge( $private, array(
-			'methods' => 'POST', 'callback' => array( self::class, 'join_league' ),
-			'args' => array( 'token' => array( 'type' => 'string', 'required' => true, 'sanitize_callback' => 'sanitize_text_field' ) ),
-		) ) );
+		// Optional side leagues are off by default; while off the creation and
+		// join routes are not registered at all, so the feature is invisible.
+		if ( League_Service::side_leagues_enabled() ) {
+			register_rest_route( self::NAMESPACE, '/leagues', array_merge( $private, array(
+				'methods' => 'POST', 'callback' => array( self::class, 'create_league' ),
+				'args' => array( 'name' => array( 'type' => 'string', 'required' => true, 'sanitize_callback' => 'sanitize_text_field' ), 'season' => array( 'type' => 'integer', 'sanitize_callback' => 'absint' ) ),
+			) ) );
+			register_rest_route( self::NAMESPACE, '/leagues/join', array_merge( $private, array(
+				'methods' => 'POST', 'callback' => array( self::class, 'join_league' ),
+				'args' => array( 'token' => array( 'type' => 'string', 'required' => true, 'sanitize_callback' => 'sanitize_text_field' ) ),
+			) ) );
+		}
 		register_rest_route( self::NAMESPACE, '/main-entry', array_merge( $private, array( 'methods' => 'GET', 'callback' => array( self::class, 'main_entry' ) ) ) );
 		register_rest_route( self::NAMESPACE, '/main-entry', array_merge( $private, array(
 			'methods' => 'PUT', 'callback' => array( self::class, 'save_main_entry' ),
@@ -351,6 +355,9 @@ final class Rest {
 	}
 
 	public static function create_league( \WP_REST_Request $request ) {
+		if ( ! League_Service::side_leagues_enabled() ) {
+			return new \WP_Error( 'obitleague_side_leagues_disabled', 'Optional side leagues are not available.', array( 'status' => 403 ) );
+		}
 		$rate = self::rate_limited( 'league_create:' . get_current_user_id(), 5, HOUR_IN_SECONDS );
 		if ( is_wp_error( $rate ) ) {
 			return $rate;
@@ -365,6 +372,9 @@ final class Rest {
 	}
 
 	public static function join_league( \WP_REST_Request $request ) {
+		if ( ! League_Service::side_leagues_enabled() ) {
+			return new \WP_Error( 'obitleague_side_leagues_disabled', 'Optional side leagues are not available.', array( 'status' => 403 ) );
+		}
 		$rate = self::rate_limited( 'league_join:' . get_current_user_id(), 20, HOUR_IN_SECONDS );
 		if ( is_wp_error( $rate ) ) {
 			return $rate;

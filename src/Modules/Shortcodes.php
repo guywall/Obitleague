@@ -183,7 +183,7 @@ final class Shortcodes {
 			: 'Season ' . $in_play . ' in play · picking for ' . $season;
 		$out    = '<section class="ob-hero ob-anim"><span class="ob-hero__kicker">' . esc_html( $kicker ) . '</span>';
 		$out   .= '<h1>Pick ten lives. Follow the year.</h1>';
-		$out   .= '<p>Every confirmed, editor-approved death of a picked figure scores points — younger lives score more: max(1, 100 − age).</p>';
+		$out   .= '<p>Every confirmed, editor-approved death of a picked figure scores points — younger lives score more.</p>';
 		$out   .= '<div class="ob-hero__cta">';
 		$out   .= '<a class="ob-btn" href="' . esc_url( '/person/' ) . '">Browse the catalogue</a>';
 		$out   .= '<a class="ob-btn ob-btn--ghost" href="' . esc_url( '/standings/' ) . '">View standings</a>';
@@ -935,7 +935,7 @@ final class Shortcodes {
 		$steps  = array(
 			array(
 				'Get yourself into a league',
-				'Obitleague is free to play. Create an account, verify your email, and you are in the main game for the coming season — your team competes against everyone else on the overall leaderboard. If your friends, family or office run a private league, they can share an invite code with you; side leagues are small, friendly and entirely optional, and they never change your main-game score.',
+				'Obitleague is free to play. Create an account, verify your email, and you are in the game for the coming season — your team competes against everyone else on one overall leaderboard.',
 			),
 			array(
 				'Pick your ten',
