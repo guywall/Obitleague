@@ -85,8 +85,8 @@ $pick_stats       = Pick_Stats::for_person( $post_id );
 $wikipedia_url = '' !== $enwiki
 	? 'https://en.wikipedia.org/wiki/' . rawurlencode( $enwiki )
 	: ( '' !== $qid ? 'https://www.wikidata.org/wiki/Special:GoToLinkedPage/enwiki/' . rawurlencode( $qid ) : '' );
-$points_tooltip   = null !== $age_at_death ? sprintf( 'Points = max(1, 100 − age at death); age at death: %d.', (int) $age_at_death ) : '';
-$potential_tip    = null !== $age_now ? sprintf( 'If they died today: points = max(1, 100 − completed age); current age: %d.', (int) $age_now ) : 'Potential unavailable because an exact birth date is not recorded.';
+$points_tooltip   = null !== $points ? sprintf( 'Scores %d points under the current rules; age at death: %d.', (int) $points, (int) $age_at_death ) : '';
+$potential_tip    = null !== $potential_points ? sprintf( 'Would score %d points if a death were confirmed today; current age: %d.', (int) $potential_points, (int) $age_now ) : 'Potential unavailable because an exact birth date is not recorded.';
 
 get_header();
 ?>

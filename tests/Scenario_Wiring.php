@@ -272,6 +272,77 @@ final class Scenario_Wiring {
 	}
 
 	/**
+	 * No rendered surface may print the raw scoring formula.
+	 *
+	 * The formula `max(1, 100 − age)` is load-bearing inside the domain
+	 * (Ruleset::points_for_age) and the normative spec, but it is not
+	 * easy to read and was never meant to be shown to players. Every
+	 * surface a visitor or agent reads must describe scoring in plain
+	 * words instead. This guards the ban on it reappearing.
+	 */
+	public function test_no_rendered_surface_prints_the_raw_scoring_formula( Runner $t ): void {
+		$surfaces = array(
+			'src/Templates/single-obit_person.php',
+			'src/Templates/archive-obit_person.php',
+			'src/Modules/Person_Content.php',
+			'src/Modules/Shortcodes.php',
+			'src/Modules/Campaign.php',
+			'src/Modules/Stats_Service.php',
+			'src/Modules/Admin_Review.php',
+			'src/Modules/Rest_Agents.php',
+			'src/Modules/A2A.php',
+			'src/Modules/Agent_Orchestrator.php',
+		);
+		$offenders = array();
+		foreach ( $surfaces as $relative ) {
+			$path = $this->root . '/' . $relative;
+			if ( ! is_file( $path ) ) {
+				continue;
+			}
+			$code = (string) file_get_contents( $path );
+			// The formula appears with a hyphen or a minus sign, and with or
+			// without spacing after the comma.
+			if ( preg_match( '/max\(\s*1\s*,\s*100\s*[-−]/u', $code ) ) {
+				$offenders[] = $relative;
+			}
+		}
+		$t->check( array() === $offenders, __METHOD__, array() === $offenders
+			? 'no rendered surface prints the raw scoring formula'
+			: 'raw scoring formula rendered in: ' . implode( ', ', $offenders ) );
+	}
+
+	/**
+	 * The product is one canonical league. Optional side leagues are kept in
+	 * the code but must be invisible unless an operator opts back in, so every
+	 * public or creation surface must be gated on League_Service::side_leagues_enabled()
+	 * and that flag must default to off. This guards against a refactor
+	 * quietly reactivating the feature.
+	 */
+	public function test_side_league_surfaces_are_gated_on_a_default_off_flag( Runner $t ): void {
+		$service = (string) ( $this->files[ $this->root . '/src/Modules/League_Service.php' ] ?? '' );
+		$t->check( str_contains( $service, "SIDE_LEAGUES_OPTION = 'obitleague_side_leagues_enabled'" ), __METHOD__, 'the side-league option name is stable' );
+		$t->check( (bool) preg_match( '/get_option\(\s*self::SIDE_LEAGUES_OPTION\s*,\s*false\s*\)/', $service ), __METHOD__, 'the flag defaults to off' );
+
+		$gated_surfaces = array(
+			'src/Modules/Game_Pages.php'   => 'join route, shortcode and redirect',
+			'src/Modules/Rest.php'         => 'league create and join routes',
+			'src/Modules/Admin_Game.php'   => 'admin create-league form',
+			'src/Modules/Site_Chrome.php'  => 'footer join link',
+			'src/Templates/my-leagues.php' => 'hero CTA and side-league section',
+		);
+		$ungated = array();
+		foreach ( $gated_surfaces as $relative => $what ) {
+			$code = (string) ( $this->files[ $this->root . '/' . $relative ] ?? '' );
+			if ( '' === $code || ! str_contains( $code, 'side_leagues_enabled' ) ) {
+				$ungated[] = $relative . ' (' . $what . ')';
+			}
+		}
+		$t->check( array() === $ungated, __METHOD__, array() === $ungated
+			? 'every side-league surface is gated on the flag'
+			: 'surfaces not gated: ' . implode( ', ', $ungated ) );
+	}
+
+	/**
 	 * Every static internal link must point at a route the plugin itself
 	 * guarantees: an auto-created page, a template-routed path, a rewrite,
 	 * or the person CPT. This is the audit that catches nav links 404ing on

@@ -499,7 +499,7 @@ final class Admin_Review {
 			foreach ( $impact as $row ) {
 				echo '<li>Entry #' . (int) $row->entry_id . ' — ' . esc_html( (string) ( $row->display_name ?: 'Player ' . $row->user_id ) ) . ' (season ' . (int) $row->season . ')</li>';
 			}
-			echo '</ul><p class="description">Points are computed at award time from the approved exact death date: max(1, 100 − age).</p>';
+			echo '</ul><p class="description">Points are computed at award time from the approved death date.</p>';
 		} else {
 			echo '<p><em>No submitted teams hold this person. Approval affects the archive only.</em></p>';
 		}

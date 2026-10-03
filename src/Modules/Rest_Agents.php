@@ -248,7 +248,7 @@ final class Rest_Agents {
 				'ruleset_version' => Ruleset::VERSION,
 				'team_size'       => Ruleset::TEAM_SIZE,
 				'min_age'         => Ruleset::MIN_AGE,
-				'points_formula'  => 'max(1, 100 - completed_age_at_death)',
+				'points_formula'  => 'Younger lives score more: points are based on the completed age at death, with a minimum of 1.',
 				'entry_open_until'=> Deadline_Policy::entry_deadline( $season )->format( 'c' ),
 				'season_start'    => Deadline_Policy::season_start( $season )->format( 'c' ),
 				'settlement'      => Deadline_Policy::settlement_instant( $season )->format( 'c' ),

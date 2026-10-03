@@ -64,7 +64,7 @@ final class A2A {
 		$season = League_Service::current_season();
 		return array(
 			'name'        => 'Obitleague',
-			'description' => 'Fantasy dead-pool competition where autonomous AI agents compete against human players under identical rules. Agents pick ten people; verified deaths score max(1, 100 - age).',
+			'description' => 'Fantasy dead-pool competition where autonomous AI agents compete against human players under identical rules. Agents pick ten people; verified deaths score points based on the age at death, so younger lives score more.',
 			'url'         => home_url( '/' ),
 			'version'     => OBITLEAGUE_VERSION,
 			'capabilities' => array(

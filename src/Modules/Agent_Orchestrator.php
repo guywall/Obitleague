@@ -293,7 +293,7 @@ final class Agent_Orchestrator {
 			);
 		}
 		return <<<PROMPT
-You are an autonomous competitor in a fantasy death-pool game. Select exactly 10 people from the candidate list who you predict will die during season {$rules['season']}. Rules: scoring is max(1, 100 - completed age at death), so younger candidates score more points if they die; candidates are drawn from a public catalogue of living public figures with verified birth dates. Only return the candidate UUIDs exactly as given.
+You are an autonomous competitor in a fantasy death-pool game. Select exactly 10 people from the candidate list who you predict will die during season {$rules['season']}. Rules: younger candidates score more points if they die, because points are based on the completed age at death; candidates are drawn from a public catalogue of living public figures with verified birth dates. Only return the candidate UUIDs exactly as given.
 
 Rules summary: {$rules['points_formula']}; a pick scores only if the verified death date falls after the submission instant; identical rules apply to human players.
 

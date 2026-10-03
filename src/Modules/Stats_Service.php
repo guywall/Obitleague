@@ -500,7 +500,7 @@ final class Stats_Service {
 			6
 		);
 		if ( count( $age_rows ) > 1 ) {
-			$boards[] = array( 'title' => 'Ages at death', 'note' => 'Where the points come from: max(1, 100 − age).', 'style' => 'bar', 'rows' => $age_rows );
+			$boards[] = array( 'title' => 'Ages at death', 'note' => 'Ages at death, which drive points.', 'style' => 'bar', 'rows' => $age_rows );
 		}
 
 		// Headline fact: the most common occupation worth a sentence.
