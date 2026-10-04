@@ -34,7 +34,6 @@ final class Wiki_Request_Queue {
 	public const STATUS_DONE       = 'done';
 	public const STATUS_FAILED     = 'failed';
 
-	private const MAX_ATTEMPTS   = 5;
 	private const CRON_HOOK      = 'obitleague_wiki_queue_tick';
 	private const CRON_BATCH     = 3;
 	private const WALL_BUDGET_S  = 20.0;
@@ -215,9 +214,13 @@ final class Wiki_Request_Queue {
 		);
 
 		$done     = 0;
+		$handled  = 0;
 		$deadline = microtime( true ) + self::WALL_BUDGET_S;
 
-		while ( $done < $max && microtime( true ) < $deadline ) {
+		// The per-call budget counts every row we handle, not just the ones
+		// that succeed. Counting successes alone let a single failing row be
+		// re-selected again and again for the whole wall-clock window.
+		while ( $handled < $max && microtime( true ) < $deadline ) {
 			$row = $wpdb->get_row(
 				$wpdb->prepare(
 					"SELECT id, request_kind, payload, attempts, source
@@ -246,6 +249,7 @@ final class Wiki_Request_Queue {
 			if ( 1 !== (int) $claimed ) {
 				continue; // Another worker took it; look at the next row.
 			}
+			++$handled;
 
 			$handler = self::$handlers[ (string) $row->request_kind ] ?? null;
 			$payload = json_decode( (string) $row->payload, true );
@@ -257,7 +261,10 @@ final class Wiki_Request_Queue {
 			$result = $handler( $payload );
 
 			if ( is_wp_error( $result ) ) {
-				$code = $result->get_error_code();
+				$code    = $result->get_error_code();
+				// The counter after this claim, so both caps below see the true
+				// attempt number rather than the pre-claim value.
+				$retries = (int) $row->attempts + 1;
 				if ( 'obitleague_discovery_paused' === $code || 'obitleague_rate_limited' === $code ) {
 					// Rate limit: park the source until the Retry-After
 					// moment and push every pending row for it out too.
@@ -266,13 +273,23 @@ final class Wiki_Request_Queue {
 						$retry = (string) ( (int) Discovery_Service::rate_limit_pause_until() - time() );
 					}
 					self::defer_source( (string) $row->source, $retry );
-					self::park( (int) $row->id, $result->get_error_message() );
+					// An upstream that answers nothing but 429/503 must not retry
+					// forever; cap it like any other failure once the waits stop
+					// making progress.
+					if ( \Obitleague\Domain\Wiki_Queue_Policy::should_fail( $retries, true ) ) {
+						self::fail( (int) $row->id, $result->get_error_message() );
+					} else {
+						self::park( (int) $row->id, $result->get_error_message() );
+					}
 					continue;
 				}
-				if ( ( (int) $row->attempts + 1 ) >= self::MAX_ATTEMPTS ) {
+				if ( \Obitleague\Domain\Wiki_Queue_Policy::should_fail( $retries, false ) ) {
 					self::fail( (int) $row->id, $result->get_error_message() );
 				} else {
-					self::park( (int) $row->id, $result->get_error_message() );
+					// Back off before the retry, so parking cannot leave the row
+					// at the head of the queue where it would be picked straight
+					// back up.
+					self::park( (int) $row->id, $result->get_error_message(), \Obitleague\Domain\Wiki_Queue_Policy::retry_backoff_seconds( $retries ) );
 				}
 				continue;
 			}
@@ -331,16 +348,28 @@ final class Wiki_Request_Queue {
 		);
 	}
 
-	private static function park( int $id, string $error ): void {
+	/**
+	 * Return a row to the queue after a retryable failure. `$delay_seconds`
+	 * pushes its next attempt into the future: without it the row kept its old
+	 * next_attempt_at, so the queue's oldest-first scan re-selected it at once
+	 * and burned a whole pass on one bad request.
+	 */
+	private static function park( int $id, string $error, int $delay_seconds = 0 ): void {
 		global $wpdb;
+		$data   = array(
+			'status'     => self::STATUS_PENDING,
+			'last_error' => substr( sanitize_text_field( $error ), 0, 1000 ),
+		);
+		$format = array( '%s', '%s' );
+		if ( $delay_seconds > 0 ) {
+			$data['next_attempt_at'] = gmdate( 'Y-m-d H:i:s', time() + $delay_seconds );
+			$format[]                = '%s';
+		}
 		$wpdb->update(
 			$wpdb->prefix . 'obitleague_wiki_queue',
-			array(
-				'status'     => self::STATUS_PENDING,
-				'last_error' => substr( sanitize_text_field( $error ), 0, 1000 ),
-			),
+			$data,
 			array( 'id' => $id ),
-			array( '%s', '%s' ),
+			$format,
 			array( '%d' )
 		);
 	}
