@@ -792,6 +792,7 @@ final class Shortcodes {
 			$q->post_count  = count( $kept );
 		}
 		$out = self::style();
+		wp_enqueue_script( 'obitleague-obituaries', OBITLEAGUE_DIR_URL . 'assets/obituaries.js', array(), OBITLEAGUE_VERSION, true );
 		$out .= '<div class="ob-people__toolbar ob-deaths-index__filters">';
 		$base_url = remove_query_arg( array( 'pick', 'paged' ) );
 		foreach ( array(
@@ -812,6 +813,14 @@ final class Shortcodes {
 			$out .= '<a class="ob-people__filter-clear" href="' . esc_url( remove_query_arg( array( 'q', 'paged' ) ) ) . '">Reset</a>';
 		}
 		$out .= '</form></div>';
+		// View switch: list is the default and the choice is remembered in
+		// the browser. The server renders list, so there is no flash before
+		// the script applies a stored grid preference.
+		$out .= '<div class="ob-deaths-index__view" role="group" aria-label="Obituary view">';
+		$out .= '<span class="ob-deaths-index__viewlabel" aria-hidden="true">View</span>';
+		$out .= '<button type="button" class="ob-view-btn" data-ob-view="list" aria-pressed="true">List</button>';
+		$out .= '<button type="button" class="ob-view-btn" data-ob-view="grid" aria-pressed="false">Grid</button>';
+		$out .= '</div>';
 		$hits = 0;
 		foreach ( (array) $q->posts as $post ) {
 			$uuid = (string) get_post_meta( (int) $post->ID, 'obit_uuid', true );
@@ -828,7 +837,7 @@ final class Shortcodes {
 			$out .= '<section class="ob-card"><p><em>' . esc_html( $message ) . '</em></p></section>';
 			return $out;
 		}
-		$out .= '<div class="ob-people ob-people--archive ob-deaths-index">';
+		$out .= '<div class="ob-people ob-people--archive ob-deaths-index ob-deaths-index--list" data-ob-obituaries>';
 		foreach ( $q->posts as $post ) {
 			$post_id = (int) $post->ID;
 			[ $birth, $death, $age ] = self::person_bits( $post_id );
@@ -844,6 +853,7 @@ final class Shortcodes {
 			$out .= Death_Wire::is_provisional( $post_id )
 				? '<span class="ob-person__status ob-person__status--provisional">Provisional</span>'
 				: '<span class="ob-person__status">In memoriam</span>';
+			$out .= '<div class="ob-person__body">';
 			if ( Death_Wire::is_provisional( $post_id ) ) {
 				$out .= '<span class="ob-badge ob-badge--provisional">Awaiting confirmation</span>';
 			} else {
@@ -853,10 +863,22 @@ final class Shortcodes {
 					? '<span class="ob-badge ob-badge--hit">Hit &middot; ' . esc_html( number_format_i18n( $picked_teams ) ) . ' team' . ( 1 === $picked_teams ? '' : 's' ) . '</span>'
 					: '<span class="ob-badge ob-badge--miss">Miss</span>';
 			}
+			// The points this death scores under the rules: 100 minus the age
+			// at death. Only stated when the age is known, so a partial-date
+			// record never displays a number the game would not award.
+			if ( null !== $age ) {
+				$points = \Obitleague\Domain\Value\Ruleset::points_for_age( (int) $age );
+				$out   .= '<span class="ob-badge ob-badge--points" title="' . esc_attr( sprintf( 'Scores %d points under the current rules; age at death %d.', $points, (int) $age ) ) . '">' . esc_html( number_format_i18n( $points ) ) . ' pts</span>';
+			}
 			$out .= '<p class="ob-person__name"><a href="' . esc_url( (string) get_permalink( $post ) ) . '">' . esc_html( get_the_title( $post ) ) . '</a></p>';
 			$role = Person_Content::descriptor( $post_id );
 			if ( '' !== $role ) {
 				$out .= '<p class="ob-person__role">' . esc_html( $role ) . '</p>';
+			}
+			// Occupations belong on the obituary card too, not only the profile.
+			$occ_primary = People_Sync::primary_occupation_link( $post_id );
+			if ( '' !== $occ_primary ) {
+				$out .= '<p class="ob-person__occ" title="' . esc_attr( implode( ', ', People_Sync::display_occupation_labels( $post_id ) ) ) . '">' . $occ_primary . '</p>';
 			}
 			$out .= '<p class="ob-person__dates">';
 			$out .= $death ? esc_html( 'd. ' . $death->label() ) : '';
@@ -872,38 +894,62 @@ final class Shortcodes {
 				}
 				$out .= '</div>';
 			}
+			$out .= '</div>';
 			$out .= '</article>';
 		}
 		$out .= '</div>';
-		$total_pages = (int) $q->max_num_pages;
-		if ( $total_pages > 1 ) {
-			$base = remove_query_arg( 'paged' );
-			$out .= '<nav class="ob-people__pagination" aria-label="Obituary pages">';
-			$out .= '<span class="ob-people__count">page ' . esc_html( number_format_i18n( $paged ) ) . ' of ' . esc_html( number_format_i18n( $total_pages ) ) . '</span>';
-			$out .= '<span class="ob-people__links">';
-			if ( $paged > 1 ) {
-				$out .= '<a class="ob-page-link" rel="prev" href="' . esc_url( add_query_arg( 'paged', $paged - 1, $base ) ) . '">&larr; Previous</a>';
-			}
-			$window_start = max( 1, $paged - 2 );
-			$window_end   = min( $total_pages, $paged + 2 );
-			for ( $p = $window_start; $p <= $window_end; ++$p ) {
-				$href = 1 === $p ? $base : add_query_arg( 'paged', $p, $base );
-				$out .= '<a class="ob-page-link' . ( $p === $paged ? ' is-current' : '' ) . '" href="' . esc_url( $href ) . '"' . ( $p === $paged ? ' aria-current="page"' : '' ) . '>' . esc_html( number_format_i18n( $p ) ) . '</a>';
-			}
-			if ( $paged < $total_pages ) {
-				$out .= '<a class="ob-page-link" rel="next" href="' . esc_url( add_query_arg( 'paged', $paged + 1, $base ) ) . '">Next &rarr;</a>';
-			}
-			$out .= '</span></nav>';
+		$out .= self::pagination_nav( $paged, (int) $q->max_num_pages, remove_query_arg( 'paged' ), 'Obituary pages' );
+		return $out;
+	}
+
+	/**
+	 * Shared pagination control: first/last, a ±2 window with ellipses, and
+	 * clear previous/next. One builder so every list pages the same way.
+	 */
+	private static function pagination_nav( int $paged, int $total_pages, string $base, string $aria_label ): string {
+		if ( $total_pages < 2 ) {
+			return '';
 		}
+		$paged = min( max( 1, $paged ), $total_pages );
+		$href  = static function ( int $page ) use ( $base ): string {
+			return 1 === $page ? $base : (string) add_query_arg( 'paged', $page, $base );
+		};
+		$out  = '<nav class="ob-people__pagination" aria-label="' . esc_attr( $aria_label ) . '">';
+		$out .= '<span class="ob-people__count">Page ' . esc_html( number_format_i18n( $paged ) ) . ' of ' . esc_html( number_format_i18n( $total_pages ) ) . '</span>';
+		$out .= '<span class="ob-people__links">';
+		if ( $paged > 1 ) {
+			$out .= '<a class="ob-page-link" href="' . esc_url( $href( 1 ) ) . '">&laquo; First</a>';
+			$out .= '<a class="ob-page-link" rel="prev" href="' . esc_url( $href( $paged - 1 ) ) . '">&larr; Previous</a>';
+		}
+		$start = max( 1, $paged - 2 );
+		$end   = min( $total_pages, $paged + 2 );
+		if ( $start > 1 ) {
+			$out .= '<span class="ob-page-gap">…</span>';
+		}
+		for ( $p = $start; $p <= $end; ++$p ) {
+			$current = $p === $paged ? ' is-current' : '';
+			$aria    = $p === $paged ? ' aria-current="page"' : '';
+			$out    .= '<a class="ob-page-link' . $current . '" href="' . esc_url( $href( $p ) ) . '"' . $aria . '>' . esc_html( number_format_i18n( $p ) ) . '</a>';
+		}
+		if ( $end < $total_pages ) {
+			$out .= '<span class="ob-page-gap">…</span>';
+		}
+		if ( $paged < $total_pages ) {
+			$out .= '<a class="ob-page-link" rel="next" href="' . esc_url( $href( $paged + 1 ) ) . '">Next &rarr;</a>';
+			$out .= '<a class="ob-page-link" href="' . esc_url( $href( $total_pages ) ) . '">Last &raquo;</a>';
+		}
+		$out .= '</span></nav>';
 		return $out;
 	}
 
 	public static function archive( $atts = array() ): string {
-		$year = isset( $_GET['ob_year'] ) ? sanitize_text_field( (string) $_GET['ob_year'] ) : '';
-		$args = array(
+		$year  = isset( $_GET['ob_year'] ) ? sanitize_text_field( (string) $_GET['ob_year'] ) : '';
+		$paged = max( 1, (int) ( $_GET['paged'] ?? ( get_query_var( 'paged' ) ?: 1 ) ) );
+		$args  = array(
 			'post_type'      => Catalogue::POST_TYPE,
 			'post_status'    => 'publish',
 			'posts_per_page' => 24,
+			'paged'          => $paged,
 			'meta_key'       => 'obit_death_date',
 			'meta_compare'   => 'EXISTS',
 			'orderby'        => 'meta_value',
@@ -946,6 +992,9 @@ final class Shortcodes {
 			$out .= '</p></article>';
 		}
 		$out .= '</div>';
+		// The archive holds every confirmed case, so it must page like the rest
+		// instead of dumping one grid with no way forward.
+		$out .= self::pagination_nav( $paged, (int) $q->max_num_pages, remove_query_arg( 'paged' ), 'Death archive pages' );
 		return self::style() . $out;
 	}
 

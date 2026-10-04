@@ -25,7 +25,7 @@ final class Admin_Death_Wire {
 	private const CAP  = 'obitleague_review';
 	private const PAGE = 'obitleague-death-wire';
 
-	private const TABS = array( 'overview', 'stories', 'phrases', 'sources' );
+	private const TABS = array( 'overview', 'people', 'stories', 'phrases', 'sources' );
 
 	private function __construct() {}
 
@@ -105,6 +105,7 @@ final class Admin_Death_Wire {
 		self::tab_nav( $tab );
 
 		match ( $tab ) {
+			'people'   => self::render_people(),
 			'stories'  => self::render_stories(),
 			'phrases'  => self::render_phrases(),
 			'sources'  => self::render_sources(),
@@ -117,6 +118,7 @@ final class Admin_Death_Wire {
 	private static function tab_nav( string $current ): void {
 		$labels = array(
 			'overview' => 'Overview',
+			'people'   => 'People',
 			'stories'  => 'Stories',
 			'phrases'  => 'Monitored phrases',
 			'sources'  => 'Sources',
@@ -195,6 +197,95 @@ final class Admin_Death_Wire {
 		if ( $cloud ) {
 			echo '<h2>Season wordcloud — the language of this year’s feed</h2>';
 			self::render_cloud( $cloud );
+		}
+	}
+
+	/* ------------------------------ people --------------------------- */
+
+	/**
+	 * People status table: every published person with a portrait, their
+	 * occupations, life dates and bio, and which editor-facing details are
+	 * still missing. Read-only — it makes the enrichment backlog visible per
+	 * record so an editor can see what a profile still lacks at a glance.
+	 */
+	private static function render_people(): void {
+		$limit = 200;
+		$query = new \WP_Query(
+			array(
+				'post_type'      => Catalogue::POST_TYPE,
+				'post_status'    => 'publish',
+				'posts_per_page' => $limit,
+				'orderby'        => 'date',
+				'order'          => 'DESC',
+			)
+		);
+
+		echo '<h2>People</h2>';
+		echo '<p>The published catalogue with the details each record carries. The status column names what is still missing — portrait, occupations, role or cause of death — which background enrichment fills from Wikidata.</p>';
+		echo '<p class="description">Showing the ' . esc_html( number_format_i18n( min( $limit, (int) $query->found_posts ) ) ) . ' most recent of ' . esc_html( number_format_i18n( (int) $query->found_posts ) ) . ' published people.</p>';
+
+		if ( ! $query->have_posts() ) {
+			echo '<p><em>No published people yet.</em></p>';
+			return;
+		}
+
+		echo '<div class="ob-admin-table-scroll"><table class="widefat striped ob-dw__peopletable"><thead><tr>';
+		echo '<th>Photo</th><th>Name</th><th>Occupations</th><th>Born</th><th>Died</th><th>Bio</th><th>Details</th>';
+		echo '</tr></thead><tbody>';
+		foreach ( $query->posts as $post ) {
+			$post_id = (int) $post->ID;
+			$image   = (string) get_post_meta( $post_id, People_Sync::META_IMAGE_URL, true );
+			$name    = (string) get_the_title( $post_id );
+			$occs    = People_Sync::display_occupation_labels( $post_id );
+			$birth   = self::admin_date( (string) get_post_meta( $post_id, 'obit_birth_date', true ) );
+			$death   = self::admin_date( (string) get_post_meta( $post_id, 'obit_death_date', true ) );
+			$bio     = trim( wp_strip_all_tags( (string) $post->post_content ) );
+			$present = array(
+				'image'       => '' !== $image,
+				'occupations' => array() !== $occs,
+				'role'        => '' !== trim( (string) get_post_meta( $post_id, 'obit_role', true ) ),
+				'cause'       => '' !== trim( (string) get_post_meta( $post_id, 'obit_cause_text', true ) )
+					|| '' !== (string) get_post_meta( $post_id, People_Sync::META_CAUSE_SOURCE, true ),
+			);
+			$missing = People_Sync::missing_field_labels( $present );
+
+			echo '<tr>';
+			echo '<td>';
+			if ( '' !== $image ) {
+				echo '<img class="ob-dw__photo" src="' . esc_url( $image ) . '" alt="" />';
+			} else {
+				echo '<span class="ob-dw__photo ob-dw__photo--blank" aria-hidden="true">' . esc_html( mb_substr( $name, 0, 1 ) ) . '</span>';
+			}
+			echo '</td>';
+			echo '<td><strong><a href="' . esc_url( (string) ( get_edit_post_link( $post_id ) ?: '#' ) ) . '">' . esc_html( $name ) . '</a></strong>';
+			$role = Person_Content::descriptor( $post_id );
+			if ( '' !== $role ) {
+				echo '<br /><span class="description">' . esc_html( $role ) . '</span>';
+			}
+			echo '</td>';
+			echo '<td>' . ( array() !== $occs ? esc_html( implode( ', ', $occs ) ) : '&mdash;' ) . '</td>';
+			echo '<td>' . ( '' !== $birth ? esc_html( $birth ) : '&mdash;' ) . '</td>';
+			echo '<td>' . ( '' !== $death ? esc_html( $death ) : '&mdash;' ) . '</td>';
+			echo '<td>' . ( '' !== $bio ? esc_html( wp_html_excerpt( $bio, 120, '…' ) ) : '&mdash;' ) . '</td>';
+			echo '<td>' . ( $missing
+				? '<span class="ob-admin-pill">Missing ' . esc_html( implode( ', ', $missing ) ) . '</span>'
+				: '<span class="ob-admin-pill ob-admin-pill--ok">Complete</span>' ) . '</td>';
+			echo '</tr>';
+		}
+		echo '</tbody></table></div>';
+		wp_reset_postdata();
+	}
+
+	/** Parse a stored partial date for display; a malformed value shows as-is. */
+	private static function admin_date( string $raw ): string {
+		$raw = trim( $raw );
+		if ( '' === $raw ) {
+			return '';
+		}
+		try {
+			return Import_Service::parse_partial( $raw )->label();
+		} catch ( \InvalidArgumentException ) {
+			return $raw;
 		}
 	}
 

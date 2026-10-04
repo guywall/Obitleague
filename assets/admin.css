@@ -22,6 +22,26 @@
 	vertical-align: middle;
 }
 
+.ob-admin-pill--ok {
+	border-color: #8bc34a;
+	background: #f0f7e8;
+	color: #2b4a12;
+}
+
+/* People status table thumbnail. */
+.ob-dw__photo {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	border-radius: 3px;
+	object-fit: cover;
+	background: #f0f0f1;
+	color: #50575e;
+	font-weight: 700;
+}
+
 /* ---------- death wire screen: tabs, stat cards, modal ---------- */
 
 .ob-dw .nav-tab-wrapper {

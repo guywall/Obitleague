@@ -1161,3 +1161,123 @@
 	color: var(--ob-muted);
 	white-space: nowrap;
 }
+
+/* ---------- obituaries: list/grid switch ---------- */
+/* The filter chips share the toolbar class, which space-betweens its
+   children; a row of three chips should sit together at the left. */
+.ob-deaths-index__filters {
+	justify-content: flex-start;
+}
+/* The generic content-link rule darkens anchors inside .ob-page; the active
+   chip is a dark pill, so it must keep its white ink there. */
+.ob-main .ob-page a.ob-chip.is-active,
+.ob-main .ob-page a.ob-chip.is-active:hover {
+	color: #ffffff !important;
+}
+.ob-deaths-index__view {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	margin: 0 0 14px;
+}
+.ob-deaths-index__viewlabel {
+	font-size: 0.68rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.14em;
+	color: var(--ob-muted);
+	margin-right: 2px;
+}
+.ob-view-btn {
+	padding: 7px 15px;
+	min-height: 38px;
+	border: 1px solid var(--ob-line);
+	border-radius: var(--ob-radius-sm);
+	background: var(--ob-card);
+	color: var(--ob-ink);
+	font-family: inherit;
+	font-size: 0.82rem;
+	font-weight: 700;
+	cursor: pointer;
+}
+.ob-view-btn:hover {
+	border-color: var(--ob-accent);
+}
+.ob-view-btn[aria-pressed="true"] {
+	background: var(--ob-accent-deep);
+	border-color: var(--ob-accent-deep);
+	color: #ffffff;
+}
+
+/* The points a death scores under the current rules. */
+.ob-badge--points {
+	background: var(--ob-ink);
+	color: #ffffff;
+	font-variant-numeric: tabular-nums;
+}
+
+/* List view is the default: one scannable row per death. */
+.ob-deaths-index--list {
+	grid-template-columns: 1fr;
+	gap: 8px;
+}
+.ob-deaths-index--list .ob-person {
+	display: flex;
+	align-items: flex-start;
+	gap: 14px;
+	padding: 12px 14px;
+}
+.ob-deaths-index--list .ob-person__avatar {
+	margin: 0;
+	flex: 0 0 auto;
+}
+.ob-deaths-index--list .ob-person__body {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	column-gap: 12px;
+	row-gap: 4px;
+	flex: 1 1 auto;
+	min-width: 0;
+}
+.ob-deaths-index--list .ob-person__body > * {
+	margin: 0;
+}
+.ob-deaths-index--list .ob-person__name { order: 1; flex: 1 1 auto; }
+.ob-deaths-index--list .ob-person__dates { order: 2; }
+.ob-deaths-index--list .ob-person__role { order: 3; }
+.ob-deaths-index--list .ob-person__occ { order: 4; }
+.ob-deaths-index--list .ob-badge { order: 5; }
+.ob-deaths-index--list .ob-person__sources { order: 6; flex: 1 1 100%; margin-top: 2px; }
+
+/* Larger, easier pagination targets. */
+.ob-page-link {
+	display: inline-flex;
+	align-items: center;
+	padding: 9px 14px;
+	min-height: 40px;
+	font-size: 0.9rem;
+}
+
+@media (max-width: 720px) {
+	/* The search form's flex-basis was written for the row toolbar; in the
+	   stacked toolbar it becomes a fixed height and leaves a big empty block
+	   above the results. Reset it to its content. */
+	.ob-people__search {
+		flex: 0 0 auto;
+		max-width: none;
+	}
+	/* Keep the All/Hits/Misses chips on one line instead of three full-width
+	   bars; that stacking was most of the space above the obituaries. */
+	.ob-deaths-index__filters {
+		flex-direction: row;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: flex-start;
+		gap: 6px;
+	}
+	.ob-people__toolbar {
+		gap: 10px;
+		margin-bottom: 10px;
+	}
+}

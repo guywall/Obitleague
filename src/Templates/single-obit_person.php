@@ -33,8 +33,8 @@ $enwiki     = (string) get_post_meta( $post_id, 'obit_enwiki', true );
 $content    = get_the_content( null, false, $post_id );
 $portrait   = (string) get_post_meta( $post_id, People_Sync::META_IMAGE_URL, true );
 $credit     = (string) get_post_meta( $post_id, People_Sync::META_IMAGE_CREDIT, true );
-$occs       = People_Sync::occupation_labels( $post_id );
-$occ_primary = People_Sync::primary_occupation( $post_id );
+$occs       = People_Sync::display_occupation_labels( $post_id );
+$occ_primary = People_Sync::primary_occupation_label( $post_id );
 
 $birth = '' !== $birth_raw ? Import_Service::parse_partial( $birth_raw ) : null;
 $death = '' !== $death_raw ? Import_Service::parse_partial( $death_raw ) : null;
@@ -131,7 +131,7 @@ get_header();
 						?>
 						<p class="ob-profile__occ" title="<?php echo esc_attr( implode( ', ', $occs ) ); ?>"><?php echo esc_html( $occ_display ); ?></p>
 					<?php endif; ?>
-					<?php $occ_tags = People_Sync::occupation_term_links( $post_id ); ?>
+					<?php $occ_tags = People_Sync::display_occupation_links( $post_id ); ?>
 					<?php if ( array() !== $occ_tags ) : ?>
 						<p class="ob-profile__occ-tags"><?php echo implode( '', $occ_tags ); // pre-escaped links. ?></p>
 					<?php endif; ?>
@@ -183,8 +183,10 @@ get_header();
 			<section class="ob-card ob-anim">
 				<h2 class="ob-card__title">Approved facts</h2>
 				<dl class="obitleague-person__facts obitleague-person__facts--panel">
-					<dt><?php esc_html_e( 'Occupations', 'obitleague' ); ?></dt>
-					<dd><?php echo esc_html( implode( ', ', $occs ) ); ?></dd>
+					<?php if ( array() !== $occs ) : ?>
+						<dt><?php esc_html_e( 'Occupations', 'obitleague' ); ?></dt>
+						<dd><?php echo esc_html( implode( ', ', $occs ) ); ?></dd>
+					<?php endif; ?>
 					<dt><?php esc_html_e( 'Born', 'obitleague' ); ?></dt>
 					<dd><?php echo $birth ? esc_html( $birth->label() ) : esc_html__( 'Unknown', 'obitleague' ); ?></dd>
 					<?php if ( $is_dead && $death ) : ?>
@@ -298,6 +300,24 @@ get_header();
 				<section class="ob-card ob-pickstats ob-pickstats--unpicked">
 					<h2 class="ob-card__title"><?php esc_html_e( 'Picked by', 'obitleague' ); ?></h2>
 					<p class="ob-pickstats__share"><?php esc_html_e( 'Nobody has taken this name yet.', 'obitleague' ); ?></p>
+				</section>
+			<?php endif; ?>
+
+			<?php if ( array() !== $news_sources ) : ?>
+				<section class="ob-card ob-sources ob-sources--news">
+					<h2 class="ob-card__title"><?php esc_html_e( 'In the news', 'obitleague' ); ?></h2>
+					<p class="ob-sources__subhead">Public reporting on this death</p>
+					<ul class="ob-sources__news">
+						<?php foreach ( $news_sources as $src ) : ?>
+							<li>
+								<a href="<?php echo esc_url( $src['url'] ); ?>" rel="nofollow noopener" target="_blank"><?php echo esc_html( '' !== $src['name'] ? $src['name'] : __( 'Report', 'obitleague' ) ); ?></a>
+								<?php if ( '' !== $src['date'] ) : ?>
+									<span><?php echo esc_html( $src['date'] ); ?></span>
+								<?php endif; ?>
+							</li>
+						<?php endforeach; ?>
+					</ul>
+					<p class="ob-sources__note">Every report here is attached to the record by an editor and listed as the death's public sourcing.</p>
 				</section>
 			<?php endif; ?>
 

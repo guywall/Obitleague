@@ -695,17 +695,71 @@ final class People_Sync {
 	}
 
 	/**
+	 * The occupation labels a public page should show for one person: the
+	 * stored Wikidata labels when present, otherwise the browsable taxonomy
+	 * terms. Profile pages and cards read this so a record enriched through
+	 * either path still shows its occupations instead of an empty line — the
+	 * stored list and its term mirror can land in different passes.
+	 *
+	 * @return string[] Cleaned labels in order.
+	 */
+	public static function display_occupation_labels( int $post_id ): array {
+		$labels = self::occupation_labels( $post_id );
+		if ( array() !== $labels ) {
+			return $labels;
+		}
+		$terms = get_the_terms( $post_id, Catalogue::TAX_OCCUPATION );
+		if ( ! is_array( $terms ) ) {
+			return array();
+		}
+		$out = array();
+		foreach ( $terms as $term ) {
+			if ( ! $term instanceof \WP_Term ) {
+				continue;
+			}
+			$label = trim( (string) $term->name );
+			if ( '' !== $label ) {
+				$out[] = $label;
+			}
+		}
+		return array_values( array_unique( $out ) );
+	}
+
+	/**
+	 * Every occupation of a person as a pre-escaped tag, linked to its archive
+	 * term when one exists and plain otherwise. Reads the same source as the
+	 * profile list, so the list and its tags can never disagree.
+	 *
+	 * @return string[] Pre-escaped <a>/<span> elements.
+	 */
+	public static function display_occupation_links( int $post_id ): array {
+		$out = array();
+		foreach ( self::display_occupation_labels( $post_id ) as $label ) {
+			$term = get_term_by( 'name', $label, Catalogue::TAX_OCCUPATION );
+			if ( $term instanceof \WP_Term ) {
+				$link = get_term_link( $term );
+				if ( ! is_wp_error( $link ) ) {
+					$out[] = '<a class="ob-occ-tag" href="' . esc_url( (string) $link ) . '">' . esc_html( $label ) . '</a>';
+					continue;
+				}
+			}
+			$out[] = '<span class="ob-occ-tag ob-occ-tag--plain">' . esc_html( $label ) . '</span>';
+		}
+		return $out;
+	}
+
+	/**
 	 * The one occupation a catalogue card or search result should show: the
-	 * stored preferred-rank occupation, falling back to the first recorded
-	 * label. The full comma-separated list belongs on the profile page, not
-	 * on every tile the person appears in.
+	 * stored preferred-rank occupation, falling back to the first label from
+	 * whichever source holds one. The full list belongs on the profile page,
+	 * not on every tile the person appears in.
 	 */
 	public static function primary_occupation_label( int $post_id ): string {
 		$primary = self::primary_occupation( $post_id );
 		if ( '' !== $primary ) {
 			return $primary;
 		}
-		$labels = self::occupation_labels( $post_id );
+		$labels = self::display_occupation_labels( $post_id );
 		return (string) ( $labels[0] ?? '' );
 	}
 
