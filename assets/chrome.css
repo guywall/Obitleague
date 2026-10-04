@@ -1164,6 +1164,8 @@ img.ob-profile__avatar--img {
 }
 .ob-pick-result,
 .ob-wikidata-search {
+	box-sizing: border-box;
+	min-width: 0;
 	width: 100%;
 	padding: 10px 12px;
 	border: 1px solid var(--ob-line);
@@ -1178,6 +1180,7 @@ img.ob-profile__avatar--img {
 	display: block;
 	font-weight: 700;
 	color: var(--ob-ink);
+	overflow-wrap: anywhere;
 }
 .ob-pick-result__meta {
 	display: block;
@@ -1194,6 +1197,8 @@ img.ob-profile__avatar--img {
 }
 .ob-pick-result__wiki {
 	justify-self: end;
+	box-sizing: border-box;
+	max-width: 100%;
 	padding: 8px 12px;
 	border: 1px solid var(--ob-line);
 	border-radius: 3px;
@@ -1213,8 +1218,17 @@ img.ob-profile__avatar--img {
 	.ob-side-editor ul li.ob-pick-result-item {
 		grid-template-columns: minmax(0, 1fr);
 	}
+	/* Stacked below the name: the identity link becomes an ordinary inline
+	   link so a long label wraps instead of widening the row. */
 	.ob-pick-result__wiki {
 		justify-self: start;
+		white-space: normal;
+		overflow-wrap: anywhere;
+		padding: 4px 0;
+		border: 0;
+		background: transparent;
+		text-decoration: underline;
+		text-underline-offset: 3px;
 	}
 }
 .ob-pick-result small,
@@ -1225,6 +1239,12 @@ img.ob-profile__avatar--img {
 	color: var(--ob-muted);
 	font-size: 0.76rem;
 	font-weight: 500;
+	overflow-wrap: anywhere;
+}
+.ob-main-picks li > span,
+.ob-side-editor ol li > span {
+	min-width: 0;
+	overflow-wrap: anywhere;
 }
 .ob-main-picks li,
 .ob-side-editor ol li {
@@ -1982,6 +2002,7 @@ a.ob-pick__name:hover {
 /* ---------- occupation tags ---------- */
 .ob-occ-tag {
 	display: inline-block;
+	max-width: 100%;
 	margin: 0 4px 4px 0;
 	padding: 3px 9px;
 	border: 1px solid var(--ob-line);
@@ -1993,6 +2014,7 @@ a.ob-pick__name:hover {
 	text-transform: uppercase;
 	letter-spacing: 0.14em;
 	text-decoration: none;
+	overflow-wrap: anywhere;
 	transition: border-color 0.15s, color 0.15s;
 }
 .ob-occ-tag:hover {

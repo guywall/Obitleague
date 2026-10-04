@@ -617,10 +617,14 @@ final class Shortcodes {
 			}
 			$out .= '<span class="ob-person__status">' . ( $death ? 'In memoriam' : 'Living' ) . '</span>';
 			$out .= '<p class="ob-person__name"><a href="' . esc_url( (string) get_permalink( $post ) ) . '">' . esc_html( get_the_title( $post ) ) . '</a></p>';
-			$out .= '<p class="ob-person__role">' . esc_html( (string) get_post_meta( $post->ID, 'obit_role', true ) ) . '</p>';
-			$occ = People_Sync::occupation_labels( (int) $post->ID );
-			if ( array() !== $occ ) {
-				$out .= '<p class="ob-person__occ" title="' . esc_attr( implode( ', ', $occ ) ) . '">' . esc_html( implode( ', ', $occ ) ) . '</p>';
+			$role = Person_Content::descriptor( (int) $post->ID );
+			if ( '' !== $role ) {
+				$out .= '<p class="ob-person__role">' . esc_html( $role ) . '</p>';
+			}
+			// One occupation per tile; the full list lives on the profile page.
+			$occ_primary = People_Sync::primary_occupation_link( (int) $post->ID );
+			if ( '' !== $occ_primary ) {
+				$out .= '<p class="ob-person__occ" title="' . esc_attr( implode( ', ', People_Sync::occupation_labels( (int) $post->ID ) ) ) . '">' . $occ_primary . '</p>';
 			}
 			$out .= '<p class="ob-person__dates">';
 			$out .= $birth ? esc_html( 'b. ' . $birth->label() ) : '';
@@ -850,7 +854,10 @@ final class Shortcodes {
 					: '<span class="ob-badge ob-badge--miss">Miss</span>';
 			}
 			$out .= '<p class="ob-person__name"><a href="' . esc_url( (string) get_permalink( $post ) ) . '">' . esc_html( get_the_title( $post ) ) . '</a></p>';
-			$out .= '<p class="ob-person__role">' . esc_html( (string) get_post_meta( $post_id, 'obit_role', true ) ) . '</p>';
+			$role = Person_Content::descriptor( $post_id );
+			if ( '' !== $role ) {
+				$out .= '<p class="ob-person__role">' . esc_html( $role ) . '</p>';
+			}
 			$out .= '<p class="ob-person__dates">';
 			$out .= $death ? esc_html( 'd. ' . $death->label() ) : '';
 			$out .= ( null !== $age ) ? esc_html( ' · age ' . $age ) : '';
@@ -924,10 +931,14 @@ final class Shortcodes {
 			}
 			$out .= '<span class="ob-person__status">In memoriam</span>';
 			$out .= '<p class="ob-person__name"><a href="' . esc_url( (string) get_permalink( $post ) ) . '">' . esc_html( get_the_title( $post ) ) . '</a></p>';
-			$out .= '<p class="ob-person__role">' . esc_html( (string) get_post_meta( $post->ID, 'obit_role', true ) ) . '</p>';
-			$occ = People_Sync::occupation_labels( (int) $post->ID );
-			if ( array() !== $occ ) {
-				$out .= '<p class="ob-person__occ" title="' . esc_attr( implode( ', ', $occ ) ) . '">' . esc_html( implode( ', ', $occ ) ) . '</p>';
+			$role = Person_Content::descriptor( (int) $post->ID );
+			if ( '' !== $role ) {
+				$out .= '<p class="ob-person__role">' . esc_html( $role ) . '</p>';
+			}
+			// One occupation per tile; the full list lives on the profile page.
+			$occ_primary = People_Sync::primary_occupation_link( (int) $post->ID );
+			if ( '' !== $occ_primary ) {
+				$out .= '<p class="ob-person__occ" title="' . esc_attr( implode( ', ', People_Sync::occupation_labels( (int) $post->ID ) ) ) . '">' . $occ_primary . '</p>';
 			}
 			$out .= '<p class="ob-person__dates">';
 			$out .= $death ? esc_html( 'd. ' . $death->label() ) : '';

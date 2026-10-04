@@ -12,6 +12,7 @@ declare( strict_types = 1 );
 
 use Obitleague\Modules\Import_Service;
 use Obitleague\Modules\People_Sync;
+use Obitleague\Modules\Person_Content;
 
 get_header();
 ?>
@@ -29,7 +30,8 @@ get_header();
 				the_post();
 				$post_id   = (int) get_the_ID();
 				$name      = get_the_title( $post_id );
-				$role      = (string) get_post_meta( $post_id, 'obit_role', true );
+				// Cleaned descriptor: a raw role can carry a leaked cause of death.
+				$role      = Person_Content::descriptor( $post_id );
 				$birth_raw = (string) get_post_meta( $post_id, 'obit_birth_date', true );
 				$death_raw = (string) get_post_meta( $post_id, 'obit_death_date', true );
 				$birth     = null;
@@ -58,9 +60,9 @@ get_header();
 					<?php if ( '' !== $role ) : ?>
 						<p class="ob-person__role"><?php echo esc_html( $role ); ?></p>
 					<?php endif; ?>
-					<?php $occ_links = People_Sync::occupation_term_links( $post_id ); ?>
-					<?php if ( array() !== $occ_links ) : ?>
-						<p class="ob-person__occ"><?php echo implode( '', $occ_links ); // pre-escaped links. ?></p>
+					<?php $occ_primary = People_Sync::primary_occupation_link( $post_id ); ?>
+					<?php if ( '' !== $occ_primary ) : ?>
+						<p class="ob-person__occ" title="<?php echo esc_attr( implode( ', ', People_Sync::occupation_labels( $post_id ) ) ); ?>"><?php echo $occ_primary; // pre-escaped link. ?></p>
 					<?php endif; ?>
 					<p class="ob-person__dates">
 						<?php

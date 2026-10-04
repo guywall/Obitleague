@@ -695,6 +695,41 @@ final class People_Sync {
 	}
 
 	/**
+	 * The one occupation a catalogue card or search result should show: the
+	 * stored preferred-rank occupation, falling back to the first recorded
+	 * label. The full comma-separated list belongs on the profile page, not
+	 * on every tile the person appears in.
+	 */
+	public static function primary_occupation_label( int $post_id ): string {
+		$primary = self::primary_occupation( $post_id );
+		if ( '' !== $primary ) {
+			return $primary;
+		}
+		$labels = self::occupation_labels( $post_id );
+		return (string) ( $labels[0] ?? '' );
+	}
+
+	/**
+	 * The primary occupation as one pre-escaped archive link, or '' when the
+	 * person has none. Cards show a single occupation; the profile page uses
+	 * `occupation_term_links()` to list every term.
+	 */
+	public static function primary_occupation_link( int $post_id ): string {
+		$label = self::primary_occupation_label( $post_id );
+		if ( '' === $label ) {
+			return '';
+		}
+		$term = get_term_by( 'name', $label, Catalogue::TAX_OCCUPATION );
+		if ( $term instanceof \WP_Term ) {
+			$link = get_term_link( $term );
+			if ( ! is_wp_error( $link ) ) {
+				return '<a class="ob-occ-tag" href="' . esc_url( (string) $link ) . '">' . esc_html( $label ) . '</a>';
+			}
+		}
+		return '<span class="ob-occ-tag ob-occ-tag--plain">' . esc_html( $label ) . '</span>';
+	}
+
+	/**
 	 * Escaped links to the occupation archive for each assigned term.
 	 * Empty array when the person has no occupation terms.
 	 *

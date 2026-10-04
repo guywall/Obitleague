@@ -12,7 +12,9 @@
 		var bits=[];
 		if(person.age!==null&&person.age!==undefined)bits.push('age '+person.age);
 		else if(person.birth)bits.push('born '+person.birth);
-		if(person.occupations&&person.occupations.length)bits.push(person.occupations.join(', '));
+		// One occupation only: a full comma list overflows the result row on
+		// phones. The profile page is where every occupation is listed.
+		if(person.occupations&&person.occupations.length)bits.push(person.occupations[0]);
 		else if(person.role)bits.push(person.role);
 		if(source==='wikidata'&&person.qid)bits.push(person.qid);
 		return bits.join(' · ');
@@ -73,7 +75,7 @@
 					if(source==='local'){add(candidate);return;}
 					button.disabled=true;button.firstChild.textContent='Adding '+candidate.name+' to the site…';
 					request('/wikidata/people','POST',{qid:candidate.qid}).then(function(added){
-						add({uuid:added.uuid,name:added.name,age:candidate.age,birth:candidate.birth,occupations:candidate.occupations,role:(candidate.occupations||[]).join(', ')});
+						add({uuid:added.uuid,name:added.name,age:candidate.age,birth:candidate.birth,occupations:candidate.occupations,role:(candidate.occupations||[])[0]||''});
 					}).catch(function(error){message.textContent=error.message;button.disabled=false;button.firstChild.textContent=candidate.name;});
 				}));
 			});
