@@ -128,4 +128,21 @@ final class Scenario_People_Sync {
 			'unusable input still yields a usable cutoff'
 		);
 	}
+
+	public function test_sweep_limit_survives_the_hook_empty_string( Runner $t ): void {
+		// WordPress calls a one-accepted-arg hook callback with a single '',
+		// which a typed $limit used to reject with a TypeError and that took
+		// the whole daily profile refresh down. The cap must absorb it.
+		$t->check(
+			People_Sync::SWEEP_LIMIT === People_Sync::sweep_limit( '' ),
+			__METHOD__,
+			"WordPress's empty-string hook arg falls back to the default cap"
+		);
+		$t->check( 250 === People_Sync::sweep_limit( 250 ), __METHOD__, 'a positive int is honoured' );
+		$t->check( 250 === People_Sync::sweep_limit( '250' ), __METHOD__, 'a numeric string is honoured' );
+		$t->check( People_Sync::SWEEP_LIMIT === People_Sync::sweep_limit( 0 ), __METHOD__, 'zero falls back' );
+		$t->check( People_Sync::SWEEP_LIMIT === People_Sync::sweep_limit( -5 ), __METHOD__, 'a negative cap falls back' );
+		$t->check( People_Sync::SWEEP_LIMIT === People_Sync::sweep_limit( null ), __METHOD__, 'null falls back' );
+		$t->check( People_Sync::SWEEP_LIMIT === People_Sync::sweep_limit( 'nope' ), __METHOD__, 'a non-numeric string falls back' );
+	}
 }

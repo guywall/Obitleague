@@ -55,13 +55,20 @@ final class People_Sync {
 	/** How long a settled record waits before the sweep re-checks it. */
 	public const SETTLE_REFRESH_SECONDS = 2592000; // 30 days.
 
+	/** Records the daily sweep enqueues per run. */
+	public const SWEEP_LIMIT = 400;
+
 	/** Public although the class is static-only: WP-CLI instantiates array callables when invoking commands. */
 	public function __construct() {}
 
 	/** Keep the derived sort/birth-year meta fresh on every person save. */
 	public static function boot(): void {
 		add_action( 'save_post_' . Catalogue::POST_TYPE, array( self::class, 'compute_sort_meta' ), 20, 1 );
-		add_action( 'obitleague_profile_refresh_tick', array( self::class, 'enqueue_missing' ) );
+		// Zero accepted args on purpose. With the default of one, WordPress
+		// calls the callback with a single '' ($args[0] ?? ''), which a typed
+		// $limit rejects with a TypeError and takes the whole daily refresh
+		// down before it can enqueue or stamp anything.
+		add_action( 'obitleague_profile_refresh_tick', array( self::class, 'enqueue_missing' ), 10, 0 );
 		Wiki_Request_Queue::register_handler(
 			'enrich_person',
 			static function ( array $payload ) {
@@ -106,9 +113,10 @@ final class People_Sync {
 	 *
 	 * @return array{checked:int, missing:int, enqueued:int, failed:int}
 	 */
-	public static function enqueue_missing( int $limit = 400 ): array {
+	public static function enqueue_missing( $limit = self::SWEEP_LIMIT ): array {
 		global $wpdb;
 
+		$limit               = self::sweep_limit( $limit );
 		list( $from, $args ) = self::missing_enrichment_query();
 		$args[]              = self::settle_cutoff( current_time( 'mysql', true ) );
 		$args[]              = max( 1, $limit );
@@ -192,6 +200,20 @@ final class People_Sync {
 				Catalogue::POST_TYPE,
 			),
 		);
+	}
+
+	/**
+	 * The sweep's per-run record cap, normalising whatever a caller hands in.
+	 * A hook callback registered with the default one accepted argument is
+	 * called with a single '', so the cap must accept that shape rather than
+	 * type-hint int and fatal the scheduled run. Pure, so the fallback is
+	 * verifiable without WordPress.
+	 *
+	 * @param mixed $limit A requested cap; anything unusable falls back.
+	 */
+	public static function sweep_limit( $limit ): int {
+		$n = is_numeric( $limit ) ? (int) $limit : 0;
+		return $n > 0 ? $n : self::SWEEP_LIMIT;
 	}
 
 	/**
