@@ -56,6 +56,11 @@ final class Jobs {
 		if ( ! \wp_next_scheduled( self::HOOK_DEATH_WIRE_TICK ) ) {
 			\wp_schedule_event( time() + 600, 'hourly', self::HOOK_DEATH_WIRE_TICK );
 		}
+		// The daily profile sweep keeps occupations and portraits fresh with no
+		// manual run; re-arm it here so a lost schedule cannot go unnoticed.
+		if ( ! \wp_next_scheduled( self::HOOK_REFRESH ) ) {
+			\wp_schedule_event( time() + 300, 'daily', self::HOOK_REFRESH );
+		}
 	}
 
 	/** @param array<string, array{interval:int, display:string}> $schedules */
