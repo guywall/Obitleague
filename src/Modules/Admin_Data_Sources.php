@@ -32,6 +32,7 @@ final class Admin_Data_Sources {
 	public static function boot(): void {
 		add_action( 'admin_menu', array( self::class, 'menu' ) );
 		add_action( 'admin_post_obitleague_sync_enqueue_people', array( self::class, 'handle_enqueue_people' ) );
+		add_action( 'admin_post_obitleague_sync_backfill_people', array( self::class, 'handle_backfill_people' ) );
 		add_action( 'admin_post_obitleague_sync_drain_queue', array( self::class, 'handle_drain_queue' ) );
 		add_action( 'admin_post_obitleague_sync_clear_pause', array( self::class, 'handle_clear_pause' ) );
 		add_action( 'admin_post_obitleague_sync_retry_failed', array( self::class, 'handle_retry_failed' ) );
@@ -69,6 +70,36 @@ final class Admin_Data_Sources {
 			self::redirect_error( $notice . sprintf( ' %d request(s) could not be stored in the Wikimedia request queue — nothing will run until that is fixed.', (int) $stats['failed'] ) );
 		}
 		self::redirect_notice( $notice );
+	}
+
+	/**
+	 * One-click direct backfill: fetch Wikidata now for the people still
+	 * missing occupations or a portrait, bounded so a web request cannot run
+	 * forever. The drained-queue path stays the queued sweep; this is the
+	 * immediate catch-up.
+	 */
+	public static function handle_backfill_people(): void {
+		self::guard( 'obitleague_sync_backfill_people' );
+		$scope     = sanitize_key( wp_unslash( (string) ( $_POST['scope'] ?? 'deceased' ) ) );
+		$published = 'published' === $scope;
+		$limit     = max( 1, min( 200, (int) ( $_POST['limit'] ?? 50 ) ) );
+		$refresh   = ! empty( $_POST['refresh'] );
+		$targets   = People_Sync::backfill_targets( ! $published, $limit, $refresh );
+		if ( ! $targets ) {
+			self::redirect_notice( 'Nothing to backfill: every target has occupations and a portrait, or was checked recently (tick “re-check settled records” to force it).' );
+		}
+		// No long rate-limit sleeps in a web request; the queued sweep is what
+		// waits out a parked source. This pass just makes an immediate attempt.
+		$stats = People_Sync::backfill_people( $targets, null, false );
+		$note  = sprintf(
+			'Backfilled %1$d %2$s people from Wikidata: %3$d now have occupations, %4$d a portrait',
+			(int) $stats['targets'],
+			$published ? 'published' : 'deceased',
+			(int) $stats['occupations'],
+			(int) $stats['portraits']
+		);
+		$note .= (int) $stats['no_qid'] > 0 ? sprintf( '; %d had no Wikidata id and were skipped.', (int) $stats['no_qid'] ) : '.';
+		self::redirect_notice( $note );
 	}
 
 	public static function handle_drain_queue(): void {
@@ -316,6 +347,14 @@ final class Admin_Data_Sources {
 		}
 		echo '</p>';
 
+		// The actionable number: how much is still missing, split so living vs
+		// deceased is visible rather than folded into one coverage ratio.
+		$gaps = People_Sync::coverage_gaps();
+		echo '<p><strong>' . number_format_i18n( $gaps['occupations']['all'] ) . '</strong> still missing occupations ('
+			. number_format_i18n( $gaps['occupations']['living'] ) . ' living · ' . number_format_i18n( $gaps['occupations']['deceased'] ) . ' deceased) · <strong>'
+			. number_format_i18n( $gaps['portraits']['all'] ) . '</strong> still missing a portrait ('
+			. number_format_i18n( $gaps['portraits']['living'] ) . ' living · ' . number_format_i18n( $gaps['portraits']['deceased'] ) . ' deceased).</p>';
+
 		// A drained queue is not an empty backlog: report who still needs
 		// enrichment even when nothing is in flight, so the gap is visible
 		// here rather than inferred from a page that looks unfinished.
@@ -391,6 +430,26 @@ final class Admin_Data_Sources {
 		submit_button( 'Enqueue missing people now', 'secondary', 'submit', false );
 		echo '</form>';
 		echo '<p class="description">The daily profile refresh runs this same scan automatically, so gaps self-heal even without a manual pass.</p>';
+
+		// The immediate path: fetch from Wikidata now instead of waiting on the
+		// queue, for when the backlog needs clearing by hand.
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top:10px">';
+		wp_nonce_field( 'obitleague_sync_backfill_people' );
+		echo '<input type="hidden" name="action" value="obitleague_sync_backfill_people" />';
+		echo '<label for="ob-backfill-scope" class="description" style="margin-right:6px">Backfill</label> ';
+		echo '<select id="ob-backfill-scope" name="scope">';
+		echo '<option value="deceased">deceased people</option>';
+		echo '<option value="published">all published people</option>';
+		echo '</select> ';
+		echo '<label for="ob-backfill-limit" class="description" style="margin-right:6px">up to</label> ';
+		echo '<select id="ob-backfill-limit" name="limit">';
+		foreach ( array( 25, 50, 100, 200 ) as $n ) {
+			echo '<option value="' . (int) $n . '"' . ( 50 === $n ? ' selected' : '' ) . '>' . number_format_i18n( $n ) . '</option>';
+		}
+		echo '</select> <label class="description" style="margin-right:10px"><input type="checkbox" name="refresh" value="1" /> re-check settled records</label>';
+		submit_button( 'Backfill now (fetch from Wikidata)', 'primary', 'submit', false );
+		echo '</form>';
+		echo '<p class="description">Fetches straight from Wikidata and stamps each record checked, so it is safe to repeat. A pass can fill fewer people than it scans when the source holds no occupation or portrait for them.</p>';
 	}
 
 	/** Discovery controls and pause state. */

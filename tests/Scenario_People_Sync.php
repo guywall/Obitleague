@@ -145,4 +145,27 @@ final class Scenario_People_Sync {
 		$t->check( People_Sync::SWEEP_LIMIT === People_Sync::sweep_limit( null ), __METHOD__, 'null falls back' );
 		$t->check( People_Sync::SWEEP_LIMIT === People_Sync::sweep_limit( 'nope' ), __METHOD__, 'a non-numeric string falls back' );
 	}
+
+	public function test_gap_counts_split_and_clamp( Runner $t ): void {
+		$t->check(
+			array( 'all' => 10, 'living' => 6, 'deceased' => 4 ) === People_Sync::gap_counts( 10, 4 ),
+			__METHOD__,
+			'the deceased part is subtracted to give the living part'
+		);
+		$t->check(
+			array( 'all' => 5, 'living' => 5, 'deceased' => 0 ) === People_Sync::gap_counts( 5, 0 ),
+			__METHOD__,
+			'no deceased records leaves everything living'
+		);
+		$t->check(
+			array( 'all' => 3, 'living' => 0, 'deceased' => 3 ) === People_Sync::gap_counts( 3, 3 ),
+			__METHOD__,
+			'all deceased leaves nothing living'
+		);
+		$t->check(
+			array( 'all' => 2, 'living' => 0, 'deceased' => 2 ) === People_Sync::gap_counts( 2, 9 ),
+			__METHOD__,
+			'a deceased count above the total cannot make living negative'
+		);
+	}
 }

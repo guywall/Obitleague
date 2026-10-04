@@ -254,6 +254,51 @@ final class People_Sync {
 	}
 
 	/**
+	 * Split a total count into the part of it that is deceased. Pure, so the
+	 * subtraction that derives the living figure is testable and can never
+	 * report a negative.
+	 *
+	 * @return array{all:int,living:int,deceased:int}
+	 */
+	public static function gap_counts( int $all, int $deceased ): array {
+		$deceased = max( 0, min( $all, $deceased ) );
+		return array( 'all' => $all, 'living' => $all - $deceased, 'deceased' => $deceased );
+	}
+
+	/**
+	 * How many published people still lack occupations, and how many still
+	 * lack a portrait, split living/deceased. Drives the Data-sources gap
+	 * summary so the outstanding work is a number rather than an inference
+	 * from a coverage ratio.
+	 *
+	 * @return array{occupations:array{all:int,living:int,deceased:int},portraits:array{all:int,living:int,deceased:int}}
+	 */
+	public static function coverage_gaps(): array {
+		global $wpdb;
+		$deceased = "EXISTS ( SELECT 1 FROM {$wpdb->postmeta} d WHERE d.post_id = p.ID AND d.meta_key = 'obit_death_date' AND d.meta_value <> '' )";
+		$row      = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT
+				   SUM( CASE WHEN occ.meta_value IS NULL OR occ.meta_value = '' THEN 1 ELSE 0 END ) AS occ_missing,
+				   SUM( CASE WHEN ( occ.meta_value IS NULL OR occ.meta_value = '' ) AND {$deceased} THEN 1 ELSE 0 END ) AS occ_missing_deceased,
+				   SUM( CASE WHEN img.meta_value IS NULL OR img.meta_value = '' THEN 1 ELSE 0 END ) AS img_missing,
+				   SUM( CASE WHEN ( img.meta_value IS NULL OR img.meta_value = '' ) AND {$deceased} THEN 1 ELSE 0 END ) AS img_missing_deceased
+				 FROM {$wpdb->posts} p
+				 LEFT JOIN {$wpdb->postmeta} occ ON occ.post_id = p.ID AND occ.meta_key = %s
+				 LEFT JOIN {$wpdb->postmeta} img ON img.post_id = p.ID AND img.meta_key = %s
+				 WHERE p.post_type = %s AND p.post_status = 'publish'",
+				self::META_OCCUPATIONS,
+				self::META_IMAGE_URL,
+				Catalogue::POST_TYPE
+			)
+		);
+		return array(
+			'occupations' => self::gap_counts( (int) ( $row->occ_missing ?? 0 ), (int) ( $row->occ_missing_deceased ?? 0 ) ),
+			'portraits'   => self::gap_counts( (int) ( $row->img_missing ?? 0 ), (int) ( $row->img_missing_deceased ?? 0 ) ),
+		);
+	}
+
+	/**
 	 * How many published people still need enrichment, and how many of them
 	 * are sitting in the queue right now. Drives the Data-sources backlog line
 	 * so an empty queue never reads as "nothing to do".
@@ -518,7 +563,7 @@ final class People_Sync {
 	 *
 	 * @return int[] Post ids, never-checked first.
 	 */
-	private static function backfill_targets( bool $deceased, int $limit, bool $refresh = false ): array {
+	public static function backfill_targets( bool $deceased, int $limit, bool $refresh = false ): array {
 		global $wpdb;
 		$deceased_sql = $deceased
 			? "AND EXISTS (SELECT 1 FROM {$wpdb->postmeta} d WHERE d.post_id = p.ID AND d.meta_key = 'obit_death_date' AND d.meta_value <> '')"
@@ -550,6 +595,69 @@ final class People_Sync {
 			...$args
 		);
 		return array_map( 'intval', (array) $wpdb->get_col( $sql ) );
+	}
+
+	/**
+	 * Fetch Wikidata data for the given people and apply it, 50 ids per
+	 * request. Shared by the WP-CLI catch-up and the admin one-click backfill
+	 * so both process the same target set the same way. Each successful fetch
+	 * stamps the record checked; the batch gap keeps us polite to the source.
+	 *
+	 * @param int[]         $targets       Person ids to process.
+	 * @param callable|null $progress      Called with ( done, total ) after each batch.
+	 * @param bool          $wait_on_pause Sleep out a Wikidata rate-limit pause rather
+	 *                                     than hammering it — right for the CLI, too
+	 *                                     slow for a web request.
+	 * @param callable|null $log           Called with human messages (pause notices).
+	 *
+	 * @return array{targets:int,no_qid:int,occupations:int,portraits:int}
+	 */
+	public static function backfill_people( array $targets, ?callable $progress = null, bool $wait_on_pause = true, ?callable $log = null ): array {
+		$total  = count( $targets );
+		$no_qid = 0;
+		$done   = 0;
+		foreach ( array_chunk( $targets, 50 ) as $chunk ) {
+			$batch = array();
+			foreach ( $chunk as $pid ) {
+				if ( '' === (string) get_post_meta( (int) $pid, 'obit_qid', true ) ) {
+					++$no_qid;
+					continue;
+				}
+				$batch[] = (int) $pid;
+			}
+			if ( array() !== $batch ) {
+				if ( $wait_on_pause ) {
+					// Honour a Wikidata rate-limit pause rather than hammering a
+					// parked source: wait it out, bounded, then continue.
+					$pause = Wiki_Request_Queue::source_pause_until( 'wikidata' );
+					if ( $pause > time() ) {
+						$wait = min( 300, $pause - time() + 1 );
+						if ( null !== $log ) {
+							$log( "wikidata parked; waiting {$wait}s" );
+						}
+						sleep( $wait );
+					}
+				}
+				self::sync_batch( $batch );
+				usleep( 300000 ); // A short gap between batches keeps us polite.
+			}
+			$done += count( $chunk );
+			if ( null !== $progress ) {
+				$progress( $done, $total );
+			}
+		}
+
+		$with_occ = 0;
+		$with_img = 0;
+		foreach ( $targets as $pid ) {
+			if ( array() !== self::occupation_labels( (int) $pid ) ) {
+				++$with_occ;
+			}
+			if ( '' !== (string) get_post_meta( (int) $pid, self::META_IMAGE_URL, true ) ) {
+				++$with_img;
+			}
+		}
+		return array( 'targets' => $total, 'no_qid' => $no_qid, 'occupations' => $with_occ, 'portraits' => $with_img );
 	}
 
 	/**
@@ -596,45 +704,19 @@ final class People_Sync {
 		}
 		\WP_CLI::log( "Backfilling {$total} {$scope} people from Wikidata, 50 per request" . ( $refresh ? ' (refresh).' : '.' ) );
 
-		$no_qid = 0;
-		$done   = 0;
-		foreach ( array_chunk( $targets, 50 ) as $chunk ) {
-			$batch = array();
-			foreach ( $chunk as $pid ) {
-				if ( '' === (string) get_post_meta( (int) $pid, 'obit_qid', true ) ) {
-					++$no_qid;
-					continue;
-				}
-				$batch[] = (int) $pid;
+		$stats = self::backfill_people(
+			$targets,
+			static function ( int $done, int $total ): void {
+				\WP_CLI::log( "processed {$done}/{$total}" );
+			},
+			true,
+			static function ( string $message ): void {
+				\WP_CLI::log( $message );
 			}
-			if ( array() !== $batch ) {
-				// Honour a Wikidata rate-limit pause rather than hammering a
-				// parked source: wait it out, bounded, then continue.
-				$pause = Wiki_Request_Queue::source_pause_until( 'wikidata' );
-				if ( $pause > time() ) {
-					$wait = min( 300, $pause - time() + 1 );
-					\WP_CLI::log( "wikidata parked; waiting {$wait}s" );
-					sleep( $wait );
-				}
-				self::sync_batch( $batch );
-				usleep( 300000 ); // A short gap between batches keeps us polite.
-			}
-			$done += count( $chunk );
-			\WP_CLI::log( "processed {$done}/{$total}" );
-		}
+		);
 
-		$with_occ = 0;
-		$with_img = 0;
-		foreach ( $targets as $pid ) {
-			if ( array() !== self::occupation_labels( (int) $pid ) ) {
-				++$with_occ;
-			}
-			if ( '' !== (string) get_post_meta( (int) $pid, self::META_IMAGE_URL, true ) ) {
-				++$with_img;
-			}
-		}
-		$note = "Backfilled {$total} {$scope} people: {$with_occ} now have occupations, {$with_img} a portrait";
-		$note .= $no_qid > 0 ? "; {$no_qid} had no Wikidata id and were skipped." : '.';
+		$note = "Backfilled {$stats['targets']} {$scope} people: {$stats['occupations']} now have occupations, {$stats['portraits']} a portrait";
+		$note .= $stats['no_qid'] > 0 ? "; {$stats['no_qid']} had no Wikidata id and were skipped." : '.';
 		\WP_CLI::success( $note );
 	}
 
