@@ -30,7 +30,7 @@ final class Import_Service {
 	/**
 	 * Import or refresh one person, idempotent by Wikidata QID.
 	 *
-	 * @param array{qid:string, name:string, birth_date:string, death_date?:string, occupation?:string, role?:string, enwiki?:string, discovery_candidate?:bool, provisional?:bool} $data
+	 * @param array{qid:string, name:string, birth_date?:string, death_date?:string, occupation?:string, role?:string, enwiki?:string, discovery_candidate?:bool, provisional?:bool} $data
 	 * @return int Post id of the person record.
 	 */
 	public static function import_person( array $data ): int {
@@ -52,7 +52,11 @@ final class Import_Service {
 		$role   = trim( (string) ( $data['role'] ?? '' ) );
 		$enwiki = trim( (string) ( $data['enwiki'] ?? '' ) );
 		try {
-			$birth_parsed = self::parse_partial( $birth );
+			// A birth date is not required: the death wire reports notable
+			// deaths the moment Wikipedia lists them, and some carry no birth
+			// date. An empty birth keeps the record out of pick eligibility
+			// (approve_person still refuses it) without hiding the death.
+			$birth_parsed = '' !== $birth ? self::parse_partial( $birth ) : null;
 			$death_parsed = '' !== $death ? self::parse_partial( $death ) : null;
 		} catch ( \InvalidArgumentException $e ) {
 			throw new \InvalidArgumentException( "{$qid}: {$e->getMessage()}" );

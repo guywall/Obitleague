@@ -35,7 +35,13 @@ final class Death_Wire {
 	private const WIRE_CURSOR_OPTION = 'obitleague_death_wire_item_cursor';
 	private const LAST_RUN_OPTION    = 'obitleague_death_wire_last_run';
 	private const DONE_MONTHS_OPTION = 'obitleague_death_wire_months_done';
-	private const WIKI_LIST_TITLE    = 'Deaths in 2026';
+	private const LOGIC_VERSION_OPTION = 'obitleague_death_wire_logic_version';
+	/**
+	 * Bumped when the list-walk bookkeeping changes meaning. An install that
+	 * stored the old per-month flags consents to one re-walk by running below
+	 * this number.
+	 */
+	private const LOGIC_VERSION = 2;
 	/** Stories below this obituary likelihood are auto-discarded. */
 	public const DISCARD_BELOW = 50;
 	/** Stored, adjustable discard threshold (admin overview sets it). */
@@ -45,6 +51,11 @@ final class Death_Wire {
 	private const PAGE_SIZE          = 50;
 	private const MAX_LIST_PAGES     = 40; // Safety bound: ~2000 names/month.
 	private const WIRE_BATCH         = 100;
+
+	/** The Wikipedia "Deaths in <year>" list for the season in play. */
+	public static function list_title(): string {
+		return 'Deaths in ' . Pick_Stats::season_in_play();
+	}
 
 	/** The obituary likelihood below which a story is auto-discarded (0–95). */
 	public static function discard_threshold(): int {
@@ -90,6 +101,14 @@ final class Death_Wire {
 
 	/** Enqueue the Wikipedia list pass and the RSS wire pass. */
 	public static function run(): array {
+		// One-time repair: earlier walks marked the month in play done after
+		// its first partial page — freezing it — and covered only a ~90-day
+		// window, so earlier-year deaths were never ingested. Drop that
+		// bookkeeping once so every month is re-walked and backfilled.
+		if ( (int) get_option( self::LOGIC_VERSION_OPTION, 0 ) < self::LOGIC_VERSION ) {
+			update_option( self::DONE_MONTHS_OPTION, array(), false );
+			update_option( self::LOGIC_VERSION_OPTION, self::LOGIC_VERSION, false );
+		}
 		$months = self::month_windows();
 		$done   = (array) get_option( self::DONE_MONTHS_OPTION, array() );
 		$queued = 0;
@@ -192,21 +211,17 @@ final class Death_Wire {
 	}
 
 	/* ---------------------------------------------------------------------
-	 * Pipeline 1: Wikipedia "Deaths in 2026" sections.
+	 * Pipeline 1: Wikipedia "Deaths in <year>" sections.
 	 * ------------------------------------------------------------------- */
 
-	/** Month windows for the in-play year: past months plus the current and next. */
+	/**
+	 * Month windows for the in-play year: every month from January through the
+	 * month in play. Walking the whole season is what lets a wire first run
+	 * mid-year backfill the deaths reported earlier in the same year; the old
+	 * tight window left everything older than ~90 days permanently invisible.
+	 */
 	private static function month_windows(): array {
-		$year   = Pick_Stats::season_in_play();
-		$months = array();
-		for ( $m = 1; $m <= 12; ++$m ) {
-			$stamp = mktime( 0, 0, 0, $m, 1, $year );
-			if ( $stamp < time() - 90 * DAY_IN_SECONDS || $stamp > time() + 62 * DAY_IN_SECONDS ) {
-				continue; // Keep the window tight: the season plus a small margin.
-			}
-			$months[] = gmdate( 'Y-m', $stamp );
-		}
-		return $months;
+		return \Obitleague\Domain\Wire_Dates::season_months( Pick_Stats::season_in_play(), time() );
 	}
 
 	/** Queue handler: one month section of the Wikipedia list. */
@@ -258,10 +273,15 @@ final class Death_Wire {
 		if ( $got_full_page ) {
 			Wiki_Request_Queue::enqueue( 'deaths2026_list_page', array( 'month' => $month, 'offset' => $offset + self::PAGE_SIZE ), 'deaths2026-' . $month . '-p' . ( $offset / self::PAGE_SIZE + 1 ) );
 		} else {
-			// Section finished: remember the month so re-runs skip it.
-			$done   = (array) get_option( self::DONE_MONTHS_OPTION, array() );
-			$done[] = $month;
-			update_option( self::DONE_MONTHS_OPTION, array_values( array_unique( $done ) ), false );
+			// A section that has fully elapsed will not grow again, so it can
+			// be skipped from now on. The month in play is left open — it is
+			// re-walked each run so deaths reported later in the month (whose
+			// section returns a partial page) are still imported.
+			if ( \Obitleague\Domain\Wire_Dates::month_elapsed( $month, gmdate( 'Y-m-d' ) ) ) {
+				$done   = (array) get_option( self::DONE_MONTHS_OPTION, array() );
+				$done[] = $month;
+				update_option( self::DONE_MONTHS_OPTION, array_values( array_unique( $done ) ), false );
+			}
 		}
 
 		self::save_stats( $stats );
@@ -281,11 +301,10 @@ final class Death_Wire {
 			// Not on the site yet: publish immediately as provisional. The
 			// record is visible at once (flagged as awaiting confirmation and
 			// scoring nothing) with a pending review case, so editors triage a
-			// queue instead of hunting through hidden drafts.
-			if ( '' === $birth_norm ) {
-				++$stats['skipped_no_birth'];
-				return;
-			}
+			// queue instead of hunting through hidden drafts. A missing birth
+			// date does not stop the death being reported — it is imported with
+			// an empty birth and simply stays ineligible for a pick until an
+			// editor supplies one.
 			try {
 				$new_id = Import_Service::import_person(
 					array(
@@ -298,13 +317,13 @@ final class Death_Wire {
 					)
 				);
 			} catch ( \Throwable $e ) {
-				++$stats['skipped_no_birth'];
+				++$stats['failed_import'];
 				return;
 			}
-			update_post_meta( $new_id, 'obit_death_wiki_name', self::WIKI_LIST_TITLE );
+			update_post_meta( $new_id, 'obit_death_wiki_name', self::list_title() );
 			self::mark_provisional( $new_id );
 			self::open_case_for( $new_id, 'Wikipedia lists a ' . $person['dod'] . ' death; editor confirmation required.' );
-			self::attach_source( $new_id, 'Wikipedia — ' . self::WIKI_LIST_TITLE, 'https://en.wikipedia.org/wiki/' . rawurlencode( self::WIKI_LIST_TITLE ), '' );
+			self::attach_source( $new_id, 'Wikipedia — ' . self::list_title(), 'https://en.wikipedia.org/wiki/' . rawurlencode( self::list_title() ), '' );
 			Person_Content::regenerate( $new_id );
 			++$stats['new_candidates'];
 			return;
@@ -317,13 +336,13 @@ final class Death_Wire {
 		}
 
 		$stored = (string) get_post_meta( $post_id, 'obit_death_date', true );
-		if ( '' !== $stored && str_starts_with( $stored, '2026' ) ) {
+		if ( '' !== $stored && str_starts_with( $stored, (string) Pick_Stats::season_in_play() ) ) {
 			// Already recorded on the site: credit the list as a source. A
 			// provisional record the list re-confirms is upgraded on the spot.
 			if ( self::is_provisional( $post_id ) ) {
 				self::confirm_provisional( $post_id );
 			}
-			self::attach_source( $post_id, 'Wikipedia — ' . self::WIKI_LIST_TITLE, 'https://en.wikipedia.org/wiki/' . rawurlencode( self::WIKI_LIST_TITLE ), '' );
+			self::attach_source( $post_id, 'Wikipedia — ' . self::list_title(), 'https://en.wikipedia.org/wiki/' . rawurlencode( self::list_title() ), '' );
 			++$stats['confirmed_matched'];
 			return;
 		}
@@ -331,7 +350,7 @@ final class Death_Wire {
 		// On the site as living, but Wikipedia records a 2026 death: open a
 		// review case rather than publishing an unapproved death.
 		if ( self::open_case_for( $post_id, 'Wikipedia records a ' . $person['dod'] . ' death; the record here is still living. Editor confirmation required.' ) ) {
-			self::attach_source( $post_id, 'Wikipedia — ' . self::WIKI_LIST_TITLE, 'https://en.wikipedia.org/wiki/' . rawurlencode( self::WIKI_LIST_TITLE ), '' );
+			self::attach_source( $post_id, 'Wikipedia — ' . self::list_title(), 'https://en.wikipedia.org/wiki/' . rawurlencode( self::list_title() ), '' );
 			++$stats['review_opened'];
 			return;
 		}
@@ -1537,7 +1556,7 @@ final class Death_Wire {
 		$stats['flagged_unconfirmable'] = 0;
 		$stats['flagged_no_anchor'] = 0;
 		$stats['skipped_no_url']    = 0;
-		$stats['skipped_no_birth']  = 0;
+		$stats['failed_import']     = 0;
 		$stats['unmatched_title']   = 0;
 		$stats['wire_no_anchor']    = 0;
 		$stats['wire_search_deferred'] = 0;

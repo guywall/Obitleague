@@ -50,6 +50,24 @@ final class Scenario_Wire_Extraction {
 		$t->check( '2027-01' === Wire_Dates::next_month( '2026-12' ), __METHOD__, 'next month rolls the year' );
 	}
 
+	public function test_season_months_cover_the_whole_year_to_date( Runner $t ): void {
+		$oct = gmmktime( 12, 0, 0, 10, 4, 2026 );
+		$t->check(
+			array( '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10' ) === Wire_Dates::season_months( 2026, $oct ),
+			__METHOD__,
+			'the season walks January through the month in play'
+		);
+		$t->check( 12 === count( Wire_Dates::season_months( 2025, $oct ) ), __METHOD__, 'a past season walks all twelve months' );
+		$t->check( array() === Wire_Dates::season_months( 2027, $oct ), __METHOD__, 'a season that has not begun walks nothing' );
+	}
+
+	public function test_month_elapsed_only_for_finished_months( Runner $t ): void {
+		$t->check( Wire_Dates::month_elapsed( '2026-09', '2026-10-04' ), __METHOD__, 'September is over on 4 October' );
+		$t->check( ! Wire_Dates::month_elapsed( '2026-10', '2026-10-04' ), __METHOD__, 'the month in play is not over' );
+		$t->check( Wire_Dates::month_elapsed( '2026-12', '2027-01-01' ), __METHOD__, 'December is over on 1 January' );
+		$t->check( ! Wire_Dates::month_elapsed( '2026-12', '2026-12-31' ), __METHOD__, 'the last day of a month is still in it' );
+	}
+
 	public function test_likelihood_mapping( Runner $t ): void {
 		$t->check( 0 === Wire_Score::likelihood_pct( 0 ), __METHOD__, 'no score is zero likelihood' );
 		$t->check( 70 === Wire_Score::likelihood_pct( 70 ), __METHOD__, 'a weighted score passes through' );

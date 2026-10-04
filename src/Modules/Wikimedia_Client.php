@@ -22,6 +22,14 @@ final class Wikimedia_Client {
 	private const WIKI_TTL        = 2 * HOUR_IN_SECONDS;
 	/** How long a concluded (hit or genuine empty) title search stays cached. */
 	private const WIRE_SEARCH_TTL = 2 * HOUR_IN_SECONDS;
+	/**
+	 * How long one WDQS result page stays cached. The wire re-walks the month
+	 * in play every hour to catch the day's deaths, and a page's rows only
+	 * change as the month fills in, so a few hours of reuse avoids re-asking
+	 * Wikidata for identical rows on every pass while still refreshing
+	 * several times a day.
+	 */
+	private const SPARQL_TTL = 3 * HOUR_IN_SECONDS;
 	/** Shared User-Agent identifying the plugin to Wikimedia. */
 	public const USER_AGENT = 'Obitleague-DeathWire/0.1 (WordPress; +obitleague.co.uk)';
 
@@ -36,8 +44,21 @@ final class Wikimedia_Client {
 		return null;
 	}
 
-	/** One WDQS page (politeness handled by the caller's queue context). */
+	/**
+	 * One WDQS page (politeness handled by the caller's queue context).
+	 *
+	 * Successful pages are cached by query: the wire walks a month's pages
+	 * from the top on every run, so without this each pass re-asked Wikidata
+	 * for identical rows. Only a real, well-formed answer is cached — a
+	 * rate-limit, transport error or bad body is a failure to ask, not a
+	 * result — so the queue still retries and still parks on a pause.
+	 */
 	public static function sparql( string $query ): array|\WP_Error {
+		$cache_key = 'obit_sparql_' . md5( $query );
+		$cached    = get_transient( $cache_key );
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
 		$response = wp_remote_get(
 			'https://query.wikidata.org/sparql?format=json&query=' . rawurlencode( $query ),
 			array(
@@ -62,7 +83,9 @@ final class Wikimedia_Client {
 		Discovery_Service::note_success();
 		$body  = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 		$cards = is_array( $body ) ? (array) ( $body['results']['bindings'] ?? array() ) : array();
-		return array_map( static fn ( $b ): array => is_array( $b ) ? $b : array(), $cards );
+		$cards = array_map( static fn ( $b ): array => is_array( $b ) ? $b : array(), $cards );
+		set_transient( $cache_key, $cards, self::SPARQL_TTL );
+		return $cards;
 	}
 
 	/** https://en.wikipedia.org/wiki/Title → Title (URL-decoded). */
