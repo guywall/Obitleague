@@ -69,11 +69,11 @@ That needs GitHub's own tool, `gh`, installed once
   As of today there are **none**: every branch was verified contained in
   `main`, then deleted.
 
-# Current state (2026-10-03)
+# Current state (2026-10-04)
 
-- `main` contains ALL work through plugin version 0.15.4 — every feature
+- `main` contains ALL work through plugin version 0.15.5 — every feature
   branch was merged in and then removed.
-- The live site obitleague.co.uk is running 0.15.4 (deployed 2026-10-03),
+- The live site obitleague.co.uk is running 0.15.5 (deployed 2026-10-04),
   and the stored person pages were recomposed so the current prose shows.
 - The live site only changes when you run `deploy-live.sh`.
 - The GitHub CLI (`gh`) is installed per-user and logged in as `guywall`
