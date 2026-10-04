@@ -1224,19 +1224,22 @@
 .ob-deaths-index--list .ob-person {
 	display: flex;
 	align-items: flex-start;
-	gap: 14px;
-	padding: 12px 14px;
+	gap: 12px;
+	padding: 9px 12px;
 }
-.ob-deaths-index--list .ob-person__avatar {
+.ob-deaths-index--list .ob-person__avatar,
+.ob-deaths-index--list .ob-person__avatar--img {
 	margin: 0;
 	flex: 0 0 auto;
+	width: 40px;
+	height: 40px;
 }
 .ob-deaths-index--list .ob-person__body {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: baseline;
 	column-gap: 12px;
-	row-gap: 4px;
+	row-gap: 2px;
 	flex: 1 1 auto;
 	min-width: 0;
 }
@@ -1248,7 +1251,7 @@
 .ob-deaths-index--list .ob-person__role { order: 3; }
 .ob-deaths-index--list .ob-person__occ { order: 4; }
 .ob-deaths-index--list .ob-badge { order: 5; }
-.ob-deaths-index--list .ob-person__sources { order: 6; flex: 1 1 100%; margin-top: 2px; }
+.ob-deaths-index--list .ob-person__sources { order: 6; flex: 1 1 100%; margin-top: 0; }
 
 /* Larger, easier pagination targets. */
 .ob-page-link {

@@ -751,7 +751,7 @@ final class Shortcodes {
 	 * attached public reporting on each entry.
 	 */
 	public static function deaths_index( $atts = array() ): string {
-		$a         = shortcode_atts( array( 'season' => Pick_Stats::season_in_play(), 'per_page' => 24 ), $atts, 'obitleague_deaths' );
+		$a         = shortcode_atts( array( 'season' => Pick_Stats::season_in_play(), 'per_page' => 48 ), $atts, 'obitleague_deaths' );
 		$season    = (int) $a['season'];
 		$search    = isset( $_GET['q'] ) ? sanitize_text_field( (string) $_GET['q'] ) : '';
 		$paged     = max( 1, (int) ( $_GET['paged'] ?? ( get_query_var( 'paged' ) ?: 1 ) ) );
