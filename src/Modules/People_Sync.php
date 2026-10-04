@@ -89,6 +89,10 @@ final class People_Sync {
 					\WP_CLI::success( $note );
 				}
 			);
+			\WP_CLI::add_command(
+				'obitleague backfill-people',
+				array( self::class, 'cli_backfill_people' )
+			);
 		}
 	}
 
@@ -473,9 +477,119 @@ final class People_Sync {
 			$entity = $entities[ $qid ] ?? null;
 			if ( $entity ) {
 				$updated += self::apply_entity( $pid, $entity );
+				// A successful fetch settles the record whatever it returned,
+				// exactly as the queued handler does, so the daily sweep does not
+				// immediately re-enqueue a record that has been checked.
+				update_post_meta( $pid, self::META_ENRICHED_AT, current_time( 'mysql', true ) );
 			}
 		}
 		return $updated;
+	}
+
+	/**
+	 * Deceased (or every published) people still missing an occupation or a
+	 * portrait — the records a Wikidata backfill can meaningfully improve.
+	 *
+	 * @return int[] Post ids, oldest first.
+	 */
+	private static function backfill_targets( bool $deceased, int $limit ): array {
+		global $wpdb;
+		$deceased_sql = $deceased
+			? "AND EXISTS (SELECT 1 FROM {$wpdb->postmeta} d WHERE d.post_id = p.ID AND d.meta_key = 'obit_death_date' AND d.meta_value <> '')"
+			: '';
+		$sql = $wpdb->prepare(
+			"SELECT p.ID FROM {$wpdb->posts} p
+			 LEFT JOIN {$wpdb->postmeta} occ ON occ.post_id = p.ID AND occ.meta_key = %s
+			 LEFT JOIN {$wpdb->postmeta} img ON img.post_id = p.ID AND img.meta_key = %s
+			 WHERE p.post_type = %s AND p.post_status = 'publish'
+			   AND ( occ.meta_value IS NULL OR occ.meta_value = '' OR img.meta_value IS NULL OR img.meta_value = '' )
+			   {$deceased_sql}
+			 ORDER BY p.ID ASC
+			 LIMIT %d",
+			self::META_OCCUPATIONS,
+			self::META_IMAGE_URL,
+			Catalogue::POST_TYPE,
+			max( 1, $limit )
+		);
+		return array_map( 'intval', (array) $wpdb->get_col( $sql ) );
+	}
+
+	/**
+	 * Backfill occupations and portraits for published people straight from
+	 * Wikidata, 50 ids per request. This is the one-off catch-up for records a
+	 * stalled queue skipped; the routine path stays the daily enqueue_missing()
+	 * sweep through the shared request queue. Idempotent and re-runnable — a
+	 * record is only targeted while it still lacks an occupation or a portrait.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--all]
+	 * : Include living people too. Default: deceased records only.
+	 *
+	 * [--limit=<n>]
+	 * : Most people to process. Default 3000.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp obitleague backfill-people
+	 *     wp obitleague backfill-people --all --limit=500
+	 *
+	 * @param array<int,string>    $args       Positional args (unused).
+	 * @param array<string,string> $assoc_args Flags.
+	 */
+	public static function cli_backfill_people( array $args, array $assoc_args ): void {
+		$deceased = ! isset( $assoc_args['all'] );
+		$limit    = max( 1, (int) ( $assoc_args['limit'] ?? 3000 ) );
+		$scope    = $deceased ? 'deceased' : 'published';
+		$targets  = self::backfill_targets( $deceased, $limit );
+		$total    = count( $targets );
+
+		if ( 0 === $total ) {
+			\WP_CLI::success( 'Nothing to backfill: every target already has occupations and a portrait.' );
+			return;
+		}
+		\WP_CLI::log( "Backfilling {$total} {$scope} people from Wikidata, 50 per request." );
+
+		$no_qid = 0;
+		$done   = 0;
+		foreach ( array_chunk( $targets, 50 ) as $chunk ) {
+			$batch = array();
+			foreach ( $chunk as $pid ) {
+				if ( '' === (string) get_post_meta( (int) $pid, 'obit_qid', true ) ) {
+					++$no_qid;
+					continue;
+				}
+				$batch[] = (int) $pid;
+			}
+			if ( array() !== $batch ) {
+				// Honour a Wikidata rate-limit pause rather than hammering a
+				// parked source: wait it out, bounded, then continue.
+				$pause = Wiki_Request_Queue::source_pause_until( 'wikidata' );
+				if ( $pause > time() ) {
+					$wait = min( 300, $pause - time() + 1 );
+					\WP_CLI::log( "wikidata parked; waiting {$wait}s" );
+					sleep( $wait );
+				}
+				self::sync_batch( $batch );
+				usleep( 300000 ); // A short gap between batches keeps us polite.
+			}
+			$done += count( $chunk );
+			\WP_CLI::log( "processed {$done}/{$total}" );
+		}
+
+		$with_occ = 0;
+		$with_img = 0;
+		foreach ( $targets as $pid ) {
+			if ( array() !== self::occupation_labels( (int) $pid ) ) {
+				++$with_occ;
+			}
+			if ( '' !== (string) get_post_meta( (int) $pid, self::META_IMAGE_URL, true ) ) {
+				++$with_img;
+			}
+		}
+		$note = "Backfilled {$total} {$scope} people: {$with_occ} now have occupations, {$with_img} a portrait";
+		$note .= $no_qid > 0 ? "; {$no_qid} had no Wikidata id and were skipped." : '.';
+		\WP_CLI::success( $note );
 	}
 
 	/** Occupation QIDs claimed by one entity (P106, deprecated ranks skipped). */
