@@ -62,17 +62,23 @@ final class Scenario_Review {
 	}
 
 	public function test_future_death_dates_are_red_flagged( Runner $t ): void {
-		$year  = (int) gmdate( 'Y' );
-		$month = (int) gmdate( 'n' );
-		$day   = (int) gmdate( 'j' );
+		// The rule judges a date against "today" in Europe/London, so the test
+		// computes today and tomorrow in the same zone. Using UTC here made the
+		// hour after local midnight but before UTC midnight read as a false
+		// positive: "tomorrow" in UTC was still "today" in London.
+		$tz       = new \DateTimeZone( 'Europe/London' );
+		$today    = new \DateTimeImmutable( 'today', $tz );
+		$tomorrow = $today->modify( '+1 day' );
+		$year     = (int) $today->format( 'Y' );
+		$month    = (int) $today->format( 'n' );
+		$day      = (int) $today->format( 'j' );
 
 		// Tomorrow is impossible, whatever the real date is.
-		$tomorrow = gmdate( 'Y-m-d', gmmktime( 0, 0, 0, $month, $day + 1, $year ) );
-		$future   = Review_Rules::approval_problems(
+		$future = Review_Rules::approval_problems(
 			array( 'origin_groups' => array( 'a', 'b' ), 'death_date' => array(
-				'y' => (int) substr( $tomorrow, 0, 4 ),
-				'm' => (int) substr( $tomorrow, 5, 2 ),
-				'd' => (int) substr( $tomorrow, 8, 2 ),
+				'y' => (int) $tomorrow->format( 'Y' ),
+				'm' => (int) $tomorrow->format( 'n' ),
+				'd' => (int) $tomorrow->format( 'j' ),
 			) )
 		);
 		$t->check( 1 === count( $future ), __METHOD__, 'a death dated tomorrow is refused' );
