@@ -71,10 +71,11 @@ That needs GitHub's own tool, `gh`, installed once
 
 # Current state (2026-10-04)
 
-- `main` contains ALL work through plugin version 0.15.6 — every feature
+- `main` contains ALL work through plugin version 0.15.7 — every feature
   branch was merged in and then removed.
-- The live site obitleague.co.uk is running 0.15.5 (deployed 2026-10-04);
-  the obituary/profile UI work in 0.15.6 is committed but not yet deployed.
+- The live site obitleague.co.uk is running 0.15.6 (deployed 2026-10-04);
+  the larger list page size and denser rows in 0.15.7 are committed but not
+  yet deployed.
 - The live site only changes when you run `deploy-live.sh`.
 - The GitHub CLI (`gh`) is installed per-user and logged in as `guywall`
   (2026-10-03), so pull requests work. Its token lacks `read:org`, so
