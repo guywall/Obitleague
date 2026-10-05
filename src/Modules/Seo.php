@@ -28,7 +28,28 @@ use Obitleague\Domain\Value\Ruleset;
 final class Seo {
 
 	/** Routes that must never enter a search index. */
-	private const PRIVATE_ROUTES = array( 'my-leagues', 'join', 'register', 'verify-email', 'team', 'league', 'forum' );
+	private const PRIVATE_ROUTES = array( 'my-leagues', 'join', 'register', 'verify-email', 'login', 'team', 'league', 'forum' );
+
+	/**
+	 * Meta descriptions for the plugin's own hub pages, keyed by page slug.
+	 *
+	 * These pages are provisioned by `Game_Pages` and carry a shortcode, so
+	 * nothing in their stored fields describes them. Without an entry here
+	 * `description()` falls through to the site tagline, which is empty on this
+	 * install, and every hub page ships with no description at all.
+	 *
+	 * @var array<string,string>
+	 */
+	private const PAGE_DESCRIPTIONS = array(
+		'catalogue'  => 'Every life in the Obitleague catalogue: approved birth dates, occupations and confirmed death records, each person pickable while living.',
+		'people'     => 'Every life in the Obitleague catalogue: approved birth dates, occupations and confirmed death records, each person pickable while living.',
+		'standings'  => 'Current Obitleague standings: points, hits and misses for every team in the season league.',
+		'rules'      => 'How Obitleague works: picking ten lives, scoring hits and misses, deadlines and the rules every team plays by.',
+		'archive'    => 'The Obitleague death archive: confirmed notable deaths by year, with editor-approved records.',
+		'stats'      => 'Obitleague statistics: picks, hits, misses and the records behind each season.',
+		'obituaries' => 'Notable deaths in the Obitleague catalogue this year, with confirmed records and sources.',
+		'teams'      => 'Browse Obitleague teams and the lives they have picked for the season.',
+	);
 
 	private function __construct() {}
 
@@ -37,6 +58,37 @@ final class Seo {
 		add_filter( 'document_title_separator', array( self::class, 'title_separator' ) );
 		add_action( 'wp_head', array( self::class, 'head_meta' ), 1 );
 		add_filter( 'wp_robots', array( self::class, 'robots' ) );
+		add_filter( 'wp_sitemaps_posts_query_args', array( self::class, 'sitemap_posts_query_args' ), 10, 2 );
+	}
+
+	/**
+	 * Keep the private and sample pages out of the generated sitemap.
+	 *
+	 * The robots filter already tells crawlers to skip these routes, but the
+	 * sitemap was still advertising them — including `/join/`, which only
+	 * redirects — so the first thing a crawler did with the sitemap was fetch
+	 * URLs it is told elsewhere to ignore. WordPress's own default
+	 * `sample-page` is in the same list.
+	 *
+	 * @param array<string,mixed> $args      Query args for the posts sitemap.
+	 * @param string              $post_type Post type the sitemap covers.
+	 * @return array<string,mixed>
+	 */
+	public static function sitemap_posts_query_args( array $args, string $post_type ): array {
+		if ( 'page' !== $post_type ) {
+			return $args;
+		}
+		$ids = array();
+		foreach ( array_merge( self::PRIVATE_ROUTES, array( 'sample-page' ) ) as $slug ) {
+			$page = get_page_by_path( $slug );
+			if ( $page instanceof \WP_Post ) {
+				$ids[] = (int) $page->ID;
+			}
+		}
+		if ( array() !== $ids ) {
+			$args['post__not_in'] = array_values( array_unique( array_merge( (array) ( $args['post__not_in'] ?? array() ), $ids ) ) );
+		}
+		return $args;
 	}
 
 	/* ---------- titles ---------- */
@@ -53,6 +105,14 @@ final class Seo {
 	 * @return array<string,string>
 	 */
 	public static function title_parts( array $parts ): array {
+		// The front page otherwise ships the bare site name as its title, which
+		// says nothing about the game the site is for.
+		if ( is_front_page() ) {
+			$parts['title'] = 'Obitleague — pick ten lives, follow the year';
+			unset( $parts['site'] );
+			return $parts;
+		}
+
 		if ( is_singular( Catalogue::POST_TYPE ) ) {
 			$post_id = (int) get_the_ID();
 			$name    = (string) get_the_title( $post_id );
@@ -165,7 +225,12 @@ final class Seo {
 		if ( '' !== $description ) {
 			printf( "<meta name=\"description\" content=\"%s\" />\n", esc_attr( $description ) );
 		}
-		if ( '' !== $canonical ) {
+		// WordPress core already prints the canonical link for a singular
+		// request via `rel_canonical`; emitting our own here would duplicate
+		// it on every person, page and post. We only own the URLs core does
+		// not cover — term archives and the catalogue archive — while
+		// `$canonical` still feeds the og:url below.
+		if ( '' !== $canonical && ! is_singular() ) {
 			printf( "<link rel=\"canonical\" href=\"%s\" />\n", esc_url( $canonical ) );
 		}
 
@@ -267,7 +332,36 @@ final class Seo {
 				);
 			}
 		}
+		if ( is_post_type_archive( Catalogue::POST_TYPE ) ) {
+			return 'Every life in the Obitleague catalogue: approved birth dates, occupations and confirmed death records, each person pickable while living.';
+		}
+		if ( is_front_page() ) {
+			return 'Pick ten lives and follow the year with Obitleague: hits, misses, standings, and a catalogue of notable lives with confirmed death records.';
+		}
+		if ( is_page() ) {
+			return self::page_description();
+		}
 		return (string) get_bloginfo( 'description' );
+	}
+
+	/**
+	 * A description for one of the plugin's own hub pages.
+	 *
+	 * Prefers the slug-keyed copy the plugin knows it provisions, then falls
+	 * back to the page's own hand-written excerpt, and finally to the site
+	 * tagline. Never invents a page we did not create.
+	 */
+	private static function page_description(): string {
+		$page = get_queried_object();
+		if ( ! $page instanceof \WP_Post ) {
+			return (string) get_bloginfo( 'description' );
+		}
+		$slug = (string) $page->post_name;
+		if ( isset( self::PAGE_DESCRIPTIONS[ $slug ] ) ) {
+			return self::PAGE_DESCRIPTIONS[ $slug ];
+		}
+		$excerpt = trim( wp_strip_all_tags( (string) $page->post_excerpt ) );
+		return '' !== $excerpt ? self::truncate( $excerpt, 300 ) : (string) get_bloginfo( 'description' );
 	}
 
 	/**
