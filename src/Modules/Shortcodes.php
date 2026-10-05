@@ -79,11 +79,13 @@ final class Shortcodes {
 	/* ---------- helpers ---------- */
 
 	public static function season(): int {
-		// Prefer the season that actually has published standings (the one in
-		// play); fall back to the season currently open for entries.
-		global $wpdb;
-		$latest = (int) $wpdb->get_var( 'SELECT MAX(season) FROM ' . $wpdb->prefix . 'obitleague_standings_generations WHERE is_current = 1' );
-		return $latest > 0 ? $latest : League_Service::current_season();
+		// The season every public block labels its figures with: the in-play
+		// year, or an explicit validated ?season= selection. Single-sourced
+		// through the season switcher so a page can never label its figures
+		// with one season and its scorecard with another. This deliberately
+		// does not fall back to the entry season: a year that has not started
+		// must not headline the homepage or its standings.
+		return Season_Switcher::displayed_season();
 	}
 
 	/**
