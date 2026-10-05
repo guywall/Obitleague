@@ -19,6 +19,10 @@ final class Scenario_Roles {
 		$t->check( 'Pakistani cricketer' === Role_Label::clean( 'Pakistani cricketer , cancer' ), __METHOD__, 'trailing "cancer" removed' );
 		$t->check( 'American sociologist' === Role_Label::clean( 'American sociologist, respiratory failure' ), __METHOD__, 'trailing "respiratory failure" removed' );
 		$t->check( 'Spanish visual artist' === Role_Label::clean( 'Spanish visual artist, cancer' ), __METHOD__, 'trailing "cancer" removed without space' );
+		// Live leak: a manner of death that reached a permanent taxonomy term
+		// before the list covered it.
+		$t->check( 'Indian-born Canadian influencer and activist' === Role_Label::clean( 'Indian-born Canadian influencer and activist, stabbed' ), __METHOD__, 'trailing "stabbed" removed' );
+		$t->check( 'American rapper' === Role_Label::clean( 'American rapper, shot' ), __METHOD__, 'trailing "shot" removed' );
 	}
 
 	public function test_real_occupations_are_untouched( Runner $t ): void {
@@ -29,6 +33,9 @@ final class Scenario_Roles {
 		$t->check( 'American politician, member of the Virginia House of Delegates' === Role_Label::clean( 'American politician, member of the Virginia House of Delegates' ), __METHOD__, 'long office title preserved' );
 		$t->check( 'French geographer and academic, president of Paris 8 University' === Role_Label::clean( 'French geographer and academic, president of Paris 8 University' ), __METHOD__, 'presidency title preserved' );
 		$t->check( 'Italian-born Belgian cartoonist' === Role_Label::clean( 'Italian-born Belgian cartoonist' ), __METHOD__, 'hyphenated nationality preserved' );
+		// "shot" is a manner of death but "shot putter" is an athletics role;
+		// the follower list keeps the latter intact.
+		$t->check( 'British shot putter' === Role_Label::clean( 'British shot putter' ), __METHOD__, '"shot putter" is an occupation, not a manner of death' );
 	}
 
 	public function test_only_trailing_clauses_are_considered( Runner $t ): void {
@@ -51,6 +58,8 @@ final class Scenario_Roles {
 		$t->check( ! Role_Label::contains_cause( 'Danish politician, minister of transport , member of the Folketing' ), __METHOD__, 'long legitimate title is not contamination' );
 		$t->check( ! Role_Label::contains_cause( 'Italian Roman Catholic prelate, apostolic nuncio to four nunciatures including Mozambique , Costa Rica and Monaco' ), __METHOD__, 'nunciature title is not contamination' );
 		$t->check( ! Role_Label::contains_cause( 'cancer researcher' ), __METHOD__, 'occupation that borrows a cause word is clean' );
+		$t->check( Role_Label::contains_cause( 'Indian-born Canadian influencer and activist, stabbed' ), __METHOD__, 'manner of death is detected' );
+		$t->check( ! Role_Label::contains_cause( 'British shot putter' ), __METHOD__, '"shot putter" is not contamination' );
 		$t->check( ! Role_Label::contains_cause( '' ), __METHOD__, 'empty role is clean' );
 	}
 

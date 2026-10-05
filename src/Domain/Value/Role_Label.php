@@ -44,6 +44,8 @@ final class Role_Label {
 		'suicide', 'murder', 'homicide', 'manslaughter', 'accident', 'accidental',
 		'natural causes', 'illness', 'unknown causes', 'undisclosed', 'overdose',
 		'drowning', 'gunshot wound', 'drug toxicity', 'complications',
+		'stabbed', 'stabbing', 'stab wound', 'stab wounds', 'strangled',
+		'strangulation', 'beaten', 'shot', 'shot dead', 'electrocution', 'electrocuted',
 		// Malformed upstream variants seen in real feed extractions.
 		'unknown', 'cancer ', 'cause of death',
 	);
@@ -60,6 +62,8 @@ final class Role_Label {
 	private const OCCUPATION_FOLLOWERS = array(
 		'researcher', 'scientist', 'nurse', 'charity', 'foundation', 'specialist',
 		'care', 'charity', 'society', 'association', 'fund', 'trust', 'study', 'studies',
+		// "shot putter" and "shot put" are athletics, not a manner of death.
+		'putter', 'put',
 	);
 
 	private function __construct() {}
