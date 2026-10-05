@@ -308,7 +308,11 @@ final class League_View_Service {
 			'name'    => (string) get_the_title( $post_id ),
 			'url'     => (string) get_permalink( $post_id ),
 			'image'   => (string) get_post_meta( $post_id, People_Sync::META_IMAGE_URL, true ),
-			'role'    => (string) get_post_meta( $post_id, 'obit_role', true ),
+			// Use the same descriptor the rest of the site shows: it cleans
+			// cause-of-death leakage from the role and falls back to the
+			// recorded occupation, so a pick with an occupation never renders
+			// an empty line (see Person_Content::descriptor()).
+			'role'    => Person_Content::descriptor( $post_id ),
 			'birth'   => $birth ? $birth->label() : '',
 			'death'   => $death ? $death->label() : '',
 			'is_dead' => '' !== $death_raw,
