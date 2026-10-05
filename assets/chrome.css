@@ -1045,8 +1045,9 @@ img.ob-profile__avatar--img {
 	box-shadow: inset 0 0 0 1px rgba(26, 26, 26, 0.1), 0 4px 14px rgba(26, 26, 26, 0.12);
 }
 
-/* Tables stay within their card; wide datasets scroll locally. */
-.ob-page,
+/* Tables stay within their card; wide datasets scroll locally. The page
+   itself keeps its own readable max-width from obitleague.css, so only the
+   inner blocks need clamping to their container here. */
 .ob-page .ob-grid,
 .ob-page .ob-card {
 	min-width: 0;
@@ -1724,8 +1725,10 @@ a.ob-pick__name:hover {
 	margin-top: 20px;
 }
 @media (min-width: 720px) {
+	/* minmax(0, 1fr), never bare 1fr: a long name or occupation must not
+	   widen its column past the other. */
 	.ob-picks--page {
-		grid-template-columns: repeat(2, 1fr);
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 }
 
