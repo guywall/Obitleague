@@ -1110,7 +1110,9 @@
 
 /* ---------- obituaries index / source chips ---------- */
 .ob-source-chip {
-	display: inline-block;
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
 	font-size: 0.75rem;
 	font-weight: 600;
 	color: var(--ob-accent-deep);
@@ -1118,6 +1120,16 @@
 	border-radius: 3px;
 	padding: 3px 10px;
 	text-decoration: none;
+}
+.ob-source-chip__icon {
+	width: 14px;
+	height: 14px;
+	flex: 0 0 auto;
+	display: block;
+	border-radius: 2px;
+}
+.ob-source-chip__label {
+	line-height: 1;
 }
 .ob-source-chip--more {
 	background: transparent;
@@ -1216,42 +1228,86 @@
 	font-variant-numeric: tabular-nums;
 }
 
-/* List view is the default: one scannable row per death. */
+/* List view is the default: one plain, scannable row per death. Rows share
+   a hairline instead of a box, carry no portrait or monogram, and push the
+   hit/miss status to the right edge so nothing overlaps a floating corner
+   label. Source links collapse to their favicon. */
 .ob-deaths-index--list {
 	grid-template-columns: 1fr;
-	gap: 8px;
+	gap: 0;
+	border-top: 1px solid var(--ob-line);
 }
 .ob-deaths-index--list .ob-person {
-	display: flex;
-	align-items: flex-start;
-	gap: 12px;
-	padding: 9px 12px;
+	display: block;
+	padding: 9px 4px;
+	border: 0;
+	border-bottom: 1px solid var(--ob-line);
+	border-radius: 0;
+	background: transparent;
 }
+.ob-deaths-index--list .ob-person:hover {
+	border-color: var(--ob-line);
+	background: var(--ob-accent-soft);
+}
+/* The corner label and the portrait belong to the grid, not a plain row. */
 .ob-deaths-index--list .ob-person__avatar,
-.ob-deaths-index--list .ob-person__avatar--img {
-	margin: 0;
-	flex: 0 0 auto;
-	width: 40px;
-	height: 40px;
+.ob-deaths-index--list .ob-person__avatar--img,
+.ob-deaths-index--list .ob-person__status {
+	display: none;
 }
 .ob-deaths-index--list .ob-person__body {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: baseline;
-	column-gap: 12px;
-	row-gap: 2px;
-	flex: 1 1 auto;
+	column-gap: 14px;
+	row-gap: 1px;
 	min-width: 0;
 }
 .ob-deaths-index--list .ob-person__body > * {
 	margin: 0;
 }
-.ob-deaths-index--list .ob-person__name { order: 1; flex: 1 1 auto; }
+.ob-deaths-index--list .ob-person__name {
+	order: 1;
+	flex: 0 1 auto;
+	font-size: 0.94rem;
+}
 .ob-deaths-index--list .ob-person__dates { order: 2; }
 .ob-deaths-index--list .ob-person__role { order: 3; }
 .ob-deaths-index--list .ob-person__occ { order: 4; }
+/* The first status badge absorbs the free space, so hit/miss and points sit
+   in a right-hand column however few or many of them are present. */
+.ob-deaths-index--list .ob-person__body > .ob-badge:first-of-type {
+	margin-left: auto;
+}
 .ob-deaths-index--list .ob-badge { order: 5; }
-.ob-deaths-index--list .ob-person__sources { order: 6; flex: 1 1 100%; margin-top: 0; }
+.ob-deaths-index--list .ob-person__sources {
+	order: 6;
+	flex: 0 0 auto;
+	margin-top: 0;
+	gap: 4px;
+}
+.ob-deaths-index--list .ob-source-chip {
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	background: transparent;
+}
+.ob-deaths-index--list .ob-source-chip:hover {
+	background: var(--ob-card);
+}
+.ob-deaths-index--list .ob-source-chip__label {
+	display: none;
+}
+.ob-deaths-index--list .ob-source-chip--more {
+	width: auto;
+	padding: 0 5px;
+	font-size: 0.68rem;
+}
+.ob-deaths-index--list .ob-source-chip__icon {
+	width: 16px;
+	height: 16px;
+}
 
 /* Larger, easier pagination targets. */
 .ob-page-link {

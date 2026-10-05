@@ -175,6 +175,19 @@ final class Shortcodes {
 		return array( $birth, $death, $age );
 	}
 
+	/**
+	 * Small favicon URL for one source link, used as the source icon on the
+	 * obituary list so a row carries a recognisable mark instead of a wide
+	 * text chip. Returns '' when the URL names no host.
+	 */
+	private static function source_favicon( string $url ): string {
+		$host = (string) wp_parse_url( $url, PHP_URL_HOST );
+		if ( '' === $host ) {
+			return '';
+		}
+		return 'https://www.google.com/s2/favicons?domain=' . rawurlencode( strtolower( $host ) ) . '&sz=64';
+	}
+
 	/* ---------- blocks ---------- */
 
 	public static function hero( $atts = array() ): string {
@@ -878,7 +891,10 @@ final class Shortcodes {
 				$out .= '<p class="ob-person__role">' . esc_html( $role ) . '</p>';
 			}
 			// Occupations belong on the obituary card too, not only the profile.
-			$occ_primary = People_Sync::primary_occupation_link( $post_id );
+			// Skip the tag when it merely repeats the role beside it: the row
+			// should read once, not twice.
+			$occ_label   = People_Sync::primary_occupation_label( $post_id );
+			$occ_primary = '' !== $occ_label && 0 !== strcasecmp( $occ_label, $role ) ? People_Sync::primary_occupation_link( $post_id ) : '';
 			if ( '' !== $occ_primary ) {
 				$out .= '<p class="ob-person__occ" title="' . esc_attr( implode( ', ', People_Sync::display_occupation_labels( $post_id ) ) ) . '">' . $occ_primary . '</p>';
 			}
@@ -889,7 +905,14 @@ final class Shortcodes {
 			if ( $sources ) {
 				$out .= '<div class="ob-person__sources">';
 				foreach ( array_slice( $sources, 0, 3 ) as $src ) {
-					$out .= '<a class="ob-source-chip" href="' . esc_url( $src['url'] ) . '" rel="nofollow noopener" target="_blank">' . esc_html( '' !== $src['name'] ? $src['name'] : 'Report' ) . '</a>';
+					$name = '' !== (string) $src['name'] ? (string) $src['name'] : 'Report';
+					$icon = self::source_favicon( (string) $src['url'] );
+					$out .= '<a class="ob-source-chip" href="' . esc_url( $src['url'] ) . '" rel="nofollow noopener" target="_blank" title="' . esc_attr( $name ) . '" aria-label="' . esc_attr( $name ) . '">';
+					if ( '' !== $icon ) {
+						$out .= '<img class="ob-source-chip__icon" src="' . esc_url( $icon ) . '" alt="" width="16" height="16" loading="lazy" decoding="async" />';
+					}
+					$out .= '<span class="ob-source-chip__label">' . esc_html( $name ) . '</span>';
+					$out .= '</a>';
 				}
 				if ( count( $sources ) > 3 ) {
 					$out .= '<span class="ob-source-chip ob-source-chip--more">+' . esc_html( (string) ( count( $sources ) - 3 ) ) . '</span>';
