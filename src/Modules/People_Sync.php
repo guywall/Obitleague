@@ -121,7 +121,7 @@ final class People_Sync {
 	 * stats, including `failed` for requests the queue refused to store, so a
 	 * broken insert is visible rather than counted as success.
 	 *
-	 * @return array{checked:int, missing:int, enqueued:int, failed:int}
+	 * @return array{checked:int, missing:int, enqueued:int, deduped:int, failed:int}
 	 */
 	public static function enqueue_missing( $limit = self::SWEEP_LIMIT ): array {
 		global $wpdb;
@@ -143,8 +143,34 @@ final class People_Sync {
 				...$args
 			)
 		);
-		$stats = array( 'checked' => 0, 'missing' => 0, 'enqueued' => 0, 'failed' => 0 );
-		foreach ( array_map( 'intval', (array) $post_ids ) as $post_id ) {
+		$stats = self::enqueue_people( $post_ids );
+		update_option( 'obitleague_people_sync_last_run', array_merge( $stats, array( 'completed_at' => current_time( 'mysql', true ) ) ), false );
+		return $stats;
+	}
+
+	/**
+	 * Enqueue enrichment for the given people through the global Wikimedia
+	 * queue — the same request the daily sweep files, so an explicit pass and
+	 * the routine sweep collapse onto one row per person rather than fetching
+	 * the same record twice. Idempotent: a person already waiting is counted as
+	 * `deduped` rather than enqueued again, and `failed` counts requests the
+	 * queue refused to store, so a broken insert is visible rather than counted
+	 * as a success.
+	 *
+	 * The fetch itself is what the queue does, at its own pace: nothing here
+	 * talks to Wikidata, so whatever calls this is free to return immediately
+	 * and let the tick work through the rows.
+	 *
+	 * @param int[] $post_ids People to enqueue.
+	 * @return array{checked:int,missing:int,enqueued:int,deduped:int,failed:int}
+	 */
+	public static function enqueue_people( array $post_ids ): array {
+		global $wpdb;
+		$stats = array( 'checked' => 0, 'missing' => 0, 'enqueued' => 0, 'deduped' => 0, 'failed' => 0 );
+		foreach ( array_map( 'intval', $post_ids ) as $post_id ) {
+			if ( $post_id < 1 ) {
+				continue;
+			}
 			++$stats['checked'];
 			$qid = (string) get_post_meta( $post_id, 'obit_qid', true );
 			if ( '' === $qid ) {
@@ -159,6 +185,7 @@ final class People_Sync {
 				)
 			);
 			if ( $existing > 0 ) {
+				++$stats['deduped'];
 				continue;
 			}
 			// enqueue() returns 0 when the row could not be stored: the gap is
@@ -175,8 +202,26 @@ final class People_Sync {
 				++$stats['failed'];
 			}
 		}
-		update_option( 'obitleague_people_sync_last_run', array_merge( $stats, array( 'completed_at' => current_time( 'mysql', true ) ) ), false );
 		return $stats;
+	}
+
+	/**
+	 * Queue a backfill pass instead of fetching it: the records the pass would
+	 * have read are filed as ordinary enrichment requests, and the queue's
+	 * minute tick fetches them at its own pace. That keeps the work off the
+	 * caller's request thread — an admin click returns at once rather than
+	 * holding the browser through dozens of Wikidata calls — and lets a
+	 * rate-limit pause be waited out, which a web request cannot do: a parked
+	 * source leaves the rows pending and they resume when the pause lifts.
+	 * Nothing is lost if the caller dies; the rows are already stored.
+	 *
+	 * @param string $scope   One of self::BACKFILL_SCOPES.
+	 * @param int    $limit   Most people to queue.
+	 * @param bool   $refresh Re-check records settled inside the refresh window.
+	 * @return array{checked:int,missing:int,enqueued:int,deduped:int,failed:int}
+	 */
+	public static function queue_backfill( string $scope, int $limit, bool $refresh = false ): array {
+		return self::enqueue_people( self::backfill_targets( $scope, $limit, $refresh ) );
 	}
 
 	/**

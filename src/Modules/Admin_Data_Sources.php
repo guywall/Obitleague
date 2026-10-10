@@ -73,11 +73,11 @@ final class Admin_Data_Sources {
 	}
 
 	/**
-	 * One-click direct backfill: fetch Wikidata now for the people still
-	 * missing occupations or a portrait in the chosen scope — deceased, living,
-	 * or every published person — bounded so a web request cannot run forever.
-	 * The drained-queue path stays the queued sweep; this is the immediate
-	 * catch-up.
+	 * One-click backfill: queue the people still missing occupations or a
+	 * portrait in the chosen scope — deceased, living, or every published person
+	 * — as ordinary enrichment requests. The pass is not fetched here, so the
+	 * request returns at once, the work outlives it, and a Wikidata rate-limit
+	 * pause is waited out by the queue rather than abandoned mid-pass.
 	 */
 	public static function handle_backfill_people(): void {
 		self::guard( 'obitleague_sync_backfill_people' );
@@ -86,21 +86,24 @@ final class Admin_Data_Sources {
 		$scope   = People_Sync::normalize_scope( sanitize_key( wp_unslash( (string) ( $_POST['scope'] ?? 'deceased' ) ) ) );
 		$limit   = max( 1, min( 200, (int) ( $_POST['limit'] ?? 50 ) ) );
 		$refresh = ! empty( $_POST['refresh'] );
-		$targets = People_Sync::backfill_targets( $scope, $limit, $refresh );
-		if ( ! $targets ) {
+		$stats   = People_Sync::queue_backfill( $scope, $limit, $refresh );
+		if ( 0 === (int) $stats['checked'] ) {
 			self::redirect_notice( 'Nothing to backfill: every target has occupations and a portrait, or was checked recently (tick “re-check settled records” to force it).' );
 		}
-		// No long rate-limit sleeps in a web request; the queued sweep is what
-		// waits out a parked source. This pass just makes an immediate attempt.
-		$stats = People_Sync::backfill_people( $targets, null, false );
-		$note  = sprintf(
-			'Backfilled %1$d %2$s people from Wikidata: %3$d now have occupations, %4$d a portrait',
-			(int) $stats['targets'],
+		$note = sprintf(
+			'Queued %1$d %2$s people for enrichment: %3$d added to the Wikimedia queue, %4$d already waiting',
+			(int) $stats['checked'],
 			$scope,
-			(int) $stats['occupations'],
-			(int) $stats['portraits']
+			(int) $stats['enqueued'],
+			(int) $stats['deduped']
 		);
-		$note .= (int) $stats['no_qid'] > 0 ? sprintf( '; %d had no Wikidata id and were skipped.', (int) $stats['no_qid'] ) : '.';
+		if ( (int) $stats['missing'] < (int) $stats['checked'] ) {
+			$note .= sprintf( '; %d have no Wikidata id to fetch', (int) $stats['checked'] - (int) $stats['missing'] );
+		}
+		$note .= '. The queue fetches a few a minute in the background and waits out a rate-limit pause — progress shows under “Currently queued”.';
+		if ( (int) $stats['failed'] > 0 ) {
+			self::redirect_error( $note . sprintf( ' %d request(s) could not be stored in the Wikimedia request queue.', (int) $stats['failed'] ) );
+		}
 		self::redirect_notice( $note );
 	}
 
@@ -433,8 +436,8 @@ final class Admin_Data_Sources {
 		echo '</form>';
 		echo '<p class="description">The daily profile refresh runs this same scan automatically, so gaps self-heal even without a manual pass.</p>';
 
-		// The immediate path: fetch from Wikidata now instead of waiting on the
-		// queue, for when the backlog needs clearing by hand.
+		// Queue a pass by hand. The rows outlive this request, so a big scope can
+		// be started here and the queue will work through it at its own pace.
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top:10px">';
 		wp_nonce_field( 'obitleague_sync_backfill_people' );
 		echo '<input type="hidden" name="action" value="obitleague_sync_backfill_people" />';
@@ -450,9 +453,9 @@ final class Admin_Data_Sources {
 			echo '<option value="' . (int) $n . '"' . ( 50 === $n ? ' selected' : '' ) . '>' . number_format_i18n( $n ) . '</option>';
 		}
 		echo '</select> <label class="description" style="margin-right:10px"><input type="checkbox" name="refresh" value="1" /> re-check settled records</label>';
-		submit_button( 'Backfill now (fetch from Wikidata)', 'primary', 'submit', false );
+		submit_button( 'Queue backfill', 'primary', 'submit', false );
 		echo '</form>';
-		echo '<p class="description">Fetches straight from Wikidata and stamps each record checked, so it is safe to repeat. A pass can fill fewer people than it scans when the source holds no occupation or portrait for them.</p>';
+		echo '<p class="description">Adds these people to the Wikimedia request queue instead of fetching them in this request, so the pass keeps going after you leave the page and waits out a rate-limit pause rather than giving up mid-pass. Progress appears under “Currently queued” below; click again to queue more.</p>';
 	}
 
 	/** Discovery controls and pause state. */

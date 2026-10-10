@@ -149,6 +149,18 @@ header in `obitleague.php`; each released version is tagged in git.
   whatever a caller hands in, the callback is registered with zero accepted
   args, and `Jobs::boot()` re-arms the event so a lost schedule self-heals like
   the other recurring jobs.
+- **The one-click backfill queues its work instead of fetching it in the
+  request.** It read Wikidata inline, so the pass was bounded by the web
+  request that started it and could not wait out a rate limit: with the
+  source parked, the click reported a handful of fills and abandoned the
+  rest. It now files the same people as ordinary enrichment requests
+  (`People_Sync::queue_backfill()`), so the click returns at once, the work
+  outlives the page, and a park leaves the rows pending until it lifts. The
+  routine sweep and an explicit pass now share one per-person enqueue
+  (`enqueue_people()`), so a record the sweep already queued is counted as
+  already waiting rather than fetched twice. The button is a queue control
+  now, not a fetch control; its live progress is the "Currently queued" table
+  below it.
 
 ### Added — Pair an identity-mismatch story to a person from Wikidata
 
