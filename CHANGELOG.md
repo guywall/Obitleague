@@ -117,6 +117,39 @@ header in `obitleague.php`; each released version is tagged in git.
   the sweep's own query, so the view and the sweep can never disagree about who
   needs work.
 
+### Added — The enrichment backlog can be worked by scope
+
+- **The outstanding gap is a number, not something to infer from a ratio.**
+  Data sources showed coverage — "N / M with portraits" — which hides how much
+  is still missing. It now reports "N still missing occupations (living ·
+  deceased) · N still missing a portrait (living · deceased)" from
+  `People_Sync::coverage_gaps()`, and offers a bounded backfill that fetches
+  straight from Wikidata and stamps each record checked, so the catch-up can be
+  run from the screen instead of a shell. That path shares the fetch loop with
+  the CLI (`backfill_people()`), so the two cannot process the same targets
+  differently.
+- **A backfill pass can be pointed at one scope.** The catch-up took a
+  two-state choice — deceased, or every published person — so living people
+  could not be topped up on their own even though the screen reported their
+  share of the gap. The pass now takes a scope of `deceased`, `living` or
+  `published`: the form offers all three, and `wp obitleague backfill-people`
+  gains `--living`, which takes precedence over `--all`. `normalize_scope()`
+  falls back to `deceased` rather than `published` for anything unrecognised,
+  so a garbled form post or flag can never widen a targeted pass into a
+  catalogue-wide re-ask, and `scope_expression()` makes `living` the exact
+  negation of `deceased`, so the two split the published set without overlap or
+  loss.
+- **The daily profile refresh fires again.** Its hook was registered as a plain
+  `add_action( ..., 'enqueue_missing' )`, which defaults to one accepted
+  argument: WordPress then calls the callback with a single `''`, that empty
+  string hit the typed `int $limit`, and the `TypeError` killed every scheduled
+  run before it could enqueue a request or write its stamp. With `WP_DEBUG` off
+  nothing was logged, so enrichment only ever moved on manual runs and the
+  last-run stamp stayed frozen at the last one. `sweep_limit()` now normalises
+  whatever a caller hands in, the callback is registered with zero accepted
+  args, and `Jobs::boot()` re-arms the event so a lost schedule self-heals like
+  the other recurring jobs.
+
 ### Added — Pair an identity-mismatch story to a person from Wikidata
 
 - **The modal now offers a way to act on a story the wire could not place.**
