@@ -58,6 +58,16 @@ final class People_Sync {
 	/** Records the daily sweep enqueues per run. */
 	public const SWEEP_LIMIT = 400;
 
+	/**
+	 * What a backfill pass may target, in the order the admin form offers it.
+	 * `published` is every published person; `living` and `deceased` split that
+	 * same set by whether a death date is recorded, so they are exact
+	 * complements and no record is unreachable or counted twice.
+	 *
+	 * @var string[]
+	 */
+	public const BACKFILL_SCOPES = array( 'deceased', 'living', 'published' );
+
 	/** Public although the class is static-only: WP-CLI instantiates array callables when invoking commands. */
 	public function __construct() {}
 
@@ -275,7 +285,7 @@ final class People_Sync {
 	 */
 	public static function coverage_gaps(): array {
 		global $wpdb;
-		$deceased = "EXISTS ( SELECT 1 FROM {$wpdb->postmeta} d WHERE d.post_id = p.ID AND d.meta_key = 'obit_death_date' AND d.meta_value <> '' )";
+		$deceased = self::scope_expression( 'deceased', $wpdb->postmeta );
 		$row      = $wpdb->get_row(
 			$wpdb->prepare(
 				"SELECT
@@ -554,20 +564,55 @@ final class People_Sync {
 	}
 
 	/**
-	 * Deceased (or every published) people still missing an occupation or a
-	 * portrait and not already checked inside the refresh window — the records
-	 * a Wikidata backfill can meaningfully improve. Records checked recently
-	 * are skipped so a re-run converges instead of re-asking for an occupation
-	 * Wikidata permanently lacks; `$refresh` ignores the marker and re-checks
-	 * everything missing.
+	 * Canonical backfill scope slug. Anything unusable falls back to
+	 * `deceased` — the default pass — rather than widening to `published`, so a
+	 * garbled form post, CLI flag or hook arg can never turn a targeted pass
+	 * into a whole-catalogue re-ask. Pure, so the fallback is verifiable
+	 * without WordPress.
+	 */
+	public static function normalize_scope( string $scope ): string {
+		$scope = strtolower( trim( $scope ) );
+		return in_array( $scope, self::BACKFILL_SCOPES, true ) ? $scope : 'deceased';
+	}
+
+	/**
+	 * The boolean SQL expression selecting a scope's records, with no leading
+	 * AND so it can be ANDed into a WHERE or used inside a CASE. The table name
+	 * is passed in rather than read from $wpdb, which keeps the mapping pure:
+	 * `living` is the exact negation of `deceased`, so the two scopes cannot
+	 * overlap or leave a record out of both.
 	 *
+	 * @param string $scope    A scope slug; anything unrecognised means deceased.
+	 * @param string $postmeta The prefixed postmeta table name.
+	 */
+	public static function scope_expression( string $scope, string $postmeta ): string {
+		$deceased = "EXISTS ( SELECT 1 FROM {$postmeta} d WHERE d.post_id = p.ID AND d.meta_key = 'obit_death_date' AND d.meta_value <> '' )";
+		switch ( self::normalize_scope( $scope ) ) {
+			case 'published':
+				return '1 = 1';
+			case 'living':
+				return "NOT ( {$deceased} )";
+			default:
+				return $deceased;
+		}
+	}
+
+	/**
+	 * Deceased, living, or every published person still missing an occupation
+	 * or a portrait and not already checked inside the refresh window — the
+	 * records a Wikidata backfill can meaningfully improve. Records checked
+	 * recently are skipped so a re-run converges instead of re-asking for an
+	 * occupation Wikidata permanently lacks; `$refresh` ignores the marker and
+	 * re-checks everything missing.
+	 *
+	 * @param string $scope One of self::BACKFILL_SCOPES; unusable means deceased.
 	 * @return int[] Post ids, never-checked first.
 	 */
-	public static function backfill_targets( bool $deceased, int $limit, bool $refresh = false ): array {
+	public static function backfill_targets( string $scope, int $limit, bool $refresh = false ): array {
 		global $wpdb;
-		$deceased_sql = $deceased
-			? "AND EXISTS (SELECT 1 FROM {$wpdb->postmeta} d WHERE d.post_id = p.ID AND d.meta_key = 'obit_death_date' AND d.meta_value <> '')"
-			: '';
+		$scope_sql   = 'published' === self::normalize_scope( $scope )
+			? ''
+			: 'AND ' . self::scope_expression( $scope, $wpdb->postmeta );
 		$checked_sql = '';
 		$args        = array(
 			self::META_OCCUPATIONS,
@@ -589,7 +634,7 @@ final class People_Sync {
 			 WHERE p.post_type = %s AND p.post_status = 'publish'
 			   AND ( occ.meta_value IS NULL OR occ.meta_value = '' OR img.meta_value IS NULL OR img.meta_value = '' )
 			   {$checked_sql}
-			   {$deceased_sql}
+			   {$scope_sql}
 			 ORDER BY ( enr.meta_value IS NULL OR enr.meta_value = '' ) DESC, p.ID ASC
 			 LIMIT %d",
 			...$args
@@ -670,7 +715,11 @@ final class People_Sync {
 	 * ## OPTIONS
 	 *
 	 * [--all]
-	 * : Include living people too. Default: deceased records only.
+	 * : Every published person (living and deceased). Default: deceased only.
+	 *
+	 * [--living]
+	 * : Living people only — those with no recorded death date. Takes
+	 *   precedence over --all, so the more specific request wins.
 	 *
 	 * [--limit=<n>]
 	 * : Most people to process. Default 3000.
@@ -685,18 +734,20 @@ final class People_Sync {
 	 *
 	 *     wp obitleague backfill-people
 	 *     wp obitleague backfill-people --all --limit=500
+	 *     wp obitleague backfill-people --living --limit=100
 	 *     wp obitleague backfill-people --refresh
 	 *
 	 * @param array<int,string>    $args       Positional args (unused).
 	 * @param array<string,string> $assoc_args Flags.
 	 */
 	public static function cli_backfill_people( array $args, array $assoc_args ): void {
-		$deceased = ! isset( $assoc_args['all'] );
-		$limit    = max( 1, (int) ( $assoc_args['limit'] ?? 3000 ) );
-		$refresh  = isset( $assoc_args['refresh'] );
-		$scope    = $deceased ? 'deceased' : 'published';
-		$targets  = self::backfill_targets( $deceased, $limit, $refresh );
-		$total    = count( $targets );
+		// --living narrows to people with no recorded death date, --all widens to
+		// every published person, neither is the deceased-only default.
+		$scope   = isset( $assoc_args['living'] ) ? 'living' : ( isset( $assoc_args['all'] ) ? 'published' : 'deceased' );
+		$limit   = max( 1, (int) ( $assoc_args['limit'] ?? 3000 ) );
+		$refresh = isset( $assoc_args['refresh'] );
+		$targets = self::backfill_targets( $scope, $limit, $refresh );
+		$total   = count( $targets );
 
 		if ( 0 === $total ) {
 			\WP_CLI::success( 'Nothing to backfill: every target has occupations and a portrait, or was checked recently (use --refresh to re-check).' );

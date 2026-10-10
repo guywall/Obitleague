@@ -74,17 +74,19 @@ final class Admin_Data_Sources {
 
 	/**
 	 * One-click direct backfill: fetch Wikidata now for the people still
-	 * missing occupations or a portrait, bounded so a web request cannot run
-	 * forever. The drained-queue path stays the queued sweep; this is the
-	 * immediate catch-up.
+	 * missing occupations or a portrait in the chosen scope — deceased, living,
+	 * or every published person — bounded so a web request cannot run forever.
+	 * The drained-queue path stays the queued sweep; this is the immediate
+	 * catch-up.
 	 */
 	public static function handle_backfill_people(): void {
 		self::guard( 'obitleague_sync_backfill_people' );
-		$scope     = sanitize_key( wp_unslash( (string) ( $_POST['scope'] ?? 'deceased' ) ) );
-		$published = 'published' === $scope;
-		$limit     = max( 1, min( 200, (int) ( $_POST['limit'] ?? 50 ) ) );
-		$refresh   = ! empty( $_POST['refresh'] );
-		$targets   = People_Sync::backfill_targets( ! $published, $limit, $refresh );
+		// normalize_scope() refuses anything unexpected, so a hand-crafted post
+		// falls back to the deceased-only default rather than the whole catalogue.
+		$scope   = People_Sync::normalize_scope( sanitize_key( wp_unslash( (string) ( $_POST['scope'] ?? 'deceased' ) ) ) );
+		$limit   = max( 1, min( 200, (int) ( $_POST['limit'] ?? 50 ) ) );
+		$refresh = ! empty( $_POST['refresh'] );
+		$targets = People_Sync::backfill_targets( $scope, $limit, $refresh );
 		if ( ! $targets ) {
 			self::redirect_notice( 'Nothing to backfill: every target has occupations and a portrait, or was checked recently (tick “re-check settled records” to force it).' );
 		}
@@ -94,7 +96,7 @@ final class Admin_Data_Sources {
 		$note  = sprintf(
 			'Backfilled %1$d %2$s people from Wikidata: %3$d now have occupations, %4$d a portrait',
 			(int) $stats['targets'],
-			$published ? 'published' : 'deceased',
+			$scope,
 			(int) $stats['occupations'],
 			(int) $stats['portraits']
 		);
@@ -439,6 +441,7 @@ final class Admin_Data_Sources {
 		echo '<label for="ob-backfill-scope" class="description" style="margin-right:6px">Backfill</label> ';
 		echo '<select id="ob-backfill-scope" name="scope">';
 		echo '<option value="deceased">deceased people</option>';
+		echo '<option value="living">living people</option>';
 		echo '<option value="published">all published people</option>';
 		echo '</select> ';
 		echo '<label for="ob-backfill-limit" class="description" style="margin-right:6px">up to</label> ';

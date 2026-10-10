@@ -168,4 +168,31 @@ final class Scenario_People_Sync {
 			'a deceased count above the total cannot make living negative'
 		);
 	}
+
+	public function test_normalize_scope_refuses_to_widen_the_pass( Runner $t ): void {
+		// A garbled form post, CLI flag or hook arg must never turn a targeted
+		// pass into a whole-catalogue re-ask, so anything unrecognised means the
+		// deceased-only default rather than the broadest scope.
+		$t->check( 'deceased' === People_Sync::normalize_scope( 'deceased' ), __METHOD__, 'deceased is accepted' );
+		$t->check( 'living' === People_Sync::normalize_scope( 'living' ), __METHOD__, 'living is accepted' );
+		$t->check( 'published' === People_Sync::normalize_scope( 'published' ), __METHOD__, 'published is accepted' );
+		$t->check( 'living' === People_Sync::normalize_scope( '  LIVING  ' ), __METHOD__, 'case and surrounding space are forgiven' );
+		$t->check( 'deceased' === People_Sync::normalize_scope( '' ), __METHOD__, 'an empty scope falls back to deceased' );
+		$t->check( 'deceased' === People_Sync::normalize_scope( 'everyone' ), __METHOD__, 'an unknown scope falls back to deceased' );
+		$t->check( 'deceased' === People_Sync::normalize_scope( '../publish' ), __METHOD__, 'a traversal attempt falls back to deceased' );
+	}
+
+	public function test_scope_expression_makes_living_the_negation_of_deceased( Runner $t ): void {
+		$meta      = 'wp_postmeta';
+		$deceased  = People_Sync::scope_expression( 'deceased', $meta );
+		$living    = People_Sync::scope_expression( 'living', $meta );
+		$published = People_Sync::scope_expression( 'published', $meta );
+
+		$t->check( str_contains( $deceased, 'obit_death_date' ), __METHOD__, 'deceased reads the death-date meta' );
+		$t->check( ! str_contains( $deceased, 'NOT' ), __METHOD__, 'deceased is a plain existence test' );
+		$t->check( "NOT ( {$deceased} )" === $living, __METHOD__, 'living is the exact negation of deceased' );
+		$t->check( str_contains( $living, $meta ), __METHOD__, 'the expression uses the postmeta table it was handed' );
+		$t->check( '1 = 1' === $published, __METHOD__, 'published filters nothing' );
+		$t->check( $deceased === People_Sync::scope_expression( 'nonsense', $meta ), __METHOD__, 'an unknown scope means deceased' );
+	}
 }
